@@ -58,9 +58,9 @@ type DeliveryParty = 'Technician' | 'Regional Warehouse' | 'Non Technician' | ''
 const createFormSchema = (deliveryParty: DeliveryParty) => {
   const baseSchema = {
     dateOrdered: z.date({ required_error: "Date is required" }),
-    itemCategory: z.string().min(1, "Item category is required"),
-    itemNature: z.string().min(1, "Item nature is required"),
-    deliveryParty: z.string().min(1, "Delivery party is required"),
+    itemCategory: z.string().min(1, "Item category is required").refine(val => val !== "select", "Please select a category"),
+    itemNature: z.string().min(1, "Item nature is required").refine(val => val !== "select", "Please select a nature"),
+    deliveryParty: z.string().min(1, "Delivery party is required").refine(val => val !== "select", "Please select a delivery party"),
     orderedBy: z.string().email("Valid email is required"),
   };
 
@@ -68,16 +68,16 @@ const createFormSchema = (deliveryParty: DeliveryParty) => {
   if (deliveryParty === 'Technician') {
     return z.object({
       ...baseSchema,
-      contractorCompany: z.string().min(1, "Contractor company is required"),
-      region: z.string().min(1, "Region is required"),
-      technician: z.string().min(1, "Technician is required"),
+      contractorCompany: z.string().min(1, "Contractor company is required").refine(val => val !== "select", "Please select a contractor"),
+      region: z.string().min(1, "Region is required").refine(val => val !== "select", "Please select a region"),
+      technician: z.string().min(1, "Technician is required").refine(val => val !== "select", "Please select a technician"),
       onBehalfOf: z.string().email("Valid email is required"),
       orderLocation: z.string().optional(),
     });
   } else if (deliveryParty === 'Regional Warehouse') {
     return z.object({
       ...baseSchema,
-      region: z.string().min(1, "Region is required"),
+      region: z.string().min(1, "Region is required").refine(val => val !== "select", "Please select a region"),
       recipientName: z.string().min(1, "Recipient name is required"),
       recipientEmail: z.string().email("Valid email is required"),
     });
@@ -107,9 +107,9 @@ const StockOrder = () => {
     resolver: zodResolver(createFormSchema('')),
     defaultValues: {
       dateOrdered: new Date(),
-      itemCategory: "",
-      itemNature: "",
-      deliveryParty: "",
+      itemCategory: "select",
+      itemNature: "select",
+      deliveryParty: "select",
       orderedBy: "",
     },
   });
@@ -268,6 +268,9 @@ const StockOrder = () => {
       // Reset form and cart
       form.reset({
         dateOrdered: new Date(),
+        itemCategory: "select",
+        itemNature: "select",
+        deliveryParty: "select",
         orderedBy: formData.orderedBy, // Keep the user's email
       });
       setCart([]);
@@ -422,7 +425,7 @@ const StockOrder = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">Select...</SelectItem>
+                            <SelectItem value="select">Select...</SelectItem>
                             <SelectItem value="Technician">Technician</SelectItem>
                             <SelectItem value="Regional Warehouse">Regional Warehouse</SelectItem>
                             <SelectItem value="Non Technician">Non Technician</SelectItem>
@@ -569,7 +572,7 @@ const StockOrder = () => {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">Select...</SelectItem>
+                                <SelectItem value="select">Select...</SelectItem>
                                 <SelectItem value="KZN">KZN</SelectItem>
                                 <SelectItem value="WC">WC</SelectItem>
                               </SelectContent>
@@ -734,7 +737,7 @@ const StockOrder = () => {
                     Checkout ({cart.length})
                   </Button>
                 </div>
-                {!deliveryParty && (
+                {(!deliveryParty || deliveryParty === 'select') && (
                   <p className="mt-2 text-sm text-muted-foreground text-center">
                     Please enter Order Details to activate device gallery
                   </p>
