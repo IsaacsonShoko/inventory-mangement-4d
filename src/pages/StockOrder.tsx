@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Menu, Search, ShoppingCart, Plus, Package, Trash2, CheckCircle2 } from "lucide-react";
+import { CalendarIcon, Menu, Search, ShoppingCart, Plus, Package, Trash2, CheckCircle2, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +73,7 @@ const createFormSchema = (deliveryParty: DeliveryParty) => {
       technician: z.string().min(1, "Technician is required").refine(val => val !== "select", "Please select a technician"),
       onBehalfOf: z.string().email("Valid email is required"),
       orderLocation: z.string().optional(),
+      popId: z.string().optional(),
     });
   } else if (deliveryParty === 'Regional Warehouse') {
     return z.object({
@@ -102,6 +103,7 @@ const StockOrder = () => {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<any>({
     resolver: zodResolver(createFormSchema('')),
@@ -111,6 +113,17 @@ const StockOrder = () => {
       itemNature: "select",
       deliveryParty: "select",
       orderedBy: "",
+      contractorCompany: "select",
+      region: "select",
+      technician: "select",
+      onBehalfOf: "",
+      orderLocation: "",
+      popId: "",
+      recipientName: "",
+      recipientCompanyName: "",
+      recipientAddress: "",
+      recipientContactNumber: "",
+      recipientEmail: "",
     },
   });
 
@@ -128,43 +141,70 @@ const StockOrder = () => {
   const { data: contractors } = useContractors();
   const { data: regions } = useRegions(selectedContractor);
   const { data: technicians } = useTechnicians(selectedContractor, selectedRegion);
-  const { data: inventory, isLoading: inventoryLoading } = useInventoryItems({
+  const { data: inventory, isLoading: inventoryLoading, refetch: refetchInventory } = useInventoryItems({
     category: selectedCategory,
     serialized: selectedNature === 'Serialised' ? 'Y' : selectedNature === 'Non-serialised' ? 'N' : undefined
   });
   
   const createOrderMutation = useCreateOrder();
 
-  // Update form schema when delivery party changes
+  // Lock form fields once items are in cart
+  const isFormLocked = cart.length > 0;
+
+  // Update form validation schema when delivery party changes
   useEffect(() => {
+    const currentValues = form.getValues();
     form.clearErrors();
+    
+    // Reset conditional fields when switching delivery party
+    if (deliveryParty !== 'Technician') {
+      form.setValue('contractorCompany', 'select');
+      form.setValue('technician', 'select');
+      form.setValue('onBehalfOf', '');
+      form.setValue('orderLocation', '');
+      form.setValue('popId', '');
+    }
+    if (deliveryParty !== 'Regional Warehouse' && deliveryParty !== 'Technician') {
+      form.setValue('region', 'select');
+    }
+    if (deliveryParty !== 'Regional Warehouse' && deliveryParty !== 'Non Technician') {
+      form.setValue('recipientName', '');
+      form.setValue('recipientEmail', '');
+    }
+    if (deliveryParty !== 'Non Technician') {
+      form.setValue('recipientCompanyName', '');
+      form.setValue('recipientAddress', '');
+      form.setValue('recipientContactNumber', '');
+    }
   }, [deliveryParty]);
 
-  // Auto-fill recipient email for Regional Warehouse
+  // Regional Warehouse auto-fill
   useEffect(() => {
-    if (deliveryParty === 'Regional Warehouse' && selectedRegion) {
+    if (deliveryParty === 'Regional Warehouse' && selectedRegion && selectedRegion !== 'select') {
       const defaultEmails: Record<string, string> = {
         'KZN': 'modestam@xlink.co.za',
         'WC': 'waynef@xlcontractor.co.za'
       };
+      const defaultNames: Record<string, string> = {
+        'KZN': 'Modesta Maphumulo',
+        'WC': 'Wayne Fuller'
+      };
       form.setValue('recipientEmail', defaultEmails[selectedRegion] || '');
-      form.setValue('recipientName', selectedRegion === 'KZN' ? 'Modesta Maphumulo' : selectedRegion === 'WC' ? 'Wayne Fuller' : '');
+      form.setValue('recipientName', defaultNames[selectedRegion] || '');
     }
   }, [deliveryParty, selectedRegion]);
 
-  // Auto-fill technician details
+  // Technician details auto-fill with PoPID
   useEffect(() => {
-    if (deliveryParty === 'Technician' && selectedTechnician && technicians) {
+    if (deliveryParty === 'Technician' && selectedTechnician && selectedTechnician !== 'select' && technicians) {
       const tech = technicians.find(t => t.fields['Name & Surname'] === selectedTechnician);
       if (tech) {
         form.setValue('onBehalfOf', tech.fields['Email Address'] || '');
         form.setValue('orderLocation', tech.fields['Area Based'] || '');
+        form.setValue('popId', tech.id || '');
       }
     }
   }, [selectedTechnician, technicians, deliveryParty]);
-
-  // Disable cart modifications once items are added to different categories
-  const isFormLocked = cart.length > 0;
 
   // Filter inventory by search
   const filteredInventory = inventory?.filter(item => {
@@ -230,30 +270,34 @@ const StockOrder = () => {
   };
 
   const submitOrder = async () => {
+    setIsSubmitting(true);
+    
+    const formValues = form.getValues();
     const formData: OrderFormData = {
-      dateOrdered: form.getValues('dateOrdered'),
-      itemCategory: form.getValues('itemCategory'),
-      itemNature: form.getValues('itemNature'),
-      deliveryParty: form.getValues('deliveryParty'),
-      orderedBy: form.getValues('orderedBy'),
+      dateOrdered: formValues.dateOrdered,
+      itemCategory: formValues.itemCategory,
+      itemNature: formValues.itemNature,
+      deliveryParty: formValues.deliveryParty,
+      orderedBy: formValues.orderedBy,
       ...(deliveryParty === 'Technician' && {
-        contractorCompany: form.getValues('contractorCompany'),
-        region: form.getValues('region'),
-        technician: form.getValues('technician'),
-        onBehalfOf: form.getValues('onBehalfOf'),
-        orderLocation: form.getValues('orderLocation'),
+        contractorCompany: formValues.contractorCompany,
+        region: formValues.region,
+        technician: formValues.technician,
+        onBehalfOf: formValues.onBehalfOf,
+        orderLocation: formValues.orderLocation,
+        popId: formValues.popId,
       }),
       ...(deliveryParty === 'Regional Warehouse' && {
-        region: form.getValues('region'),
-        recipientName: form.getValues('recipientName'),
-        recipientEmail: form.getValues('recipientEmail'),
+        region: formValues.region,
+        recipientName: formValues.recipientName,
+        recipientEmail: formValues.recipientEmail,
       }),
       ...(deliveryParty === 'Non Technician' && {
-        recipientName: form.getValues('recipientName'),
-        recipientCompanyName: form.getValues('recipientCompanyName'),
-        recipientAddress: form.getValues('recipientAddress'),
-        recipientContactNumber: form.getValues('recipientContactNumber'),
-        recipientEmail: form.getValues('recipientEmail'),
+        recipientName: formValues.recipientName,
+        recipientCompanyName: formValues.recipientCompanyName,
+        recipientAddress: formValues.recipientAddress,
+        recipientContactNumber: formValues.recipientContactNumber,
+        recipientEmail: formValues.recipientEmail,
       }),
     };
 
@@ -265,14 +309,32 @@ const StockOrder = () => {
         description: `Order ID: ${result.orderId}. ${cart.length} item(s) have been ordered.`,
       });
 
-      // Reset form and cart
+      // Refresh inventory
+      refetchInventory();
+
+      // Save orderedBy email
+      const savedEmail = formValues.orderedBy;
+
+      // Reset form but keep orderedBy
       form.reset({
         dateOrdered: new Date(),
         itemCategory: "select",
         itemNature: "select",
         deliveryParty: "select",
-        orderedBy: formData.orderedBy, // Keep the user's email
+        orderedBy: savedEmail,
+        contractorCompany: "select",
+        region: "select",
+        technician: "select",
+        onBehalfOf: "",
+        orderLocation: "",
+        popId: "",
+        recipientName: "",
+        recipientCompanyName: "",
+        recipientAddress: "",
+        recipientContactNumber: "",
+        recipientEmail: "",
       });
+      
       setCart([]);
       setQuantities({});
       setShowCheckoutDialog(false);
@@ -282,20 +344,21 @@ const StockOrder = () => {
         description: "There was an error submitting your order. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  const isSearchEnabled = selectedCategory !== "select" && selectedNature !== "select" && deliveryParty !== "select";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary via-secondary to-accent">
-      {/* Header */}
       <header className="bg-primary text-white p-4 shadow-lg">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/">
-              <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </Link>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+              <Menu className="h-6 w-6" />
+            </Button>
             <h1 className="text-2xl font-bold">Xlink Stock Order</h1>
           </div>
         </div>
@@ -365,6 +428,7 @@ const StockOrder = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value="select">Select...</SelectItem>
                             {categoriesLoading ? (
                               <SelectItem value="loading" disabled>Loading...</SelectItem>
                             ) : (
@@ -391,7 +455,7 @@ const StockOrder = () => {
                         <Select 
                           onValueChange={field.onChange} 
                           value={field.value}
-                          disabled={!selectedCategory}
+                          disabled={!selectedCategory || selectedCategory === 'select' || isFormLocked}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -399,6 +463,7 @@ const StockOrder = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value="select">Select...</SelectItem>
                             {natures?.map((nature) => (
                               <SelectItem key={nature} value={nature}>
                                 {nature}
@@ -909,16 +974,23 @@ const StockOrder = () => {
             <Button
               variant="outline"
               onClick={() => setShowCheckoutDialog(false)}
-              disabled={createOrderMutation.isPending}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button
               onClick={submitOrder}
-              disabled={createOrderMutation.isPending}
+              disabled={isSubmitting}
               className="bg-primary"
             >
-              {createOrderMutation.isPending ? "Submitting..." : "Submit Order"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit Order"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

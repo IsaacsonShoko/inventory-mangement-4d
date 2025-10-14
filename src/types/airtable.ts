@@ -80,6 +80,7 @@ export interface OrderFormData {
   recipientEmail?: string;
   orderedBy: string;
   orderLocation?: string;
+  popId?: string;
 }
 
 export interface CartItem {
