@@ -8,6 +8,31 @@ import type {
   CartItem
 } from '@/types/airtable';
 
+const formatAirtableError = (error: unknown, context: string) => {
+  const baseMessage = `Airtable ${context} failed`;
+
+  if (error instanceof Error) {
+    return new Error(`${baseMessage}: ${error.message}`);
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const rawError = (error as { message?: unknown; error?: { message?: unknown; type?: unknown } });
+
+    const messages = [
+      rawError?.message,
+      rawError?.error?.message,
+      rawError?.error?.type,
+    ]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+    if (messages.length > 0) {
+      return new Error(`${baseMessage}: ${messages.join(' - ')}`);
+    }
+  }
+
+  return new Error(`${baseMessage}: Unexpected error`);
+};
+
 // Inventory Services
 export const inventoryService = {
   /**
@@ -40,7 +65,7 @@ export const inventoryService = {
       }));
     } catch (error) {
       console.error('Error fetching inventory:', error);
-      throw error;
+      throw formatAirtableError(error, 'inventory fetch');
     }
   },
 
@@ -79,7 +104,7 @@ export const popService = {
       }));
     } catch (error) {
       console.error('Error fetching Point of Presence:', error);
-      throw error;
+      throw formatAirtableError(error, 'Point of Presence fetch');
     }
   },
 
@@ -147,7 +172,7 @@ export const businessLinesService = {
       }));
     } catch (error) {
       console.error('Error fetching business lines:', error);
-      throw error;
+      throw formatAirtableError(error, 'business lines fetch');
     }
   },
 
@@ -192,6 +217,10 @@ export const orderService = {
     try {
       // Generate a unique order ID
       const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+      const popIdValue = formData.popId && !Number.isNaN(Number(formData.popId))
+        ? Number(formData.popId)
+        : undefined;
       
       // Create order records for each cart item
       const orderRecords = cartItems.map(item => ({
@@ -199,7 +228,7 @@ export const orderService = {
           'Order ID': orderId,
           'Date Ordered': formData.dateOrdered.toISOString().split('T')[0],
           'Item Category': formData.itemCategory,
-          'Item Nature': formData.itemNature,
+          'Item Nature': item.itemNature || formData.itemNature,
           'Device type': item.deviceType,
           'Quantity ordered': item.quantity,
           'Ordered by': formData.orderedBy,
@@ -209,6 +238,7 @@ export const orderService = {
           ...(formData.technician && { 'Technician': formData.technician }),
           ...(formData.onBehalfOf && { 'On Behalf of': formData.onBehalfOf }),
           ...(formData.orderLocation && { 'Order Location': formData.orderLocation }),
+          ...(popIdValue !== undefined && { 'PoPID': popIdValue }),
           ...(formData.recipientName && { 'Recipient Name': formData.recipientName }),
           ...(formData.recipientCompanyName && { 'Recipient Company Name': formData.recipientCompanyName }),
           ...(formData.recipientAddress && { 'Recipient Address': formData.recipientAddress }),
@@ -232,7 +262,7 @@ export const orderService = {
       };
     } catch (error) {
       console.error('Error creating order:', error);
-      throw error;
+      throw formatAirtableError(error, 'order creation');
     }
   },
 
@@ -253,7 +283,7 @@ export const orderService = {
       }));
     } catch (error) {
       console.error('Error fetching orders:', error);
-      throw error;
+      throw formatAirtableError(error, 'orders fetch');
     }
   },
 
@@ -274,7 +304,7 @@ export const orderService = {
       }));
     } catch (error) {
       console.error('Error fetching order by ID:', error);
-      throw error;
+      throw formatAirtableError(error, 'order lookup by ID');
     }
   }
 };

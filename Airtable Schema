@@ -1,0 +1,160 @@
+# Airtable Database Schema
+
+This document is the canonical reference for the Airtable base backing the inventory management application. It reflects the live schema retrieved on **2025-10-14** from base `appbFRxaDoYTDJl0v` via the Airtable Metadata API.
+
+---
+
+## Table: `Unique_Orders` (`tblyqUnUVOyvQwRAA`)
+
+| Field Name | Type | Notes |
+|------------|------|-------|
+| Order ID | Auto number | Primary field used as human-readable order reference. |
+| Date Ordered | Date/Time (UTC) | Order submission timestamp. |
+| Item Category | Single line text | Category selected during ordering. |
+| Item Nature | Single line text | Serialised / Non-serialised flag captured from the form. |
+| Region | Single line text | Delivery region. |
+| Contractor Company | Single line text | Required for technician deliveries. |
+| Technician | Single line text | Technician name for technician deliveries. |
+| Quantity Ordered | Number | Quantity per line item. |
+| Dispatch Status | Single select | Workflow state (`Pending`, `Dispatched`, `Partial`, etc.). |
+| Stock Availability | Single select | Inventory availability snapshot. |
+| Pick Status | Single select | Picking workflow state. |
+| Dispatch Method | Single select | Courier / In-house / Pickup / Other. |
+| WayBill Number | Single line text | Courier reference. |
+| Ordered by | Single line text | Email captured from the form. |
+| On Behalf of | Single line text | Auto-filled from technician email when applicable. |
+| PoPID | Single line text | Technician location identifier (string in current base). |
+| Deliver to Part | Single line text | Technician / Regional Warehouse / Non Technician. |
+| Recipient Name / Company / Address / Contact / Email | Text & Email | Captured for non-technician and warehouse deliveries. |
+| Order Location | Single line text | Auto-filled location metadata. |
+| Warehouse Fulfilling | Single line text | Assigned warehouse. |
+| Attachments | Attachment(s) | Supporting documentation. |
+| Order Notes | Long text | Free-form notes. |
+| Dispatch Log | Linked records → `Dispatch_Log` | Reverse link field `Order Id`. |
+| Stock Order | Linked records → `Stock_Order` | Reverse link field `Related Unique Order`. |
+| Order Summary (AI Generated) | AI text | Airtable-generated summary, read-only. |
+
+**Usage**: Each cart submission from the app creates one or more rows in this table (one per item). Operational teams use the additional workflow fields to coordinate picking, dispatch, and fulfillment.
+
+---
+
+## Table: `Dispatch_Log` (`tblkDF6kf0gsUWJZk`)
+
+| Field Name | Type | Notes |
+|------------|------|-------|
+| ID | Auto number | Primary dispatch record identifier. |
+| Order Id | Linked record → `Unique_Orders` | Associates the dispatch event with an order line. |
+| Date Dispatched | Date | Calendar day goods left the warehouse. |
+| Item Category / Nature / Description / Device type | Single line text | Snapshot of dispatched item details. |
+| Serial Number fields | Single line text | Tracks cradle, terminal, charger serials where relevant. |
+| Quantity | Number | Units dispatched. |
+| Region / Contractor Company / Technician | Single line text | Mirrors order routing data. |
+| Waybill number | Single line text | Courier reference. |
+| Packer / Dispatcher | Single line text | Operational accountability. |
+| Dispatch Method | Single select | Courier / In-house / Pickup / Other. |
+| Stock Availability / Pick Status | Single line text | Snapshot at dispatch time. |
+| Shipped | Single select | Yes / No toggle. |
+| Package Reference | Single line text | Parcel identifier. |
+| Item Code | Single line text | SKU or internal code. |
+| StockOrderID | Single line text | Reference to `Stock_Order` row. |
+| Accessory flags (ChargerPacked, Cables, Paper Rolls, etc.) | Single line text | Optional logistics metadata. |
+| Location & Action fields | Single line text | Provide audit trail of item movement. |
+| TimePicked / TimeDispatched | Date/Time | Timestamps for pick and dispatch. |
+| Warehouse Fulfilling | Single line text | Dispatching warehouse. |
+| Bill Folder | Attachments | Supporting documents. |
+| Stock Order | Linked records → `Stock_Order` | Reverse link `Related Dispatch Log Entry`. |
+
+**Usage**: Populated as warehouse teams fulfill or partially fulfill orders. Not directly written by the React frontend today but important for downstream reporting.
+
+---
+
+## Table: `Stock_Order` (`tblyezK6u6JsGu4cJ`)
+
+| Field Name | Type | Notes |
+|------------|------|-------|
+| ID | Auto number | Primary field. |
+| Order Id | Single line text | Mirrors `Unique_Orders` → `Order ID`. |
+| Device type | Single line text | Item code selected in the app. |
+| Date Ordered | Date | Calendar day captured from the form. |
+| Quantity ordered / QTY dispatched | Numbers | Order vs. fulfilled quantity. |
+| Contractor Company / Region / Technician | Single line text | Routing data. |
+| Waybill number | Single line text | Courier reference. |
+| Dispatch / order | Single select | Indicates whether the row represents a dispatch or pending order. |
+| Dispatch to | Single line text | Destination contact/location. |
+| Ordered by | Single line text | Email captured from the form. |
+| Item Category / Description / Nature | Single line text | Mirrors the selected category and description. |
+| Order Location | Single line text | Technician area / warehouse. |
+| Status flags (Stock Availability, Pick Status, Dispatch Method) | Single select | Operational workflow metadata. |
+| Recipient Name / Contact / Address | Text | Delivery details. |
+| Deliver to Part | Single line text | Delivery party selection. |
+| Dispatch Date | Date | Fulfillment tracking. |
+| Notes, Attachments, Bill Folder | Text & Attachments | Optional supporting artefacts. |
+| Related Unique Order | Linked record → `Unique_Orders` | Reverse link `Stock Order`. |
+| Related Dispatch Log Entry | Linked record → `Dispatch_Log` | Reverse link `Stock Order`. |
+
+**Usage**: Represents the core transactional table for order submissions. The React app currently writes new rows into this table via the Airtable API.
+
+---
+
+## Table: `Inventory_Items` (`tbla6U4lTWvBM7yiW`)
+
+| Field Name | Type | Notes |
+|------------|------|-------|
+| Item_Name | Long text | Display name / SKU description shown in the catalog. |
+| Item_Url | Long text | Public S3 image URL. |
+| Item_Category | Single select | Source of truth for category filters (Accessories, Cash Connect, VPS, Modems, SIM Management, ABSA, Other). |
+| Item_Description | Long text | Extended description displayed in the product card. |
+| Item_Nature | Single line text | `Serialised` or `Non-serialised` values consumed by the app. |
+
+**Usage**: Drives the product gallery. Category and nature values are derived from this table—there is no standalone “Business Lines” table in the current base.
+
+---
+
+## Table: `Point of Presence` (`tblm1u9gUS4cFCd79`)
+
+| Field Name | Type | Notes |
+|------------|------|-------|
+| ID | Number | Primary technician identifier. |
+| Tech ID | Date/Time | Airtable historical field; not currently consumed. |
+| Name & Surname | Long text | Technician full name (note leading whitespace in field name within Airtable). |
+| Contractor ID | Date/Time | Legacy field. |
+| Mobile | Number | Contact number. |
+| Contractor | Long text | Contractor name. |
+| Region | Long text | Technician region (e.g., KZN, WC, GP). |
+| Area Based | Long text | Detailed location. |
+| Physical Address | Long text | Shipping address. |
+| Latitude / Longitude | Number | Geo coordinates (integers in this base). |
+| Email Address | Long text | Technician email used for “On Behalf of”. |
+| Comment fields (Absa, Cash Connect, etc.) | Long text | Additional operational notes. |
+| Location Code | Long text | Unique code used as PoPID in the React app. |
+
+**Usage**: Populates contractor, region, technician, and derived contact information when the delivery party is “Technician”.
+
+---
+
+## Environment Variables
+
+Set the following IDs in `.env` to align with the live base:
+
+```env
+VITE_AIRTABLE_BASE_ID=appbFRxaDoYTDJl0v
+VITE_AIRTABLE_INVENTORY_TABLE_ID=tbla6U4lTWvBM7yiW          # Inventory_Items
+VITE_AIRTABLE_POINT_OF_PRESENCE_TABLE_ID=tblm1u9gUS4cFCd79  # Point of Presence
+VITE_AIRTABLE_BUSINESS_LINES_TABLE_ID=tbla6U4lTWvBM7yiW      # Derived from Inventory_Items (no separate table)
+VITE_AIRTABLE_ORDERS_TABLE_ID=tblyezK6u6JsGu4cJ             # Stock_Order
+VITE_AIRTABLE_DISPATCH_LOG_TABLE_ID=tblkDF6kf0gsUWJZk       # (new) Dispatch_Log references
+VITE_AIRTABLE_UNIQUE_ORDERS_TABLE_ID=tblyqUnUVOyvQwRAA      # Optional: historical reporting
+```
+
+> **Note:** Because the base no longer has a dedicated “Business Lines” table, both category and nature lookups should be derived from the `Inventory_Items` single-select values.
+
+---
+
+## Data Flow Summary
+
+1. **Browse Inventory** → `Inventory_Items`
+2. **Select Recipient** → `Point of Presence`
+3. **Submit Order** → `Stock_Order` (with optional back-links to `Unique_Orders`)
+4. **Warehouse Fulfillment** → `Dispatch_Log` updates and `Unique_Orders` status changes
+
+This flow matches the PowerApp behaviour and ensures parity between the legacy solution and the React frontend.

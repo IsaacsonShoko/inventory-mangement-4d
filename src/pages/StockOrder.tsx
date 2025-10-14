@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
 import { CalendarIcon, Menu, Search, ShoppingCart, Plus, Package, Trash2, CheckCircle2, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,10 +50,30 @@ import {
 import type { CartItem, OrderFormData } from "@/types/airtable";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Define delivery party types
 type DeliveryParty = 'Technician' | 'Regional Warehouse' | 'Non Technician' | 'select' | '';
 
-// Form schema with conditional validation
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const rawError = error as { message?: unknown; error?: { message?: unknown; type?: unknown } };
+
+    const messages = [
+      rawError?.message,
+      rawError?.error?.message,
+      rawError?.error?.type,
+    ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+    if (messages.length > 0) {
+      return messages.join(' - ');
+    }
+  }
+
+  return 'An unexpected error occurred.';
+};
+
 const createFormSchema = (deliveryParty: DeliveryParty) => {
   const baseSchema = {
     dateOrdered: z.date({ required_error: "Date is required" }),
@@ -64,7 +83,6 @@ const createFormSchema = (deliveryParty: DeliveryParty) => {
     orderedBy: z.string().email("Valid email is required"),
   };
 
-  // Add conditional fields based on delivery party
   if (deliveryParty === 'Technician') {
     return z.object({
       ...baseSchema,
@@ -127,7 +145,6 @@ const StockOrder = () => {
     },
   });
 
-  // Watch form values for conditional rendering
   const deliveryParty = form.watch("deliveryParty") as DeliveryParty;
   const selectedCategory = form.watch("itemCategory");
   const selectedNature = form.watch("itemNature");
@@ -135,28 +152,68 @@ const StockOrder = () => {
   const selectedRegion = form.watch("region");
   const selectedTechnician = form.watch("technician");
 
-  // Fetch data from Airtable
-  const { data: categories, isLoading: categoriesLoading } = useItemCategories();
-  const { data: natures } = useItemNatures(selectedCategory);
-  const { data: contractors } = useContractors();
-  const { data: regions } = useRegions(selectedContractor);
-  const { data: technicians } = useTechnicians(selectedContractor, selectedRegion);
-  const { data: inventory, isLoading: inventoryLoading, refetch: refetchInventory } = useInventoryItems({
-    category: selectedCategory,
-    serialized: selectedNature === 'Serialised' ? 'Y' : selectedNature === 'Non-serialised' ? 'N' : undefined
-  });
+  const normalizedCategory = selectedCategory && selectedCategory !== "select" ? selectedCategory : undefined;
+  const normalizedNature = selectedNature && selectedNature !== "select" ? selectedNature : undefined;
+  const serializedFilter = normalizedNature === "Serialised" ? "Y" : normalizedNature === "Non-serialised" ? "N" : undefined;
+  const normalizedContractor = selectedContractor && selectedContractor !== "select" ? selectedContractor : undefined;
+  const normalizedRegion = selectedRegion && selectedRegion !== "select" ? selectedRegion : undefined;
+
+  const inventoryFilters = normalizedCategory && serializedFilter
+    ? { category: normalizedCategory, serialized: serializedFilter }
+    : undefined;
+  const shouldRefetchInventory = Boolean(inventoryFilters);
+
+  const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useItemCategories();
+  const { data: natures, isLoading: naturesLoading, error: naturesError } = useItemNatures(normalizedCategory);
+  const { data: contractors, isLoading: contractorsLoading, error: contractorsError } = useContractors();
+  const { data: regions, isLoading: regionsLoading, error: regionsError } = useRegions(normalizedContractor, deliveryParty);
+  const { data: technicians, isLoading: techniciansLoading, error: techniciansError } = useTechnicians(normalizedContractor, normalizedRegion);
+  const { 
+    data: inventory, 
+    isLoading: inventoryLoading, 
+    isFetching: inventoryFetching, 
+    refetch: refetchInventory,
+    error: inventoryError 
+  } = useInventoryItems(inventoryFilters);
+
+  const isInventoryLoading = inventoryLoading || inventoryFetching;
   
   const createOrderMutation = useCreateOrder();
 
-  // Lock form fields once items are in cart
+  useEffect(() => {
+    const errorContexts = [
+      { error: categoriesError, context: 'item categories' },
+      { error: naturesError, context: 'item natures' },
+      { error: contractorsError, context: 'contractors' },
+      { error: regionsError, context: 'regions' },
+      { error: techniciansError, context: 'technicians' },
+      { error: inventoryError, context: 'inventory' },
+    ];
+
+    errorContexts.forEach(({ error, context }) => {
+      if (error) {
+        toast({
+          title: `Failed to load ${context}`,
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      }
+    });
+  }, [
+    categoriesError,
+    naturesError,
+    contractorsError,
+    regionsError,
+    techniciansError,
+    inventoryError,
+    toast,
+  ]);
+
   const isFormLocked = cart.length > 0;
 
-  // Update form validation schema when delivery party changes
   useEffect(() => {
-    const currentValues = form.getValues();
     form.clearErrors();
     
-    // Reset conditional fields when switching delivery party
     if (deliveryParty !== 'Technician') {
       form.setValue('contractorCompany', 'select');
       form.setValue('technician', 'select');
@@ -178,7 +235,6 @@ const StockOrder = () => {
     }
   }, [deliveryParty]);
 
-  // Regional Warehouse auto-fill
   useEffect(() => {
     if (deliveryParty === 'Regional Warehouse' && selectedRegion && selectedRegion !== 'select') {
       const defaultEmails: Record<string, string> = {
@@ -194,19 +250,17 @@ const StockOrder = () => {
     }
   }, [deliveryParty, selectedRegion]);
 
-  // Technician details auto-fill with PoPID
   useEffect(() => {
     if (deliveryParty === 'Technician' && selectedTechnician && selectedTechnician !== 'select' && technicians) {
       const tech = technicians.find(t => t.fields['Name & Surname'] === selectedTechnician);
       if (tech) {
         form.setValue('onBehalfOf', tech.fields['Email Address'] || '');
         form.setValue('orderLocation', tech.fields['Area Based'] || '');
-        form.setValue('popId', tech.id || '');
+        form.setValue('popId', tech.fields['Location Code'] || tech.id || '');
       }
     }
   }, [selectedTechnician, technicians, deliveryParty]);
 
-  // Filter inventory by search
   const filteredInventory = inventory?.filter(item => {
     if (!searchQuery) return true;
     const search = searchQuery.toLowerCase();
@@ -238,7 +292,6 @@ const StockOrder = () => {
 
     setCart([...cart, cartItem]);
     setQuantities({ ...quantities, [item.id]: 0 });
-    
     setShowSuccessModal(true);
   };
 
@@ -309,13 +362,12 @@ const StockOrder = () => {
         description: `Order ID: ${result.orderId}. ${cart.length} item(s) have been ordered.`,
       });
 
-      // Refresh inventory
-      refetchInventory();
+      if (shouldRefetchInventory) {
+        refetchInventory();
+      }
 
-      // Save orderedBy email
       const savedEmail = formValues.orderedBy;
 
-      // Reset form but keep orderedBy
       form.reset({
         dateOrdered: new Date(),
         itemCategory: "select",
@@ -349,7 +401,7 @@ const StockOrder = () => {
     }
   };
 
-  const isSearchEnabled = selectedCategory !== "select" && selectedNature !== "select" && deliveryParty !== "select";
+  const isSearchEnabled = Boolean(normalizedCategory && normalizedNature && deliveryParty && deliveryParty !== "select");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary via-secondary to-accent">
@@ -366,7 +418,6 @@ const StockOrder = () => {
 
       <div className="container mx-auto p-6">
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-          {/* Order Details Form */}
           <Card className="h-fit bg-white/95 backdrop-blur sticky top-6">
             <CardHeader className="bg-primary text-white">
               <CardTitle>Order Details Form</CardTitle>
@@ -374,7 +425,6 @@ const StockOrder = () => {
             <CardContent className="pt-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
               <Form {...form}>
                 <form className="space-y-4">
-                  {/* Date Ordered */}
                   <FormField
                     control={form.control}
                     name="dateOrdered"
@@ -410,7 +460,6 @@ const StockOrder = () => {
                     )}
                   />
 
-                  {/* Item Category */}
                   <FormField
                     control={form.control}
                     name="itemCategory"
@@ -445,7 +494,6 @@ const StockOrder = () => {
                     )}
                   />
 
-                  {/* Item Nature */}
                   <FormField
                     control={form.control}
                     name="itemNature"
@@ -455,7 +503,7 @@ const StockOrder = () => {
                         <Select 
                           onValueChange={field.onChange} 
                           value={field.value}
-                          disabled={!selectedCategory || selectedCategory === 'select' || isFormLocked}
+                          disabled={!normalizedCategory || isFormLocked || naturesLoading}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -464,11 +512,23 @@ const StockOrder = () => {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="select">Select...</SelectItem>
-                            {natures?.map((nature) => (
-                              <SelectItem key={nature} value={nature}>
-                                {nature}
+                            {naturesLoading && (
+                              <SelectItem value="loading" disabled>
+                                Loading...
                               </SelectItem>
-                            ))}
+                            )}
+                            {!naturesLoading && normalizedCategory && natures?.length ? (
+                              natures.map((nature) => (
+                                <SelectItem key={nature} value={nature}>
+                                  {nature}
+                                </SelectItem>
+                              ))
+                            ) : null}
+                            {!naturesLoading && normalizedCategory && !natures?.length && (
+                              <SelectItem value="empty" disabled>
+                                No item natures found
+                              </SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -476,7 +536,6 @@ const StockOrder = () => {
                     )}
                   />
 
-                  {/* Delivery Party */}
                   <FormField
                     control={form.control}
                     name="deliveryParty"
@@ -501,7 +560,6 @@ const StockOrder = () => {
                     )}
                   />
 
-                  {/* TECHNICIAN SECTION */}
                   {deliveryParty === 'Technician' && (
                     <>
                       <div className="bg-primary/10 p-3 rounded-lg">
@@ -514,18 +572,35 @@ const StockOrder = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Contractor Company</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                              disabled={contractorsLoading}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select contractor" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {contractors?.map((contractor) => (
-                                  <SelectItem key={contractor} value={contractor}>
-                                    {contractor}
+                                <SelectItem value="select">Select...</SelectItem>
+                                {contractorsLoading && (
+                                  <SelectItem value="loading" disabled>
+                                    Loading...
                                   </SelectItem>
-                                ))}
+                                )}
+                                {!contractorsLoading && contractors?.length ? (
+                                  contractors.map((contractor) => (
+                                    <SelectItem key={contractor} value={contractor}>
+                                      {contractor}
+                                    </SelectItem>
+                                  ))
+                                ) : null}
+                                {!contractorsLoading && !contractors?.length && (
+                                  <SelectItem value="empty" disabled>
+                                    No contractors available
+                                  </SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -542,7 +617,7 @@ const StockOrder = () => {
                             <Select 
                               onValueChange={field.onChange} 
                               value={field.value}
-                              disabled={!selectedContractor}
+                              disabled={!normalizedContractor || regionsLoading}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -550,11 +625,24 @@ const StockOrder = () => {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {regions?.map((region) => (
-                                  <SelectItem key={region} value={region}>
-                                    {region}
+                                <SelectItem value="select">Select...</SelectItem>
+                                {regionsLoading && (
+                                  <SelectItem value="loading" disabled>
+                                    Loading...
                                   </SelectItem>
-                                ))}
+                                )}
+                                {!regionsLoading && normalizedContractor && regions?.length ? (
+                                  regions.map((region) => (
+                                    <SelectItem key={region} value={region}>
+                                      {region}
+                                    </SelectItem>
+                                  ))
+                                ) : null}
+                                {!regionsLoading && normalizedContractor && !regions?.length && (
+                                  <SelectItem value="empty" disabled>
+                                    No regions found
+                                  </SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -571,7 +659,7 @@ const StockOrder = () => {
                             <Select 
                               onValueChange={field.onChange} 
                               value={field.value}
-                              disabled={!selectedRegion}
+                              disabled={!normalizedRegion || techniciansLoading}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -579,11 +667,24 @@ const StockOrder = () => {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {technicians?.map((tech) => (
-                                  <SelectItem key={tech.id} value={tech.fields['Name & Surname']}>
-                                    {tech.fields['Name & Surname']}
+                                <SelectItem value="select">Select...</SelectItem>
+                                {techniciansLoading && (
+                                  <SelectItem value="loading" disabled>
+                                    Loading...
                                   </SelectItem>
-                                ))}
+                                )}
+                                {!techniciansLoading && normalizedRegion && technicians?.length ? (
+                                  technicians.map((tech) => (
+                                    <SelectItem key={tech.id} value={tech.fields['Name & Surname']}>
+                                      {tech.fields['Name & Surname']}
+                                    </SelectItem>
+                                  ))
+                                ) : null}
+                                {!techniciansLoading && normalizedRegion && !technicians?.length && (
+                                  <SelectItem value="empty" disabled>
+                                    No technicians found
+                                  </SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -621,7 +722,6 @@ const StockOrder = () => {
                     </>
                   )}
 
-                  {/* REGIONAL WAREHOUSE SECTION */}
                   {deliveryParty === 'Regional Warehouse' && (
                     <>
                       <FormField
@@ -630,7 +730,11 @@ const StockOrder = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Region</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                              disabled={regionsLoading}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select region" />
@@ -638,8 +742,23 @@ const StockOrder = () => {
                               </FormControl>
                               <SelectContent>
                                 <SelectItem value="select">Select...</SelectItem>
-                                <SelectItem value="KZN">KZN</SelectItem>
-                                <SelectItem value="WC">WC</SelectItem>
+                                {regionsLoading && (
+                                  <SelectItem value="loading" disabled>
+                                    Loading...
+                                  </SelectItem>
+                                )}
+                                {!regionsLoading && regions?.length ? (
+                                  regions.map((region) => (
+                                    <SelectItem key={region} value={region}>
+                                      {region}
+                                    </SelectItem>
+                                  ))
+                                ) : null}
+                                {!regionsLoading && !regions?.length && (
+                                  <SelectItem value="empty" disabled>
+                                    No regions available
+                                  </SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -677,7 +796,6 @@ const StockOrder = () => {
                     </>
                   )}
 
-                  {/* NON TECHNICIAN SECTION */}
                   {deliveryParty === 'Non Technician' && (
                     <>
                       <div className="bg-primary/10 p-3 rounded-lg">
@@ -703,7 +821,7 @@ const StockOrder = () => {
                         name="recipientCompanyName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Recipient Company Name</FormLabel>
+                            <FormLabel>Recipient Company Name (Optional)</FormLabel>
                             <FormControl>
                               <Input {...field} />
                             </FormControl>
@@ -731,7 +849,7 @@ const StockOrder = () => {
                         name="recipientContactNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Recipient Contact Number</FormLabel>
+                            <FormLabel>Recipient Contact Number (Optional)</FormLabel>
                             <FormControl>
                               <Input {...field} />
                             </FormControl>
@@ -756,7 +874,6 @@ const StockOrder = () => {
                     </>
                   )}
 
-                  {/* Ordered By */}
                   <FormField
                     control={form.control}
                     name="orderedBy"
@@ -775,7 +892,6 @@ const StockOrder = () => {
             </CardContent>
           </Card>
 
-          {/* Device Gallery */}
           <div className="space-y-4">
             <Card className="bg-white/95 backdrop-blur">
               <CardContent className="p-4">
@@ -790,7 +906,7 @@ const StockOrder = () => {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"
-                      disabled={!deliveryParty}
+                      disabled={!isSearchEnabled}
                     />
                   </div>
                   <Button 
@@ -802,13 +918,12 @@ const StockOrder = () => {
                     Checkout ({cart.length})
                   </Button>
                 </div>
-                {(!deliveryParty || deliveryParty === 'select') && (
+                {!isSearchEnabled && (
                   <p className="mt-2 text-sm text-muted-foreground text-center">
                     Please enter Order Details to activate device gallery
                   </p>
                 )}
 
-                {/* Cart Items */}
                 {cart.length > 0 && (
                   <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <h3 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
@@ -838,8 +953,7 @@ const StockOrder = () => {
               </CardContent>
             </Card>
 
-            {/* Product Grid */}
-            {inventoryLoading ? (
+            {isInventoryLoading ? (
               <div className="grid gap-4 md:grid-cols-2">
                 {[1, 2, 3, 4].map((i) => (
                   <Card key={i} className="bg-white/95 backdrop-blur">
@@ -899,12 +1013,12 @@ const StockOrder = () => {
                                 [item.id]: parseInt(e.target.value) || 0
                               })}
                               className="w-20 h-8 text-sm"
-                              disabled={!deliveryParty}
+                              disabled={!isSearchEnabled}
                             />
                             <Button
                               size="sm"
                               onClick={() => addToCart(item)}
-                              disabled={!deliveryParty || (quantities[item.id] || 0) <= 0}
+                              disabled={!isSearchEnabled || (quantities[item.id] || 0) <= 0}
                               className="bg-green-600 hover:bg-green-700 h-8"
                             >
                               <Plus className="h-4 w-4" />
@@ -915,13 +1029,17 @@ const StockOrder = () => {
                     </CardContent>
                   </Card>
                 ))}
+                {filteredInventory.length === 0 && isSearchEnabled && (
+                  <div className="col-span-full text-center text-muted-foreground py-8">
+                    No inventory items match your selection.
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Success Modal */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
         <DialogContent>
           <DialogHeader>
@@ -953,7 +1071,6 @@ const StockOrder = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Checkout Confirmation Dialog */}
       <Dialog open={showCheckoutDialog} onOpenChange={setShowCheckoutDialog}>
         <DialogContent>
           <DialogHeader>

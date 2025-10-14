@@ -9,10 +9,13 @@ import type { OrderFormData, CartItem } from '@/types/airtable';
 
 // Inventory Hooks
 export const useInventoryItems = (filters?: { category?: string; serialized?: 'Y' | 'N' }) => {
+  const hasFilters = Boolean(filters?.category && filters?.serialized);
+
   return useQuery({
     queryKey: ['inventory', filters],
     queryFn: () => inventoryService.getAll(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: hasFilters,
   });
 };
 
@@ -42,20 +45,26 @@ export const useContractors = () => {
   });
 };
 
-export const useRegions = (contractor?: string) => {
+export const useRegions = (contractor?: string, deliveryParty?: string) => {
+  const contractorFilter = contractor && contractor !== 'select' ? contractor : undefined;
+  const shouldFetch = deliveryParty === 'Regional Warehouse' ? true : !!contractorFilter;
+
   return useQuery({
-    queryKey: ['regions', contractor],
-    queryFn: () => popService.getRegions(contractor),
-    enabled: !!contractor,
+    queryKey: ['regions', contractorFilter, deliveryParty],
+    queryFn: () => popService.getRegions(contractorFilter),
+    enabled: shouldFetch,
     staleTime: 10 * 60 * 1000,
   });
 };
 
 export const useTechnicians = (contractor?: string, region?: string) => {
+  const contractorFilter = contractor && contractor !== 'select' ? contractor : undefined;
+  const regionFilter = region && region !== 'select' ? region : undefined;
+
   return useQuery({
-    queryKey: ['technicians', contractor, region],
-    queryFn: () => popService.getTechnicians(contractor, region),
-    enabled: !!contractor && !!region,
+    queryKey: ['technicians', contractorFilter, regionFilter],
+    queryFn: () => popService.getTechnicians(contractorFilter, regionFilter),
+    enabled: !!contractorFilter && !!regionFilter,
     staleTime: 10 * 60 * 1000,
   });
 };
@@ -77,11 +86,13 @@ export const useItemCategories = () => {
   });
 };
 
-export const useItemNatures = (category: string) => {
+export const useItemNatures = (category?: string) => {
+  const normalizedCategory = category && category !== 'select' ? category : undefined;
+
   return useQuery({
-    queryKey: ['itemNatures', category],
-    queryFn: () => businessLinesService.getNaturesByCategory(category),
-    enabled: !!category,
+    queryKey: ['itemNatures', normalizedCategory],
+    queryFn: () => businessLinesService.getNaturesByCategory(normalizedCategory!),
+    enabled: !!normalizedCategory,
     staleTime: 10 * 60 * 1000,
   });
 };
