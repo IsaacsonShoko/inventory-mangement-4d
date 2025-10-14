@@ -52,7 +52,7 @@ import type { CartItem, OrderFormData } from "@/types/airtable";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Define delivery party types
-type DeliveryParty = 'Technician' | 'Regional Warehouse' | 'Non Technician' | '';
+type DeliveryParty = 'Technician' | 'Regional Warehouse' | 'Non Technician' | 'select' | '';
 
 // Form schema with conditional validation
 const createFormSchema = (deliveryParty: DeliveryParty) => {

@@ -55,7 +55,7 @@ All colors MUST be HSL.
     --background: 270 50% 8%;
     --foreground: 0 0% 98%;
 
-    --card: 270 40% 12%;
+    --card: 270 35% 14%;
     --card-foreground: 0 0% 98%;
 
     --popover: 270 40% 12%;
@@ -67,17 +67,17 @@ All colors MUST be HSL.
     --secondary: 280 60% 50%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 270 30% 20%;
+    --muted: 270 25% 22%;
     --muted-foreground: 270 10% 65%;
 
-    --accent: 280 80% 65%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 270 60% 75%;
+    --accent-foreground: 270 80% 15%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 270 30% 25%;
-    --input: 270 30% 20%;
+    --border: 270 25% 22%;
+    --input: 270 25% 18%;
     --ring: 270 70% 55%;
 
     --success: 142 76% 36%;
@@ -91,6 +91,14 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 0 0% 95%;
     --sidebar-border: 270 40% 20%;
     --sidebar-ring: 270 70% 55%;
+    
+    /* Custom purple shades for visual hierarchy */
+    --surface-1: 270 30% 12%;
+    --surface-2: 270 25% 16%;
+    --surface-3: 270 20% 20%;
+    --purple-light: 270 50% 75%;
+    --purple-lighter: 270 40% 85%;
+    --purple-accent: 270 60% 65%;
   }
 }
 

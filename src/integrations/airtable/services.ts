@@ -88,7 +88,7 @@ export const popService = {
    */
   async getContractors(): Promise<string[]> {
     const records = await this.getAll();
-    const contractors = [...new Set(records.map(r => r.fields.Contractor).filter(Boolean))];
+    const contractors = [...new Set(records.map(r => r.fields.Contractor).filter(Boolean))] as string[];
     return contractors.sort();
   },
 
@@ -102,7 +102,7 @@ export const popService = {
       records = records.filter(r => r.fields.Contractor === contractor);
     }
     
-    const regions = [...new Set(records.map(r => r.fields.Region).filter(Boolean))];
+    const regions = [...new Set(records.map(r => r.fields.Region).filter(Boolean))] as string[];
     return regions.sort();
   },
 
@@ -156,7 +156,7 @@ export const businessLinesService = {
    */
   async getCategories(): Promise<string[]> {
     const records = await this.getAll();
-    const categories = [...new Set(records.map(r => r.fields['Item Category']).filter(Boolean))];
+    const categories = [...new Set(records.map(r => r.fields['Item Category']).filter(Boolean))] as string[];
     
     // Custom sort order matching PowerApps
     const sortOrder = ['Accessories', 'Absa', 'Cash Connect', 'Modems', 'Sim Management', 'VPS', 'Other'];
@@ -178,7 +178,7 @@ export const businessLinesService = {
   async getNaturesByCategory(category: string): Promise<string[]> {
     const records = await this.getAll();
     const filtered = records.filter(r => r.fields['Item Category'] === category);
-    const natures = [...new Set(filtered.map(r => r.fields['Item Nature']).filter(Boolean))];
+    const natures = [...new Set(filtered.map(r => r.fields['Item Nature']).filter(Boolean))] as string[];
     return natures;
   }
 };
