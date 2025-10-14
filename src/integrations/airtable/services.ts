@@ -374,7 +374,7 @@ export const orderService = {
       // Create order records for each cart item
       const orderRecords = cartItems.map(item => ({
         fields: {
-          'Order ID': orderId,
+          'Order Id': orderId,
           'Date Ordered': formattedDateOrdered,
           'Item Category': formData.itemCategory,
           'Item Nature': item.itemNature || formData.itemNature,
@@ -393,7 +393,7 @@ export const orderService = {
           ...(formData.recipientAddress && { 'Recipient Address': formData.recipientAddress }),
           ...(formData.recipientContactNumber && { 'Recipient Contact Number': formData.recipientContactNumber }),
           ...(formData.recipientEmail && { 'Recipient Email Address': formData.recipientEmail }),
-          'Status': 'Pending'
+          'Dispatch Status': 'Pending'
         }
       }));
 
@@ -463,7 +463,7 @@ export const orderService = {
     try {
       const records = await tables.orders
         .select({
-          filterByFormula: `{Order ID} = '${orderId}'`
+          filterByFormula: `{Order Id} = '${orderId}'`
         })
         .all();
       
