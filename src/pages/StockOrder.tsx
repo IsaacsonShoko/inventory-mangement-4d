@@ -158,8 +158,11 @@ const StockOrder = () => {
   const normalizedContractor = selectedContractor && selectedContractor !== "select" ? selectedContractor : undefined;
   const normalizedRegion = selectedRegion && selectedRegion !== "select" ? selectedRegion : undefined;
 
-  const inventoryFilters = normalizedCategory && serializedFilter
-    ? { category: normalizedCategory, serialized: serializedFilter }
+  const inventoryFilters = normalizedCategory
+    ? {
+        category: normalizedCategory,
+        ...(serializedFilter ? { serialized: serializedFilter } : {}),
+      }
     : undefined;
   const shouldRefetchInventory = Boolean(inventoryFilters);
 

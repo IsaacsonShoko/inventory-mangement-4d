@@ -86,6 +86,33 @@ const normalizePointOfPresenceFields = (fields: Record<string, unknown>): PointO
   };
 };
 
+const CATEGORY_SORT_ORDER = ['Accessories', 'Absa', 'Cash Connect', 'Modems', 'Sim Management', 'VPS', 'Other'];
+const NATURE_SORT_ORDER = ['Serialised', 'Non-serialised'];
+
+const sortCategories = (categories: string[]) => {
+  return categories.sort((a, b) => {
+    const indexA = CATEGORY_SORT_ORDER.indexOf(a);
+    const indexB = CATEGORY_SORT_ORDER.indexOf(b);
+
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+};
+
+const sortNatures = (natures: string[]) => {
+  return natures.sort((a, b) => {
+    const indexA = NATURE_SORT_ORDER.indexOf(a);
+    const indexB = NATURE_SORT_ORDER.indexOf(b);
+
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+};
+
 // Inventory Services
 export const inventoryService = {
   /**
@@ -135,6 +162,50 @@ export const inventoryService = {
       item.fields['Device Type']?.toLowerCase().includes(searchLower) ||
       item.fields['Item Description']?.toLowerCase().includes(searchLower)
     );
+  },
+
+  async getCategories(): Promise<string[]> {
+    try {
+      const records = await tables.inventory.select().all();
+
+      const categories = new Set<string>();
+      records.forEach(record => {
+        const value = coerceToString((record.fields as Record<string, unknown>)['Item Category']);
+        if (value) {
+          categories.add(value);
+        }
+      });
+
+      return sortCategories(Array.from(categories));
+    } catch (error) {
+      console.error('Error fetching inventory categories:', error);
+      throw formatAirtableError(error, 'inventory categories fetch');
+    }
+  },
+
+  async getNaturesByCategory(category?: string): Promise<string[]> {
+    try {
+      const records = await tables.inventory.select().all();
+
+      const natures = new Set<string>();
+      records.forEach(record => {
+        const fields = record.fields as Record<string, unknown>;
+        const recordCategory = coerceToString(fields['Item Category']);
+        if (category && recordCategory !== category) {
+          return;
+        }
+
+        const nature = coerceToString(fields['Item Nature']);
+        if (nature) {
+          natures.add(nature);
+        }
+      });
+
+      return sortNatures(Array.from(natures));
+    } catch (error) {
+      console.error('Error fetching inventory natures:', error);
+      throw formatAirtableError(error, 'inventory natures fetch');
+    }
   }
 };
 

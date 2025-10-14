@@ -2,26 +2,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   inventoryService, 
   popService, 
-  businessLinesService, 
   orderService 
 } from '@/integrations/airtable';
 import type { OrderFormData, CartItem } from '@/types/airtable';
 
 // Inventory Hooks
 export const useInventoryItems = (filters?: { category?: string; serialized?: 'Y' | 'N' }) => {
-  const hasFilters = Boolean(filters?.category && filters?.serialized);
-
   return useQuery({
-    queryKey: ['inventory', filters],
+    queryKey: ['inventory', filters?.category ?? null, filters?.serialized ?? null],
     queryFn: () => inventoryService.getAll(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: hasFilters,
   });
 };
 
 export const useInventorySearch = (query: string, filters?: { category?: string; serialized?: 'Y' | 'N' }) => {
   return useQuery({
-    queryKey: ['inventory', 'search', query, filters],
+    queryKey: ['inventory', 'search', query, filters?.category ?? null, filters?.serialized ?? null],
     queryFn: () => inventoryService.search(query, filters),
     enabled: query.length >= 2, // Only search with 2+ characters
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -69,19 +65,10 @@ export const useTechnicians = (contractor?: string, region?: string) => {
   });
 };
 
-// Business Lines Hooks
-export const useBusinessLines = () => {
-  return useQuery({
-    queryKey: ['businessLines'],
-    queryFn: () => businessLinesService.getAll(),
-    staleTime: 10 * 60 * 1000,
-  });
-};
-
 export const useItemCategories = () => {
   return useQuery({
     queryKey: ['itemCategories'],
-    queryFn: () => businessLinesService.getCategories(),
+    queryFn: () => inventoryService.getCategories(),
     staleTime: 10 * 60 * 1000,
   });
 };
@@ -91,8 +78,8 @@ export const useItemNatures = (category?: string) => {
 
   return useQuery({
     queryKey: ['itemNatures', normalizedCategory],
-    queryFn: () => businessLinesService.getNaturesByCategory(normalizedCategory!),
-    enabled: !!normalizedCategory,
+    queryFn: () => inventoryService.getNaturesByCategory(normalizedCategory),
+    enabled: normalizedCategory !== undefined,
     staleTime: 10 * 60 * 1000,
   });
 };
