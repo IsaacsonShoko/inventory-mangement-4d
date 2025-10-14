@@ -33,6 +33,59 @@ const formatAirtableError = (error: unknown, context: string) => {
   return new Error(`${baseMessage}: Unexpected error`);
 };
 
+const coerceToString = (value: unknown): string | undefined => {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0 ? coerceToString(value[0]) : undefined;
+  }
+
+  return undefined;
+};
+
+const normalizePointOfPresenceFields = (fields: Record<string, unknown>): PointOfPresence['fields'] => {
+  const getField = (...aliases: string[]): string | undefined => {
+    for (const alias of aliases) {
+      if (alias in fields) {
+        const value = coerceToString(fields[alias]);
+        if (value) {
+          return value;
+        }
+      }
+    }
+    return undefined;
+  };
+
+  const name = getField('Name & Surname', ' Name & Surname', 'Name', 'TechName');
+  const contractor = getField('Contractor', ' Contractor');
+  const region = getField('Region', ' Region', 'RegionCode');
+  const email = getField('Email Address', ' Email Address');
+  const areaBased = getField('Area Based', ' Area Based', 'AreaBased');
+  const locationCode = getField('Location Code', ' Location Code', 'LocationCode');
+  const contactNumber = getField('Contact Number', ' Contact Number', 'Mobile', ' Mobile');
+
+  return {
+    'Name & Surname': name ?? '',
+    'Contractor': contractor ?? '',
+    'Region': region ?? '',
+    'Email Address': email ?? '',
+    ...(areaBased ? { 'Area Based': areaBased } : {}),
+    ...(locationCode ? { 'Location Code': locationCode } : {}),
+    ...(contactNumber ? { 'Contact Number': contactNumber } : {}),
+  };
+};
+
 // Inventory Services
 export const inventoryService = {
   /**
@@ -93,15 +146,17 @@ export const popService = {
   async getAll(): Promise<PointOfPresence[]> {
     try {
       const records = await tables.pointOfPresence
-        .select({
-          sort: [{ field: 'Name & Surname', direction: 'asc' }]
-        })
+        .select()
         .all();
-      
-      return records.map(record => ({
+
+      const normalized = records.map(record => ({
         id: record.id,
-        fields: record.fields as PointOfPresence['fields']
+        fields: normalizePointOfPresenceFields(record.fields)
       }));
+
+      return normalized.sort((a, b) =>
+        a.fields['Name & Surname'].localeCompare(b.fields['Name & Surname'], undefined, { sensitivity: 'base' })
+      );
     } catch (error) {
       console.error('Error fetching Point of Presence:', error);
       throw formatAirtableError(error, 'Point of Presence fetch');
