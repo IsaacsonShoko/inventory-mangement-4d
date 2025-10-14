@@ -7,6 +7,7 @@ import type {
   OrderFormData,
   CartItem
 } from '@/types/airtable';
+import { n8nService } from '@/integrations/n8n';
 
 const formatAirtableError = (error: unknown, context: string) => {
   const baseMessage = `Airtable ${context} failed`;
@@ -342,15 +343,39 @@ export const orderService = {
       // Generate a unique order ID
       const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
+      const formattedDateOrdered = formData.dateOrdered.toISOString().split('T')[0];
+
       const popIdValue = formData.popId && !Number.isNaN(Number(formData.popId))
         ? Number(formData.popId)
         : undefined;
       
+      const orderLineWebhookPayloads = cartItems.map(item => ({
+        orderId,
+        dateOrdered: formattedDateOrdered,
+        itemCategory: formData.itemCategory,
+        itemNature: item.itemNature || formData.itemNature,
+        deviceType: item.itemName,
+        quantityOrdered: item.quantity,
+        contractorCompany: formData.contractorCompany,
+        region: formData.region,
+        technician: formData.technician,
+        orderedBy: formData.orderedBy,
+        orderLocation: formData.orderLocation,
+        deliverToPart: formData.deliveryParty,
+        onBehalfOf: formData.onBehalfOf,
+        popId: formData.popId,
+        recipientName: formData.recipientName,
+        recipientCompanyName: formData.recipientCompanyName,
+        recipientAddress: formData.recipientAddress,
+        recipientContactNumber: formData.recipientContactNumber,
+        recipientEmail: formData.recipientEmail,
+      }));
+
       // Create order records for each cart item
       const orderRecords = cartItems.map(item => ({
         fields: {
           'Order ID': orderId,
-          'Date Ordered': formData.dateOrdered.toISOString().split('T')[0],
+          'Date Ordered': formattedDateOrdered,
           'Item Category': formData.itemCategory,
           'Item Nature': item.itemNature || formData.itemNature,
           'Device type': item.itemName,
@@ -378,6 +403,26 @@ export const orderService = {
         const batch = orderRecords.slice(i, i + 10);
         const created = await tables.orders.create(batch);
         createdRecords.push(...created);
+      }
+
+      if (orderLineWebhookPayloads.length > 0) {
+        await Promise.all(
+          orderLineWebhookPayloads.map(payload => n8nService.submitOrderLine(payload))
+        );
+
+        await n8nService.notifyOrderPlaced({
+          orderId,
+          totalItems: orderLineWebhookPayloads.length,
+          dateOrdered: formattedDateOrdered,
+          orderedBy: formData.orderedBy,
+          deliveryParty: formData.deliveryParty,
+          contractorCompany: formData.contractorCompany,
+          region: formData.region,
+          items: orderLineWebhookPayloads.map(({ deviceType, quantityOrdered }) => ({
+            deviceType,
+            quantityOrdered,
+          })),
+        });
       }
 
       return {
