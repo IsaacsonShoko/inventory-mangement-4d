@@ -83,6 +83,7 @@ VITE_AIRTABLE_BASE_ID=appXXXXXXXXXXXXXX
 VITE_AIRTABLE_INVENTORY_TABLE_ID=tblXXXXXXXXXXXXXX
 VITE_AIRTABLE_POINT_OF_PRESENCE_TABLE_ID=tblXXXXXXXXXXXXXX
 VITE_AIRTABLE_BUSINESS_LINES_TABLE_ID=tblXXXXXXXXXXXXXX
+VITE_AIRTABLE_UNIQUE_ORDERS_TABLE_ID=tblXXXXXXXXXXXXXX
 VITE_AIRTABLE_ORDERS_TABLE_ID=tblXXXXXXXXXXXXXX
 
 # n8n webhooks that replace the legacy Power Automate flows
@@ -90,7 +91,31 @@ VITE_N8N_SUBMIT_ORDER_WEBHOOK_URL=https://your-n8n-host/webhook/submit-order
 VITE_N8N_ORDER_PLACED_WEBHOOK_URL=https://your-n8n-host/webhook/order-placed
 ```
 
-- `VITE_N8N_SUBMIT_ORDER_WEBHOOK_URL` is invoked once per cart item and receives the order-line data (category, nature, quantity, etc.).
-- `VITE_N8N_ORDER_PLACED_WEBHOOK_URL` triggers after all line items have been processed and receives the overall order summary (order ID, delivery party, item counts).
+### Order Flow Architecture
 
-Both endpoints should accept `POST` requests with a JSON payload. Configure your n8n workflows to match the expected contract.
+The application uses a dual-table approach for order management:
+
+1. **Unique_Orders Table** (`VITE_AIRTABLE_UNIQUE_ORDERS_TABLE_ID`):
+   - Stores ONE record per order with order summary and recipient details
+   - Contains all delivery information (Deliver to Part, recipient name, address, email, etc.)
+   - Auto-generates Order ID field
+
+2. **Stock_Order Table** (`VITE_AIRTABLE_ORDERS_TABLE_ID`):
+   - Stores line items (one record per cart item)
+   - Created by n8n webhook after receiving line items from the app
+   - Contains basic item info (device type, quantity, dispatch to, status)
+
+### Webhook Flow
+
+- `VITE_N8N_SUBMIT_ORDER_WEBHOOK_URL` is invoked once per cart item and receives complete order-line data including:
+  - Order ID from Unique_Orders
+  - Item details (category, nature, device type, quantity)
+  - Delivery details (contractor, region, technician, recipient info)
+  - **n8n responsibility**: Loop through these payloads and create Stock_Order records
+
+- `VITE_N8N_ORDER_PLACED_WEBHOOK_URL` triggers after all line items have been sent and receives the overall order summary (order ID, delivery party, total items, item counts).
+
+Both endpoints should accept `POST` requests with a JSON payload. Configure your n8n workflows to:
+1. Receive order line payloads
+2. Create corresponding Stock_Order records in Airtable
+3. Process order placed notification for any downstream automation
