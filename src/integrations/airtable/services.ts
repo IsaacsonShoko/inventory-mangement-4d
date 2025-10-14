@@ -372,6 +372,7 @@ export const orderService = {
       }));
 
       // Create order records for each cart item
+      // Note: Stock_Order table has limited fields compared to Unique_Orders
       const orderRecords = cartItems.map(item => ({
         fields: {
           'Order Id': orderId,
@@ -381,18 +382,11 @@ export const orderService = {
           'Device type': item.itemName,
           'Quantity ordered': item.quantity,
           'Ordered by': formData.orderedBy,
-          'Deliver to Part': formData.deliveryParty,
+          'Dispatch to': formData.deliveryParty,
           ...(formData.contractorCompany && { 'Contractor Company': formData.contractorCompany }),
           ...(formData.region && { 'Region': formData.region }),
           ...(formData.technician && { 'Technician': formData.technician }),
-          ...(formData.onBehalfOf && { 'On Behalf of': formData.onBehalfOf }),
           ...(formData.orderLocation && { 'Order Location': formData.orderLocation }),
-          ...(popIdValue !== undefined && { 'PoPID': popIdValue }),
-          ...(formData.recipientName && { 'Recipient Name': formData.recipientName }),
-          ...(formData.recipientCompanyName && { 'Recipient Company Name': formData.recipientCompanyName }),
-          ...(formData.recipientAddress && { 'Recipient Address': formData.recipientAddress }),
-          ...(formData.recipientContactNumber && { 'Recipient Contact Number': formData.recipientContactNumber }),
-          ...(formData.recipientEmail && { 'Recipient Email Address': formData.recipientEmail }),
           'Dispatch Status': 'Pending'
         }
       }));
