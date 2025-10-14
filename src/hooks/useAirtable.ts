@@ -7,7 +7,7 @@ import {
 import type { OrderFormData, CartItem } from '@/types/airtable';
 
 // Inventory Hooks
-export const useInventoryItems = (filters?: { category?: string; serialized?: 'Y' | 'N' }) => {
+export const useInventoryItems = (filters?: { category?: string; serialized?: string }) => {
   return useQuery({
     queryKey: ['inventory', filters?.category ?? null, filters?.serialized ?? null],
     queryFn: () => inventoryService.getAll(filters),
@@ -15,7 +15,7 @@ export const useInventoryItems = (filters?: { category?: string; serialized?: 'Y
   });
 };
 
-export const useInventorySearch = (query: string, filters?: { category?: string; serialized?: 'Y' | 'N' }) => {
+export const useInventorySearch = (query: string, filters?: { category?: string; serialized?: string }) => {
   return useQuery({
     queryKey: ['inventory', 'search', query, filters?.category ?? null, filters?.serialized ?? null],
     queryFn: () => inventoryService.search(query, filters),

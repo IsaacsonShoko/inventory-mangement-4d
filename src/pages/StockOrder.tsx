@@ -154,14 +154,14 @@ const StockOrder = () => {
 
   const normalizedCategory = selectedCategory && selectedCategory !== "select" ? selectedCategory : undefined;
   const normalizedNature = selectedNature && selectedNature !== "select" ? selectedNature : undefined;
-  const serializedFilter = normalizedNature === "Serialised" ? "Y" : normalizedNature === "Non-serialised" ? "N" : undefined;
+  const natureFilter = normalizedNature;
   const normalizedContractor = selectedContractor && selectedContractor !== "select" ? selectedContractor : undefined;
   const normalizedRegion = selectedRegion && selectedRegion !== "select" ? selectedRegion : undefined;
 
   const inventoryFilters = normalizedCategory
     ? {
         category: normalizedCategory,
-        ...(serializedFilter ? { serialized: serializedFilter } : {}),
+        ...(natureFilter ? { serialized: natureFilter } : {}),
       }
     : undefined;
   const shouldRefetchInventory = Boolean(inventoryFilters);
@@ -268,8 +268,8 @@ const StockOrder = () => {
     if (!searchQuery) return true;
     const search = searchQuery.toLowerCase();
     return (
-      item.fields['Device Type']?.toLowerCase().includes(search) ||
-      item.fields['Item Description']?.toLowerCase().includes(search)
+      item.fields['Item_Name']?.toLowerCase().includes(search) ||
+      item.fields['Item_Description']?.toLowerCase().includes(search)
     );
   }) || [];
 
@@ -286,9 +286,9 @@ const StockOrder = () => {
 
     const cartItem: CartItem = {
       id: item.id,
-      deviceType: item.fields['Device Type'],
-      itemDescription: item.fields['Item Description'],
-      itemCategory: item.fields['Item Category'],
+      itemName: item.fields['Item_Name'],
+      itemDescription: item.fields['Item_Description'],
+      itemCategory: item.fields['Item_Category'],
       quantity,
       itemNature: selectedNature,
     };
@@ -937,7 +937,7 @@ const StockOrder = () => {
                       {cart.map((item) => (
                         <div key={item.id} className="flex items-center justify-between text-sm bg-white p-2 rounded">
                           <div className="flex-1">
-                            <p className="font-medium">{item.deviceType}</p>
+                            <p className="font-medium">{item.itemName}</p>
                             <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                           </div>
                           <Button
@@ -975,7 +975,11 @@ const StockOrder = () => {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                {filteredInventory.map((item) => (
+                {filteredInventory.map((item) => {
+                  const thumbnailUrl = item.fields.Thumbnail?.[0]?.url;
+                  const imageUrl = thumbnailUrl ?? item.fields['Item_Url'];
+
+                  return (
                   <Card 
                     key={item.id} 
                     className="bg-white/95 backdrop-blur border-2 border-primary/20 hover:border-primary/50 transition-colors"
@@ -983,10 +987,10 @@ const StockOrder = () => {
                     <CardContent className="p-4">
                       <div className="flex gap-4">
                         <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-primary/10 overflow-hidden">
-                          {item.fields.Thumbnail?.[0]?.url ? (
+                          {imageUrl ? (
                             <img 
-                              src={item.fields.Thumbnail[0].url} 
-                              alt={item.fields['Device Type']}
+                              src={imageUrl} 
+                              alt={item.fields['Item_Name']}
                               className="h-full w-full object-cover"
                             />
                           ) : (
@@ -996,13 +1000,13 @@ const StockOrder = () => {
                         <div className="flex-1 space-y-2">
                           <div className="space-y-1">
                             <p className="text-sm font-medium">
-                              Item code: {item.fields['Device Type']}
+                              Item code: {item.fields['Item_Name']}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {item.fields['Item Description']}
+                              {item.fields['Item_Description']}
                             </p>
                             <p className="text-xs">
-                              Category: {item.fields['Item Category']}
+                              Category: {item.fields['Item_Category']}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1031,7 +1035,8 @@ const StockOrder = () => {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
                 {filteredInventory.length === 0 && isSearchEnabled && (
                   <div className="col-span-full text-center text-muted-foreground py-8">
                     No inventory items match your selection.
@@ -1085,7 +1090,7 @@ const StockOrder = () => {
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {cart.map((item) => (
               <div key={item.id} className="flex justify-between text-sm p-2 bg-muted rounded">
-                <span>{item.deviceType}</span>
+                <span>{item.itemName}</span>
                 <span className="font-medium">Qty: {item.quantity}</span>
               </div>
             ))}

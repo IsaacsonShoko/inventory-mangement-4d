@@ -118,24 +118,22 @@ export const inventoryService = {
   /**
    * Get all inventory items with optional filtering
    */
-  async getAll(filters?: { category?: string; serialized?: 'Y' | 'N' }): Promise<InventoryItem[]> {
+  async getAll(filters?: { category?: string; serialized?: string }): Promise<InventoryItem[]> {
     try {
       const filterFormula = [];
       
       if (filters?.category) {
-        // Handle Modems -> MODEM mapping
-        const categoryValue = filters.category === 'Modems' ? 'MODEM' : filters.category;
-        filterFormula.push(`{Item Category} = '${categoryValue}'`);
+        filterFormula.push(`{Item_Category} = '${filters.category}'`);
       }
       
       if (filters?.serialized) {
-        filterFormula.push(`{Serialized} = '${filters.serialized}'`);
+        filterFormula.push(`{Item_Nature} = '${filters.serialized}'`);
       }
       
       const records = await tables.inventory
         .select({
           filterByFormula: filterFormula.length > 0 ? `AND(${filterFormula.join(', ')})` : '',
-          sort: [{ field: 'Device Type', direction: 'asc' }]
+          sort: [{ field: 'Item_Name', direction: 'asc' }]
         })
         .all();
       
@@ -152,15 +150,15 @@ export const inventoryService = {
   /**
    * Search inventory items by text
    */
-  async search(query: string, filters?: { category?: string; serialized?: 'Y' | 'N' }): Promise<InventoryItem[]> {
+  async search(query: string, filters?: { category?: string; serialized?: string }): Promise<InventoryItem[]> {
     const items = await this.getAll(filters);
     
     if (!query) return items;
     
     const searchLower = query.toLowerCase();
     return items.filter(item => 
-      item.fields['Device Type']?.toLowerCase().includes(searchLower) ||
-      item.fields['Item Description']?.toLowerCase().includes(searchLower)
+      item.fields['Item_Name']?.toLowerCase().includes(searchLower) ||
+      item.fields['Item_Description']?.toLowerCase().includes(searchLower)
     );
   },
 
@@ -170,7 +168,7 @@ export const inventoryService = {
 
       const categories = new Set<string>();
       records.forEach(record => {
-        const value = coerceToString((record.fields as Record<string, unknown>)['Item Category']);
+        const value = coerceToString((record.fields as Record<string, unknown>)['Item_Category']);
         if (value) {
           categories.add(value);
         }
@@ -190,12 +188,12 @@ export const inventoryService = {
       const natures = new Set<string>();
       records.forEach(record => {
         const fields = record.fields as Record<string, unknown>;
-        const recordCategory = coerceToString(fields['Item Category']);
+        const recordCategory = coerceToString(fields['Item_Category']);
         if (category && recordCategory !== category) {
           return;
         }
 
-        const nature = coerceToString(fields['Item Nature']);
+        const nature = coerceToString(fields['Item_Nature']);
         if (nature) {
           natures.add(nature);
         }
@@ -355,7 +353,7 @@ export const orderService = {
           'Date Ordered': formData.dateOrdered.toISOString().split('T')[0],
           'Item Category': formData.itemCategory,
           'Item Nature': item.itemNature || formData.itemNature,
-          'Device type': item.deviceType,
+          'Device type': item.itemName,
           'Quantity ordered': item.quantity,
           'Ordered by': formData.orderedBy,
           'Deliver to Part': formData.deliveryParty,

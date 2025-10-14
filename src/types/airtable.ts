@@ -3,10 +3,11 @@
 export interface InventoryItem {
   id: string;
   fields: {
-    'Device Type': string;
-    'Item Description': string;
-    'Item Category': string;
-    'Serialized': 'Y' | 'N';
+    'Item_Name': string;
+    'Item_Description': string;
+    'Item_Category': string;
+    'Item_Nature': string;
+    'Item_Url'?: string;
     'Thumbnail'?: Array<{
       id: string;
       url: string;
@@ -44,7 +45,7 @@ export interface Order {
     'Date Ordered': string;
     'Item Category': string;
     'Item Nature': string;
-    'Device type': string;
+  'Device type': string;
     'Quantity ordered': number;
     'Contractor Company'?: string;
     'Region'?: string;
@@ -85,7 +86,7 @@ export interface OrderFormData {
 
 export interface CartItem {
   id: string;
-  deviceType: string;
+  itemName: string;
   itemDescription: string;
   itemCategory: string;
   quantity: number;
