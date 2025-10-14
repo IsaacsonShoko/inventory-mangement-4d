@@ -3,7 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Menu, Search, ShoppingCart, Plus, Package, Trash2, CheckCircle2, Loader2 } from "lucide-react";
+import { CalendarIcon, Menu, Search, ShoppingCart, Plus, Package, Trash2, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -116,6 +117,7 @@ const createFormSchema = (deliveryParty: DeliveryParty) => {
 
 const StockOrder = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -394,9 +396,10 @@ const StockOrder = () => {
       setQuantities({});
       setShowCheckoutDialog(false);
     } catch (error) {
+      console.error("Order submission error:", error);
       toast({
         title: "Order submission failed",
-        description: "There was an error submitting your order. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error submitting your order. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -411,10 +414,15 @@ const StockOrder = () => {
       <header className="bg-primary text-white p-4 shadow-lg">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-              <Menu className="h-6 w-6" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-white hover:bg-white/20"
+              onClick={() => navigate('/')}
+            >
+              <ArrowLeft className="h-6 w-6" />
             </Button>
-            <h1 className="text-2xl font-bold">Xlink Stock Order</h1>
+            <h1 className="text-2xl font-bold">4D Analytics Stock Order</h1>
           </div>
         </div>
       </header>
