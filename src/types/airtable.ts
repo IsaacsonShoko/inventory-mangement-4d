@@ -93,3 +93,92 @@ export interface CartItem {
   itemNature: string;
 }
 
+export interface UniqueOrder {
+  id: string;
+  fields: {
+    'Order ID': number;
+    'Date Ordered': string;
+    'Item Category': string;
+    'Item Nature': string;
+    'Region'?: string;
+    'Contractor Company'?: string;
+    'Technician'?: string;
+    'Quantity Ordered'?: number;
+    'Dispatch Status'?: string;
+    'Stock Availability'?: string;
+    'Pick Status'?: string;
+    'Dispatch Method'?: string;
+    'WayBill Number'?: string;
+    'Ordered by'?: string;
+    'On Behalf of'?: string;
+    'PoPID'?: string;
+    'Deliver to Part'?: string;
+    'Recipient Contact Number'?: string;
+    'Recipient Name'?: string;
+    'Recipient Company Name'?: string;
+    'Recipient Address'?: string;
+    'Recipient Email Address'?: string;
+    'Order Location'?: string;
+    'Warehouse Fulfilling'?: string;
+    'Order Notes'?: string;
+    'Order Summary (AI Generated)'?: string;
+    'Dispatch Log'?: string[];
+    'Stock Order'?: string[];
+  };
+}
+
+export interface StockOrderLineItem {
+  id: string;
+  fields: {
+    'Order Id': string;
+    'Device type': string;
+    'Date Ordered'?: string;
+    'Quantity ordered'?: number;
+    'QTY dispatched'?: number;
+    'Contractor Company'?: string;
+    'Region'?: string;
+    'Technician'?: string;
+    'Waybill number'?: string;
+    'Dispatch / order'?: string;
+    'Dispatch to'?: string;
+    'Ordered by'?: string;
+    'Item Category'?: string;
+    'Item Description'?: string;
+    'Item Nature'?: string;
+    'Order Location'?: string;
+    'Pick Status'?: string;
+    'Stock Availability'?: string;
+    'Package Reference'?: string;
+    'Item Code'?: string;
+    'Terminal Serial Number'?: string;
+    'Cradle Serial Number'?: string;
+    'Charger Serial Number'?: string;
+    'Dispatch Method'?: string;
+    'Warehouse Fulfilling'?: string;
+  };
+}
+
+export interface DispatchLogEntry {
+  id: string;
+  fields: {
+    'Order Id'?: string[];
+    'Date Dispatched'?: string;
+    'Item Category'?: string;
+    'Item Nature'?: string;
+    'Item Description'?: string;
+    'Device type'?: string;
+    'Quantity'?: number;
+    'Contractor Company'?: string;
+    'Region'?: string;
+    'Technician'?: string;
+    'Dispatch Method'?: string;
+    'Waybill number'?: string;
+    'Package Reference'?: string;
+    'Pick Status'?: string;
+    'Stock Availability'?: string;
+    'TimePicked'?: string;
+    'TimeDispatched'?: string;
+    'Warehouse Fulfilling'?: string;
+  };
+}
+

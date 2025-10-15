@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  inventoryService, 
-  popService, 
-  orderService 
+import {
+  inventoryService,
+  popService,
+  orderService
 } from '@/integrations/airtable';
-import type { OrderFormData, CartItem } from '@/types/airtable';
+import type { OrderFormData, CartItem, UniqueOrder } from '@/types/airtable';
 
 // Inventory Hooks
 export const useInventoryItems = (filters?: { category?: string; serialized?: string }) => {
@@ -102,6 +102,65 @@ export const useCreateOrder = () => {
     onSuccess: () => {
       // Invalidate orders query to refetch
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+};
+
+// Picking & Dispatch Hooks
+export const usePickingQueue = () => {
+  return useQuery({
+    queryKey: ['uniqueOrders', 'pickingQueue'],
+    queryFn: () => orderService.getPickingQueue(),
+    staleTime: 60 * 1000,
+  });
+};
+
+export const useDispatchQueue = () => {
+  return useQuery({
+    queryKey: ['uniqueOrders', 'dispatchQueue'],
+    queryFn: () => orderService.getDispatchQueue(),
+    staleTime: 60 * 1000,
+  });
+};
+
+export const useUniqueOrderRecord = (recordId?: string) => {
+  return useQuery({
+    queryKey: ['uniqueOrder', recordId],
+    queryFn: () => orderService.getUniqueOrder(recordId as string),
+    enabled: Boolean(recordId),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useStockOrderItems = (orderNumber?: string) => {
+  return useQuery({
+    queryKey: ['stockOrderItems', orderNumber],
+    queryFn: () => orderService.getStockOrderItems(orderNumber as string),
+    enabled: Boolean(orderNumber),
+    staleTime: 60 * 1000,
+  });
+};
+
+export const useDispatchLog = (uniqueOrderRecordId?: string) => {
+  return useQuery({
+    queryKey: ['dispatchLog', uniqueOrderRecordId],
+    queryFn: () => orderService.getDispatchLog(uniqueOrderRecordId as string),
+    enabled: Boolean(uniqueOrderRecordId),
+    staleTime: 60 * 1000,
+  });
+};
+
+export const useUpdateUniqueOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ recordId, fields }: { recordId: string; fields: Partial<UniqueOrder['fields']> }) =>
+      orderService.updateUniqueOrder(recordId, fields),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['uniqueOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['uniqueOrders', 'pickingQueue'] });
+      queryClient.invalidateQueries({ queryKey: ['uniqueOrders', 'dispatchQueue'] });
+      queryClient.invalidateQueries({ queryKey: ['uniqueOrder', variables.recordId] });
     },
   });
 };

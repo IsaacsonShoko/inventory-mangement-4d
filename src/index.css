@@ -184,4 +184,30 @@ All colors MUST be HSL.
   .shadow-glow {
     box-shadow: 0 0 20px rgba(157, 78, 221, 0.3), 0 10px 30px rgba(0, 0, 0, 0.1);
   }
+
+  .orb-animate {
+    animation-name: pulse-slow;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+
+  .orb-4s {
+    animation-duration: 4s;
+  }
+
+  .orb-5s {
+    animation-duration: 5s;
+  }
+
+  .orb-6s {
+    animation-duration: 6s;
+  }
+
+  .orb-delay-1s {
+    animation-delay: 1s;
+  }
+
+  .orb-delay-2s {
+    animation-delay: 2s;
+  }
 }

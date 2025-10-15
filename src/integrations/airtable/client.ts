@@ -16,5 +16,6 @@ export const tables = {
   businessLines: base(import.meta.env.VITE_AIRTABLE_BUSINESS_LINES_TABLE_ID),
   uniqueOrders: base(import.meta.env.VITE_AIRTABLE_UNIQUE_ORDERS_TABLE_ID),
   orders: base(import.meta.env.VITE_AIRTABLE_ORDERS_TABLE_ID), // Stock_Order table (for line items via n8n)
+  dispatchLog: base(import.meta.env.VITE_AIRTABLE_DISPATCH_LOG_TABLE_ID),
 };
 

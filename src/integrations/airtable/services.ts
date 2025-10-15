@@ -1,11 +1,14 @@
 import { tables } from './client';
-import type { 
-  InventoryItem, 
-  PointOfPresence, 
-  BusinessLine, 
+import type {
+  InventoryItem,
+  PointOfPresence,
+  BusinessLine,
   Order,
   OrderFormData,
-  CartItem
+  CartItem,
+  UniqueOrder,
+  StockOrderLineItem,
+  DispatchLogEntry
 } from '@/types/airtable';
 import { n8nService } from '@/integrations/n8n';
 
@@ -53,6 +56,21 @@ const coerceToString = (value: unknown): string | undefined => {
   }
 
   return undefined;
+};
+
+const escapeAirtableValue = (value: string) => value.replace(/'/g, "\\'");
+
+const buildOrFormula = (field: string, values: string[], includeBlank = false) => {
+  const clauses = [...values.map(value => `{${field}} = '${escapeAirtableValue(value)}'`)];
+  if (includeBlank) {
+    clauses.push(`{${field}} = ''`, `IS_BLANK({${field}})`);
+  }
+
+  if (clauses.length === 0) {
+    return '';
+  }
+
+  return clauses.length === 1 ? clauses[0] : `OR(${clauses.join(', ')})`;
 };
 
 const normalizePointOfPresenceFields = (fields: Record<string, unknown>): PointOfPresence['fields'] => {
@@ -475,6 +493,145 @@ export const orderService = {
     } catch (error) {
       console.error('Error fetching order by ID:', error);
       throw formatAirtableError(error, 'order lookup by ID');
+    }
+  },
+
+  async getUniqueOrders(filters?: {
+    pickStatuses?: string[];
+    dispatchStatuses?: string[];
+    categories?: string[];
+    search?: string;
+  }): Promise<UniqueOrder[]> {
+    try {
+      const formulas: string[] = [];
+
+      if (filters?.pickStatuses?.length) {
+        const formula = buildOrFormula('Pick Status', filters.pickStatuses, false);
+        if (formula) formulas.push(formula);
+      }
+
+      if (filters?.dispatchStatuses?.length) {
+        const formula = buildOrFormula('Dispatch Status', filters.dispatchStatuses, true);
+        if (formula) formulas.push(formula);
+      }
+
+      if (filters?.categories?.length) {
+        const formula = buildOrFormula('Item Category', filters.categories);
+        if (formula) formulas.push(formula);
+      }
+
+      if (filters?.search) {
+        const search = escapeAirtableValue(filters.search);
+        formulas.push(`OR(
+          SEARCH('${search}', {Recipient Name} & ''),
+          SEARCH('${search}', {Recipient Company Name} & ''),
+          SEARCH('${search}', {Order Location} & ''),
+          SEARCH('${search}', {WayBill Number} & ''),
+          SEARCH('${search}', {Order Notes} & '')
+        )`);
+      }
+
+      const filterByFormula = formulas.length === 0
+        ? undefined
+        : formulas.length === 1
+          ? formulas[0]
+          : `AND(${formulas.join(', ')})`;
+
+      const records = await tables.uniqueOrders
+        .select({
+          ...(filterByFormula ? { filterByFormula } : {}),
+          sort: [
+            { field: 'Pick Status', direction: 'asc' },
+            { field: 'Dispatch Status', direction: 'asc' },
+            { field: 'Date Ordered', direction: 'asc' }
+          ],
+        })
+        .all();
+
+      return records.map(record => ({
+        id: record.id,
+        fields: record.fields as UniqueOrder['fields']
+      }));
+    } catch (error) {
+      console.error('Error fetching unique orders:', error);
+      throw formatAirtableError(error, 'unique orders fetch');
+    }
+  },
+
+  async getUniqueOrder(recordId: string): Promise<UniqueOrder | null> {
+    try {
+      const record = await tables.uniqueOrders.find(recordId);
+      return {
+        id: record.id,
+        fields: record.fields as UniqueOrder['fields']
+      };
+    } catch (error) {
+      console.error('Error fetching unique order:', error);
+      throw formatAirtableError(error, 'unique order fetch');
+    }
+  },
+
+  async getStockOrderItems(orderNumber: string): Promise<StockOrderLineItem[]> {
+    try {
+      const records = await tables.orders
+        .select({
+          filterByFormula: `{Order Id} = '${escapeAirtableValue(orderNumber)}'`,
+          sort: [
+            { field: 'Date Ordered', direction: 'asc' },
+            { field: 'Device type', direction: 'asc' }
+          ]
+        })
+        .all();
+
+      return records.map(record => ({
+        id: record.id,
+        fields: record.fields as StockOrderLineItem['fields']
+      }));
+    } catch (error) {
+      console.error('Error fetching stock order items:', error);
+      throw formatAirtableError(error, 'stock order items fetch');
+    }
+  },
+
+  async getDispatchLog(uniqueOrderRecordId: string): Promise<DispatchLogEntry[]> {
+    try {
+      const records = await tables.dispatchLog
+        .select({
+          filterByFormula: `FIND('${escapeAirtableValue(uniqueOrderRecordId)}', ARRAYJOIN({Order Id}))`,
+          sort: [{ field: 'Date Dispatched', direction: 'desc' }]
+        })
+        .all();
+
+      return records.map(record => ({
+        id: record.id,
+        fields: record.fields as DispatchLogEntry['fields']
+      }));
+    } catch (error) {
+      console.error('Error fetching dispatch log:', error);
+      throw formatAirtableError(error, 'dispatch log fetch');
+    }
+  },
+
+  async getPickingQueue(): Promise<UniqueOrder[]> {
+    const pickStatuses = ['Not Picked', 'Pending', 'Partially Picked'];
+    return this.getUniqueOrders({ pickStatuses });
+  },
+
+  async getDispatchQueue(): Promise<UniqueOrder[]> {
+    const dispatchStatuses = ['Pending', 'Partial', 'Not Dispatched'];
+    return this.getUniqueOrders({ pickStatuses: ['Picked'], dispatchStatuses });
+  },
+
+  async updateUniqueOrder(recordId: string, fields: Partial<UniqueOrder['fields']>): Promise<UniqueOrder> {
+    try {
+      const record = await tables.uniqueOrders.update(recordId, fields);
+      return {
+        id: record.id,
+        fields: record.fields as UniqueOrder['fields']
+      };
+    } catch (error) {
+      console.error('Error updating unique order:', error);
+      throw formatAirtableError(error, 'unique order update');
     }
   }
 };

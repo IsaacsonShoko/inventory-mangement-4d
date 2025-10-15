@@ -12,6 +12,10 @@ import ExceptionsReport from "./pages/ExceptionsReport";
 import Tracking from "./pages/Tracking";
 import PointOfPresence from "./pages/PointOfPresence";
 import StockAlerts from "./pages/StockAlerts";
+import PickingQueue from "./pages/PickingQueue";
+import PickingCart from "./pages/PickingCart";
+import DispatchQueue from "./pages/DispatchQueue";
+import DispatchCart from "./pages/DispatchCart";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +36,10 @@ const App = () => (
           <Route path="/tracking" element={<Tracking />} />
           <Route path="/point-of-presence" element={<PointOfPresence />} />
           <Route path="/stock-alerts" element={<StockAlerts />} />
+          <Route path="/picking" element={<PickingQueue />} />
+          <Route path="/picking/cart/:recordId" element={<PickingCart />} />
+          <Route path="/dispatching" element={<DispatchQueue />} />
+          <Route path="/dispatching/cart/:recordId" element={<DispatchCart />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

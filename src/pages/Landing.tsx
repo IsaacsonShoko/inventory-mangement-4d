@@ -1,169 +1,266 @@
+import type { ComponentType, SVGProps } from "react";
 import { Link } from "react-router-dom";
-import { 
-  ShoppingCart, 
-  Package, 
-  ClipboardList, 
-  FileText, 
-  AlertTriangle, 
-  MapPin, 
-  Map, 
+import {
+  Package,
+  Truck,
+  FileBarChart,
+  ShoppingCart,
+  ClipboardList,
+  MapPin,
+  Map,
   Bell,
-  ArrowRight
+  Boxes,
+  Compass,
+  Users,
+  ArrowRight,
+  Sparkles
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+type ModuleCard = {
+  title: string;
+  description: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  path: string;
+  color: string;
+  status?: "active" | "soon";
+  testId?: string;
+};
+
+const primaryModules: ModuleCard[] = [
+  {
+    title: "Picking",
+    description:
+      "Direct warehouse staff into the correct business line queue, monitor pick progress, and surface outstanding orders in real time.",
+    icon: Package,
+    path: "/picking",
+    color: "from-violet-500 to-purple-600",
+    status: "active",
+    testId: "card-picking",
+  },
+  {
+    title: "Dispatching",
+    description:
+      "Transition picked orders into dispatch, record waybills, and keep courier assignments aligned with Airtable workflows.",
+    icon: Truck,
+    path: "/dispatching",
+    color: "from-purple-500 to-fuchsia-600",
+    status: "active",
+    testId: "card-dispatching",
+  },
+  {
+    title: "Exceptions Report",
+    description:
+      "Review mismatches from the Power BI exceptions feed to reconcile warehouse inventory with NAV in moments.",
+    icon: FileBarChart,
+    path: "/exceptions-report",
+    color: "from-fuchsia-500 to-pink-600",
+    status: "active",
+    testId: "card-exceptions",
+  },
+];
+
+const supportingModules: ModuleCard[] = [
+  {
+    title: "Stock Ordering",
+    description: "Create, track, and manage technician and warehouse orders with automated fulfilment tasks.",
+    icon: ShoppingCart,
+    path: "/stock-order",
+    color: "from-purple-500 to-purple-600",
+    status: "active",
+  },
+  {
+    title: "Stock Counts",
+    description: "Capture cycle counts via mobile scanning with built-in audit trails and approvals.",
+    icon: ClipboardList,
+    path: "/stock-counts",
+    color: "from-fuchsia-500 to-fuchsia-600",
+    status: "soon",
+  },
+  {
+    title: "Asset Management",
+    description: "Track serialized hardware across lifecycles, repairs, and redeployments.",
+    icon: Boxes,
+    path: "/asset-management",
+    color: "from-sky-500 to-blue-600",
+    status: "soon",
+  },
+  {
+    title: "Tracking",
+    description: "Monitor shipments, delivery milestones, and proof-of-delivery metadata in one place.",
+    icon: MapPin,
+    path: "/tracking",
+    color: "from-indigo-500 to-blue-600",
+    status: "soon",
+  },
+  {
+    title: "Point of Presence",
+    description: "Maintain your national technician roster, regions, and contact information.",
+    icon: Map,
+    path: "/point-of-presence",
+    color: "from-violet-600 to-purple-600",
+    status: "soon",
+  },
+  {
+    title: "Stock Alerts",
+    description: "Receive automation-driven alerts when reorder points or critical stock rules fire.",
+    icon: Bell,
+    path: "/stock-alerts",
+    color: "from-purple-500 to-pink-600",
+    status: "soon",
+  },
+  {
+    title: "Workforce Insights",
+    description: "Blend workforce analytics with inventory movements to optimise deployment.",
+    icon: Users,
+    path: "/coming-soon",
+    color: "from-amber-500 to-orange-500",
+    status: "soon",
+  },
+  {
+    title: "Field Operations",
+    description: "Coordinate onsite installations, relocations, and recovery jobs.",
+    icon: Compass,
+    path: "/coming-soon",
+    color: "from-emerald-500 to-teal-600",
+    status: "soon",
+  },
+];
 
 const Landing = () => {
-  const modules = [
-    { 
-      title: "Stock Ordering", 
-      icon: ShoppingCart, 
-      path: "/stock-order",
-      description: "Create, track, and manage orders for technicians and warehouses with automated tracking.",
-      gradient: "from-purple-500 to-purple-600",
-      available: true
-    },
-    { 
-      title: "Asset Management", 
-      icon: Package, 
-      path: "/asset-management",
-      description: "Monitor inventory, track serial numbers, and maintain complete asset lifecycle records.",
-      gradient: "from-violet-500 to-violet-600",
-      available: false
-    },
-    { 
-      title: "Stock Counts", 
-      icon: ClipboardList, 
-      path: "/stock-counts",
-      description: "Mobile camera scanner for accurate stock counting with audit trail generation.",
-      gradient: "from-fuchsia-500 to-fuchsia-600",
-      available: false
-    },
-    { 
-      title: "Reports", 
-      icon: FileText, 
-      path: "/stock-counts-report",
-      description: "Analytics and reporting on stock activities with historical data and discrepancy tracking.",
-      gradient: "from-purple-600 to-indigo-600",
-      available: false
-    },
-    { 
-      title: "Exceptions", 
-      icon: AlertTriangle, 
-      path: "/exceptions-report",
-      description: "Real-time monitoring of inventory anomalies and unauthorized movements.",
-      gradient: "from-pink-500 to-rose-600",
-      available: false
-    },
-    { 
-      title: "Tracking", 
-      icon: MapPin, 
-      path: "/tracking",
-      description: "Real-time shipment tracking with delivery status and complete history.",
-      gradient: "from-indigo-500 to-blue-600",
-      available: false
-    },
-    { 
-      title: "Point of Presence", 
-      icon: Map, 
-      path: "/point-of-presence",
-      description: "Technician registry with locations, contact details for workforce management.",
-      gradient: "from-violet-600 to-purple-600",
-      available: false
-    },
-    { 
-      title: "Stock Alerts", 
-      icon: Bell, 
-      path: "/stock-alerts",
-      description: "Smart notifications for low inventory, reorder points, and critical movements.",
-      gradient: "from-purple-500 to-pink-600",
-      available: false
-    },
-  ];
+  const userName = "Isaacson Shoko";
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Animated background particles */}
+    <div className="min-h-screen bg-background text-foreground relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-10 sm:top-20 left-5 sm:left-10 w-48 sm:w-72 h-48 sm:h-72 bg-primary/20 rounded-full blur-3xl animate-pulse-slow"></div>
-        <div className="absolute bottom-10 sm:bottom-20 right-5 sm:right-10 w-56 sm:w-96 h-56 sm:h-96 bg-accent/20 rounded-full blur-3xl animate-pulse-slow animate-delay-2"></div>
-        <div className="absolute top-1/2 left-1/2 w-40 sm:w-64 h-40 sm:h-64 bg-secondary/10 rounded-full blur-3xl animate-pulse-slow animate-delay-4"></div>
+  <div className="absolute top-20 right-20 w-96 h-96 rounded-full bg-primary/10 blur-3xl orb-animate orb-4s" />
+  <div className="absolute bottom-20 left-20 w-96 h-96 rounded-full bg-secondary/10 blur-3xl orb-animate orb-5s orb-delay-1s" />
+  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-accent/10 blur-3xl orb-animate orb-6s orb-delay-2s" />
       </div>
 
-      {/* Compact Hero Section - Mobile Optimized */}
-      <section className="relative z-10 py-12 sm:py-16 md:py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center space-y-4 sm:space-y-6 animate-fade-in">
-            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-sm mb-2 sm:mb-4 animate-scale-in">
-              <span className="text-xs sm:text-sm font-medium text-primary">4D Analytics Inventory Management</span>
+      <div className="relative z-10">
+        <header className="border-b border-border/40 bg-background/60 backdrop-blur">
+          <div className="container mx-auto px-6 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-6 w-6 text-primary" />
+              <span className="text-xl font-semibold">4D Analytics Inventory Management System</span>
             </div>
-            
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent leading-tight px-2">
-              Streamline Operations
-            </h1>
-            
-            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed px-4">
-              Optimize inventory & field technician management with integrated Stock Orders, Stock Counts, and PoP registry — all in real-time.
-            </p>
+            <div className="text-sm text-muted-foreground">
+              Welcome back, <span className="font-medium text-foreground">{userName}</span>
+            </div>
           </div>
-        </div>
-      </section>
+        </header>
 
-      {/* Compact Modules Grid - Mobile Optimized */}
-      <section className="relative z-10 py-8 sm:py-12 px-3 sm:px-4">
-        <div className="container mx-auto max-w-7xl">
-          <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {modules.map((module, idx) => {
-              const Icon = module.icon;
-              return (
-                <Link 
-                  key={module.path} 
-                  to={module.path}
-                  className="group"
-                  style={{ animationDelay: `${idx * 50}ms` }}
-                >
-                  <Card className="h-full border border-border/50 hover:border-primary/50 transition-all duration-500 hover:shadow-glow hover:-translate-y-1 sm:hover:-translate-y-2 bg-card/80 backdrop-blur-md animate-slide-up relative overflow-hidden">
-                    {/* Animated gradient border on hover */}
-                    <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br ${module.gradient} p-[2px] -z-10`}>
-                      <div className="h-full w-full bg-card rounded-lg"></div>
-                    </div>
-                    
-                    <CardContent className="p-4 sm:p-5 space-y-3 flex flex-col h-full">
-                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${module.gradient} flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg`}>
-                        <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" strokeWidth={2.5} />
-                      </div>
-                      
-                      <div className="flex-grow space-y-2">
-                        <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors duration-300">
-                          {module.title}
-                        </h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
-                          {module.description}
-                        </p>
-                      </div>
+        <main className="container mx-auto px-6 py-12 max-w-6xl space-y-16">
+          <section className="text-center space-y-6 animate-in fade-in duration-700">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-sm">
+              <span className="text-sm font-medium text-primary">Unified warehouse command centre</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight">
+              Streamline Picking, Dispatch, and Exceptions in one flow
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+              Blend PowerApps workflows with a modern React experience, backed by Airtable and n8n automations. Launch fulfilment workstreams in seconds.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <Link to="/stock-order">
+                <Button size="lg" className="gap-2">
+                  <ShoppingCart className="h-5 w-5" />
+                  Create Stock Order
+                </Button>
+              </Link>
+              <Link to="/picking">
+                <Button size="lg" variant="outline" className="gap-2">
+                  <Package className="h-5 w-5" />
+                  View Picking Queue
+                </Button>
+              </Link>
+            </div>
+          </section>
 
-                      <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                        {module.available ? (
-                          <span className="text-xs font-semibold text-green-400 bg-green-500/10 px-2 sm:px-2.5 py-1 rounded-full border border-green-500/20">
-                            Active
-                          </span>
-                        ) : (
-                          <span className="text-xs font-semibold text-muted-foreground/70 bg-muted/30 px-2 sm:px-2.5 py-1 rounded-full">
-                            Soon
-                          </span>
-                        )}
-                        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
+          <section className="space-y-8">
+            <div className="text-center space-y-2">
+              <h2 className="text-3xl font-semibold">Fulfilment Modules</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                These workflows mirror the PowerApps picking and dispatch journeys, now backed by the same Airtable schema.
+              </p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              {primaryModules.map(({ icon: Icon, title, description, path, color, status, testId }, index) => (
+                <Link key={title} to={path} data-testid={testId}>
+                  <Card
+                    className="group h-full border-primary/20 bg-primary/5 backdrop-blur hover:scale-[1.02] transition-all duration-300"
+                    style={{ animationDelay: `${index * 120}ms` }}
+                  >
+                    <CardHeader>
+                      <div className={`w-16 h-16 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className="h-8 w-8 text-white" />
                       </div>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        {title}
+                        <ArrowRight className="h-5 w-5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
+                      </CardTitle>
+                      <CardDescription className="text-muted-foreground">
+                        {description}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Badge variant="secondary" className="px-3 py-1">
+                        {status === "active" ? "Active" : "Coming soon"}
+                      </Badge>
+                      <span>Powered by Airtable queues</span>
                     </CardContent>
                   </Card>
                 </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+              ))}
+            </div>
+          </section>
 
-      {/* Subtle footer spacing */}
-      <div className="h-12 sm:h-16"></div>
+          <section className="space-y-8">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+              <div>
+                <h2 className="text-3xl font-semibold">Operations Workspace</h2>
+                <p className="text-muted-foreground max-w-2xl">
+                  Access the supporting modules that keep inventory, technicians, and alerts aligned with the fulfilment journey.
+                </p>
+              </div>
+              <Link to="/exceptions-report">
+                <Button variant="ghost" className="gap-2">
+                  <FileBarChart className="h-5 w-5" />
+                  Open Exceptions Dashboard
+                </Button>
+              </Link>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {supportingModules.map(({ icon: Icon, title, description, path, color, status }) => (
+                <Link key={title} to={path} className="group">
+                  <Card className="h-full border border-border/40 bg-card/80 backdrop-blur hover:border-primary/50 transition-all duration-300">
+                    <CardContent className="p-5 space-y-4">
+                      <div className={`w-12 h-12 rounded-md bg-gradient-to-br ${color} flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
+                        <Icon className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          {title}
+                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        </h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {description}
+                        </p>
+                      </div>
+                      <Badge variant={status === "active" ? "default" : "outline"} className="uppercase tracking-wide text-[11px]">
+                        {status === "active" ? "Active" : "Coming Soon"}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
   );
 };
