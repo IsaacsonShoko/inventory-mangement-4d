@@ -26,7 +26,9 @@ import {
 } from '@/components/ui/table';
 import { useDispatchLog, useStockOrderItems, useUniqueOrderRecord, useUpdateUniqueOrder } from '@/hooks/useAirtable';
 import { useToast } from '@/hooks/use-toast';
-import { formatOrderNumber } from '@/lib/orders';
+import { formatOrderNumber, getLineItemImageUrl } from '@/lib/orders';
+import { n8nService } from '@/integrations/n8n';
+import ThemeToggle from '@/components/theme-toggle';
 
 const statusBadgeTone: Record<string, string> = {
   Picked: 'bg-emerald-100 text-emerald-700 border-emerald-300',
@@ -77,9 +79,11 @@ const PickingCart = () => {
   const handleMarkPicked = () => {
     if (!recordId) return;
 
+    const safeRecordId = recordId as string;
+
     updateMutation.mutate(
       {
-        recordId,
+        recordId: safeRecordId,
         fields: {
           'Pick Status': 'Picked',
         },
@@ -90,6 +94,28 @@ const PickingCart = () => {
             title: 'Order marked as picked',
             description: `${orderNumber ?? 'Order'} is ready for dispatch.`,
           });
+
+          const itemsPayload = lineItems.map((item) => ({
+            deviceType: item.fields['Device type'] ?? 'Unknown',
+            quantityOrdered: item.fields['Quantity ordered'] ?? 0,
+            itemUrl: getLineItemImageUrl(item),
+            itemCode: item.fields['Item Code'] as string | undefined,
+          }));
+
+          void n8nService
+            .notifyOrderPicked({
+              orderId: orderNumber ?? safeRecordId,
+              uniqueOrderRecordId: safeRecordId,
+              items: itemsPayload,
+              metadata: {
+                pickStatus: 'Picked',
+                dispatchStatus: uniqueOrder?.fields['Dispatch Status'] ?? 'Pending',
+                dateOrdered: uniqueOrder?.fields['Date Ordered'],
+              },
+            })
+            .catch((error) => {
+              console.error('Failed to send order picked webhook', error);
+            });
         },
         onError: (mutationError: unknown) => {
           const description =
@@ -122,6 +148,7 @@ const PickingCart = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <ThemeToggle variant="ghost" />
             {pickStatus && (
               <Badge variant="outline" className={`${statusBadgeTone[pickStatus] ?? 'border-border'}`}>
                 Pick Status: {pickStatus}
@@ -234,6 +261,7 @@ const PickingCart = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[60px]">Item</TableHead>
                     <TableHead>Device Type</TableHead>
                     <TableHead className="hidden lg:table-cell">Description</TableHead>
                     <TableHead>Quantity</TableHead>
@@ -242,11 +270,22 @@ const PickingCart = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lineItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium text-foreground">
-                        {item.fields['Device type'] ?? 'Unknown'}
-                      </TableCell>
+                  {lineItems.map((item) => {
+                    const imageUrl = getLineItemImageUrl(item);
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                            {imageUrl ? (
+                              <img src={imageUrl} alt={item.fields['Device type'] ?? 'Inventory item'} className="h-full w-full object-cover" />
+                            ) : (
+                              <PackageSearch className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium text-foreground">
+                          {item.fields['Device type'] ?? 'Unknown'}
+                        </TableCell>
                       <TableCell className="hidden lg:table-cell text-muted-foreground">
                         {item.fields['Item Description'] ?? '—'}
                       </TableCell>
@@ -259,8 +298,9 @@ const PickingCart = () => {
                       <TableCell className="hidden xl:table-cell text-muted-foreground">
                         {item.fields['Package Reference'] ?? item.fields['Order Location'] ?? '—'}
                       </TableCell>
-                    </TableRow>
-                  ))}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

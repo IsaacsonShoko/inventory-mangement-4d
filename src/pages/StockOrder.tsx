@@ -50,6 +50,7 @@ import {
 } from "@/hooks/useAirtable";
 import type { CartItem, OrderFormData } from "@/types/airtable";
 import { Skeleton } from "@/components/ui/skeleton";
+import ThemeToggle from "@/components/theme-toggle";
 
 type DeliveryParty = 'Technician' | 'Regional Warehouse' | 'Non Technician' | 'select' | '';
 
@@ -286,6 +287,11 @@ const StockOrder = () => {
       return;
     }
 
+    const itemImageUrl =
+      item.fields['Item_Url'] ||
+      item.fields['Item Url'] ||
+      item.fields.Thumbnail?.[0]?.url;
+
     const cartItem: CartItem = {
       id: item.id,
       itemName: item.fields['Item_Name'],
@@ -293,6 +299,7 @@ const StockOrder = () => {
       itemCategory: item.fields['Item_Category'],
       quantity,
       itemNature: selectedNature,
+      itemUrl: itemImageUrl ?? undefined,
     };
 
     setCart([...cart, cartItem]);
@@ -410,30 +417,31 @@ const StockOrder = () => {
   const isSearchEnabled = Boolean(normalizedCategory && normalizedNature && deliveryParty && deliveryParty !== "select");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary via-secondary to-accent">
-      <header className="bg-primary text-white p-4 shadow-lg">
-        <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-white hover:bg-white/20"
+    <div className="min-h-screen bg-background">
+      <div className="bg-primary text-primary-foreground py-4 shadow-sm">
+        <div className="container mx-auto px-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-primary-foreground hover:bg-primary-foreground/20"
               onClick={() => navigate('/')}
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl font-bold">4D Analytics Stock Order</h1>
+            <h1 className="text-xl font-semibold">Stock Order Workspace</h1>
           </div>
+          <ThemeToggle variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/20" />
         </div>
-      </header>
+      </div>
 
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto px-4 py-8">
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-          <Card className="h-fit bg-white/95 backdrop-blur sticky top-6">
-            <CardHeader className="bg-primary text-white">
-              <CardTitle>Order Details Form</CardTitle>
+          <Card className="h-fit bg-card border border-border/50 shadow-sm sticky top-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Order Details</CardTitle>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+            <CardContent className="pt-4 space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto">
               <Form {...form}>
                 <form className="space-y-4">
                   <FormField
@@ -904,7 +912,7 @@ const StockOrder = () => {
           </Card>
 
           <div className="space-y-4">
-            <Card className="bg-white/95 backdrop-blur">
+            <Card className="bg-card border border-border/50 shadow-sm">
               <CardContent className="p-4">
                 <h2 className="text-xl font-semibold text-center mb-4 text-primary">
                   Add Items to Order
@@ -943,7 +951,7 @@ const StockOrder = () => {
                     </h3>
                     <div className="space-y-2">
                       {cart.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between text-sm bg-white p-2 rounded">
+                        <div key={item.id} className="flex items-center justify-between text-sm bg-background p-2 rounded border border-border/60">
                           <div className="flex-1">
                             <p className="font-medium">{item.itemName}</p>
                             <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
@@ -967,7 +975,7 @@ const StockOrder = () => {
             {isInventoryLoading ? (
               <div className="grid gap-4 md:grid-cols-2">
                 {[1, 2, 3, 4].map((i) => (
-                  <Card key={i} className="bg-white/95 backdrop-blur">
+                  <Card key={i} className="bg-card border border-border/50">
                     <CardContent className="p-4">
                       <div className="flex gap-4">
                         <Skeleton className="h-24 w-24 rounded-lg" />
@@ -990,7 +998,7 @@ const StockOrder = () => {
                   return (
                   <Card 
                     key={item.id} 
-                    className="bg-white/95 backdrop-blur border-2 border-primary/20 hover:border-primary/50 transition-colors"
+                    className="bg-card border border-border/60 hover:border-primary/60 transition-colors shadow-sm"
                   >
                     <CardContent className="p-4">
                       <div className="flex gap-4">

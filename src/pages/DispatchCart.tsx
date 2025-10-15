@@ -42,7 +42,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useDispatchLog, useStockOrderItems, useUniqueOrderRecord, useUpdateUniqueOrder } from '@/hooks/useAirtable';
 import { useToast } from '@/hooks/use-toast';
-import { formatOrderNumber } from '@/lib/orders';
+import { formatOrderNumber, getLineItemImageUrl } from '@/lib/orders';
+import { n8nService } from '@/integrations/n8n';
+import ThemeToggle from '@/components/theme-toggle';
 
 const dispatchBadgeTone: Record<string, string> = {
   Dispatched: 'bg-emerald-100 text-emerald-700 border-emerald-300',
@@ -132,6 +134,31 @@ const DispatchCart = () => {
             title: 'Dispatch completed',
             description: `${orderNumber ?? 'Order'} has been marked as dispatched.`,
           });
+
+          const itemsPayload = lineItems.map((item) => ({
+            deviceType: item.fields['Device type'] ?? 'Unknown',
+            quantityOrdered: item.fields['Quantity ordered'] ?? 0,
+            itemUrl: getLineItemImageUrl(item),
+            itemCode: item.fields['Item Code'] as string | undefined,
+          }));
+
+          void n8nService
+            .notifyOrderDispatched({
+              orderId: orderNumber ?? recordId,
+              uniqueOrderRecordId: recordId,
+              items: itemsPayload,
+              metadata: {
+                dispatchMethod: dispatchMethod || uniqueOrder?.fields['Dispatch Method'],
+                waybillNumber: waybillNumber || uniqueOrder?.fields['WayBill Number'],
+                dispatchStatus: 'Dispatched',
+                pickStatus: uniqueOrder?.fields['Pick Status'],
+                additionalNotes,
+              },
+            })
+            .catch((error) => {
+              console.error('Failed to send order dispatched webhook', error);
+            });
+
           setDialogOpen(false);
         },
         onError: (mutationError: unknown) => {
@@ -161,6 +188,7 @@ const DispatchCart = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <ThemeToggle variant="ghost" />
             <Badge variant="outline" className={`${pickBadgeTone[pickStatus] ?? 'border-border'}`}>
               Pick Status: {pickStatus}
             </Badge>
@@ -265,6 +293,7 @@ const DispatchCart = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[60px]">Item</TableHead>
                     <TableHead>Device Type</TableHead>
                     <TableHead className="hidden lg:table-cell">Description</TableHead>
                     <TableHead>Quantity</TableHead>
@@ -273,11 +302,22 @@ const DispatchCart = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lineItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium text-foreground">
-                        {item.fields['Device type'] ?? 'Unknown'}
-                      </TableCell>
+                  {lineItems.map((item) => {
+                    const imageUrl = getLineItemImageUrl(item);
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                            {imageUrl ? (
+                              <img src={imageUrl} alt={item.fields['Device type'] ?? 'Inventory item'} className="h-full w-full object-cover" />
+                            ) : (
+                              <PackageSearch className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium text-foreground">
+                          {item.fields['Device type'] ?? 'Unknown'}
+                        </TableCell>
                       <TableCell className="hidden lg:table-cell text-muted-foreground">
                         {item.fields['Item Description'] ?? '—'}
                       </TableCell>
@@ -290,8 +330,9 @@ const DispatchCart = () => {
                       <TableCell className="hidden xl:table-cell text-muted-foreground">
                         {item.fields['Waybill number'] ?? item.fields['Package Reference'] ?? '—'}
                       </TableCell>
-                    </TableRow>
-                  ))}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

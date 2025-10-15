@@ -10,14 +10,12 @@ import {
   Map,
   Bell,
   Boxes,
-  Compass,
-  Users,
-  ArrowRight,
-  Sparkles
+  ArrowRight
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import ThemeToggle from "@/components/theme-toggle";
 
 type ModuleCard = {
   title: string;
@@ -29,55 +27,24 @@ type ModuleCard = {
   testId?: string;
 };
 
-const primaryModules: ModuleCard[] = [
+const fieldOperationModules: ModuleCard[] = [
   {
-    title: "Picking",
-    description:
-      "Direct warehouse staff into the correct business line queue, monitor pick progress, and surface outstanding orders in real time.",
-    icon: Package,
-    path: "/picking",
-    color: "from-violet-500 to-purple-600",
-    status: "active",
-    testId: "card-picking",
-  },
-  {
-    title: "Dispatching",
-    description:
-      "Transition picked orders into dispatch, record waybills, and keep courier assignments aligned with Airtable workflows.",
-    icon: Truck,
-    path: "/dispatching",
-    color: "from-purple-500 to-fuchsia-600",
-    status: "active",
-    testId: "card-dispatching",
-  },
-  {
-    title: "Exceptions Report",
-    description:
-      "Review mismatches from the Power BI exceptions feed to reconcile warehouse inventory with NAV in moments.",
-    icon: FileBarChart,
-    path: "/exceptions-report",
-    color: "from-fuchsia-500 to-pink-600",
-    status: "active",
-    testId: "card-exceptions",
-  },
-];
-
-const supportingModules: ModuleCard[] = [
-  {
-    title: "Stock Ordering",
+    title: "Stock Order",
     description: "Create, track, and manage technician and warehouse orders with automated fulfilment tasks.",
     icon: ShoppingCart,
     path: "/stock-order",
-    color: "from-purple-500 to-purple-600",
+    color: "from-violet-500 to-purple-600",
     status: "active",
+    testId: "card-stock-order",
   },
   {
     title: "Stock Counts",
     description: "Capture cycle counts via mobile scanning with built-in audit trails and approvals.",
     icon: ClipboardList,
     path: "/stock-counts",
-    color: "from-fuchsia-500 to-fuchsia-600",
+    color: "from-purple-500 to-fuchsia-600",
     status: "soon",
+    testId: "card-stock-counts",
   },
   {
     title: "Asset Management",
@@ -86,6 +53,7 @@ const supportingModules: ModuleCard[] = [
     path: "/asset-management",
     color: "from-sky-500 to-blue-600",
     status: "soon",
+    testId: "card-asset-management",
   },
   {
     title: "Tracking",
@@ -94,6 +62,28 @@ const supportingModules: ModuleCard[] = [
     path: "/tracking",
     color: "from-indigo-500 to-blue-600",
     status: "soon",
+    testId: "card-tracking",
+  },
+];
+
+const adminWorkspaceModules: ModuleCard[] = [
+  {
+    title: "Picking Queue",
+    description: "Direct warehouse staff into the correct business line queue and monitor pick progress.",
+    icon: Package,
+    path: "/picking",
+    color: "from-purple-500 to-purple-600",
+    status: "active",
+    testId: "card-picking",
+  },
+  {
+    title: "Dispatching Queue",
+    description: "Transition picked orders into dispatch and record courier handover notes.",
+    icon: Truck,
+    path: "/dispatching",
+    color: "from-fuchsia-500 to-pink-600",
+    status: "active",
+    testId: "card-dispatching",
   },
   {
     title: "Point of Presence",
@@ -109,22 +99,6 @@ const supportingModules: ModuleCard[] = [
     icon: Bell,
     path: "/stock-alerts",
     color: "from-purple-500 to-pink-600",
-    status: "soon",
-  },
-  {
-    title: "Workforce Insights",
-    description: "Blend workforce analytics with inventory movements to optimise deployment.",
-    icon: Users,
-    path: "/coming-soon",
-    color: "from-amber-500 to-orange-500",
-    status: "soon",
-  },
-  {
-    title: "Field Operations",
-    description: "Coordinate onsite installations, relocations, and recovery jobs.",
-    icon: Compass,
-    path: "/coming-soon",
-    color: "from-emerald-500 to-teal-600",
     status: "soon",
   },
 ];
@@ -143,52 +117,24 @@ const Landing = () => {
       <div className="relative z-10">
         <header className="border-b border-border/40 bg-background/60 backdrop-blur">
           <div className="container mx-auto px-6 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <Sparkles className="h-6 w-6 text-primary" />
+            <div className="flex flex-col md:flex-row md:items-center md:gap-3">
               <span className="text-xl font-semibold">4D Analytics Inventory Management System</span>
+              <span className="text-sm text-muted-foreground">Welcome back, <span className="font-medium text-foreground">{userName}</span></span>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Welcome back, <span className="font-medium text-foreground">{userName}</span>
-            </div>
+            <ThemeToggle />
           </div>
         </header>
 
         <main className="container mx-auto px-6 py-12 max-w-6xl space-y-16">
-          <section className="text-center space-y-6 animate-in fade-in duration-700">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-sm">
-              <span className="text-sm font-medium text-primary">Unified warehouse command centre</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight">
-              Streamline Picking, Dispatch, and Exceptions in one flow
-            </h1>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Blend PowerApps workflows with a modern React experience, backed by Airtable and n8n automations. Launch fulfilment workstreams in seconds.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <Link to="/stock-order">
-                <Button size="lg" className="gap-2">
-                  <ShoppingCart className="h-5 w-5" />
-                  Create Stock Order
-                </Button>
-              </Link>
-              <Link to="/picking">
-                <Button size="lg" variant="outline" className="gap-2">
-                  <Package className="h-5 w-5" />
-                  View Picking Queue
-                </Button>
-              </Link>
-            </div>
-          </section>
-
-          <section className="space-y-8">
+          <section className="space-y-6">
             <div className="text-center space-y-2">
-              <h2 className="text-3xl font-semibold">Fulfilment Modules</h2>
+              <h1 className="text-3xl font-semibold">Field Operations</h1>
               <p className="text-muted-foreground max-w-2xl mx-auto">
-                These workflows mirror the PowerApps picking and dispatch journeys, now backed by the same Airtable schema.
+                Launch field-ready workflows for orders, counts, assets, and tracking from a single control centre.
               </p>
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              {primaryModules.map(({ icon: Icon, title, description, path, color, status, testId }, index) => (
+            <div className="grid gap-6 md:grid-cols-2">
+              {fieldOperationModules.map(({ icon: Icon, title, description, path, color, status, testId }, index) => (
                 <Link key={title} to={path} data-testid={testId}>
                   <Card
                     className="group h-full border-primary/20 bg-primary/5 backdrop-blur hover:scale-[1.02] transition-all duration-300"
@@ -218,12 +164,12 @@ const Landing = () => {
             </div>
           </section>
 
-          <section className="space-y-8">
+          <section className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
-                <h2 className="text-3xl font-semibold">Operations Workspace</h2>
+                <h2 className="text-3xl font-semibold">Admin Workspace</h2>
                 <p className="text-muted-foreground max-w-2xl">
-                  Access the supporting modules that keep inventory, technicians, and alerts aligned with the fulfilment journey.
+                  Manage queues, fulfilment handovers, and technician records that keep operations aligned.
                 </p>
               </div>
               <Link to="/exceptions-report">
@@ -234,7 +180,7 @@ const Landing = () => {
               </Link>
             </div>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {supportingModules.map(({ icon: Icon, title, description, path, color, status }) => (
+              {adminWorkspaceModules.map(({ icon: Icon, title, description, path, color, status }) => (
                 <Link key={title} to={path} className="group">
                   <Card className="h-full border border-border/40 bg-card/80 backdrop-blur hover:border-primary/50 transition-all duration-300">
                     <CardContent className="p-5 space-y-4">

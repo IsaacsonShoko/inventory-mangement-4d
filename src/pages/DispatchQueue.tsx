@@ -24,9 +24,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { useDispatchQueue } from '@/hooks/useAirtable';
-import { BUSINESS_LINES, formatOrderNumber, normaliseBusinessLine } from '@/lib/orders';
+import { useDispatchQueue, useStockOrderItemsByOrders } from '@/hooks/useAirtable';
+import { BUSINESS_LINES, formatOrderNumber, normaliseBusinessLine, getLineItemImageUrl } from '@/lib/orders';
 import type { UniqueOrder } from '@/types/airtable';
+import ThemeToggle from '@/components/theme-toggle';
 
 const dispatchTone: Record<string, string> = {
   Dispatched: 'border-emerald-200 text-emerald-600 bg-emerald-50',
@@ -77,6 +78,16 @@ const DispatchQueue = () => {
   }, [orders]);
 
   const populatedLines = queueStats.filter((stat) => stat.totalOrders > 0);
+
+  const orderNumbers = useMemo(
+    () =>
+      orders
+        .map((order) => formatOrderNumber(order))
+        .filter((value): value is string => Boolean(value)),
+    [orders],
+  );
+
+  const { data: lineItemsMap = {}, isLoading: lineItemsLoading } = useStockOrderItemsByOrders(orderNumbers);
 
   const effectiveSelectedLine = useMemo(() => {
     if (!orders.length) return selectedLine;
@@ -146,6 +157,7 @@ const DispatchQueue = () => {
             <h1 className="text-xl font-semibold">Dispatch Queue</h1>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/20" />
             <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={isFetching}>
               {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
             </Button>
@@ -234,6 +246,7 @@ const DispatchQueue = () => {
                     const orderNumber = formatOrderNumber(order);
                     const dateOrdered = getOrderDate(order.fields['Date Ordered']);
                     const isExpanded = expandedOrderId === order.id;
+                    const lineItems = orderNumber ? lineItemsMap[orderNumber] ?? [] : [];
 
                     return (
                       <div key={order.id} className="border-b">
@@ -317,6 +330,43 @@ const DispatchQueue = () => {
                                 <Button size="sm" onClick={() => handleNavigateToCart(order.id)}>
                                   Open Dispatch Cart
                                 </Button>
+                              </div>
+
+                              <div className="space-y-2">
+                                <p className="text-xs uppercase font-semibold text-muted-foreground">Line Items</p>
+                                {lineItemsLoading && lineItems.length === 0 ? (
+                                  <div className="text-xs text-muted-foreground">Loading line items...</div>
+                                ) : lineItems.length === 0 ? (
+                                  <div className="text-xs text-muted-foreground">No line items captured for this order yet.</div>
+                                ) : (
+                                  <div className="grid gap-3 sm:grid-cols-2">
+                                    {lineItems.map((item) => {
+                                      const imageUrl = getLineItemImageUrl(item);
+                                      return (
+                                        <div
+                                          key={item.id}
+                                          className="flex items-center gap-3 rounded-md border border-border/40 bg-background p-3"
+                                        >
+                                          <div className="h-14 w-14 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                                            {imageUrl ? (
+                                              <img src={imageUrl} alt={item.fields['Device type'] ?? 'Inventory item'} className="h-full w-full object-cover" />
+                                            ) : (
+                                              <PackageIcon className="h-6 w-6 text-primary" />
+                                            )}
+                                          </div>
+                                          <div className="flex-1 space-y-1">
+                                            <p className="text-sm font-medium text-foreground">
+                                              {item.fields['Device type'] ?? 'Unknown device'}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              Qty: {item.fields['Quantity ordered'] ?? 0}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>

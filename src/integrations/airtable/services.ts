@@ -73,6 +73,14 @@ const buildOrFormula = (field: string, values: string[], includeBlank = false) =
   return clauses.length === 1 ? clauses[0] : `OR(${clauses.join(', ')})`;
 };
 
+const chunkArray = <T,>(items: T[], size: number) => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+};
+
 const normalizePointOfPresenceFields = (fields: Record<string, unknown>): PointOfPresence['fields'] => {
   const getField = (...aliases: string[]): string | undefined => {
     for (const alias of aliases) {
@@ -406,6 +414,7 @@ export const orderService = {
         itemNature: item.itemNature || formData.itemNature,
         deviceType: item.itemName,
         quantityOrdered: item.quantity,
+        itemUrl: item.itemUrl,
         contractorCompany: formData.contractorCompany,
         region: formData.region,
         technician: formData.technician,
@@ -437,10 +446,25 @@ export const orderService = {
           deliveryParty: formData.deliveryParty,
           contractorCompany: formData.contractorCompany,
           region: formData.region,
-          items: orderLineWebhookPayloads.map(({ deviceType, quantityOrdered }) => ({
+          items: orderLineWebhookPayloads.map(({ deviceType, quantityOrdered, itemUrl }) => ({
             deviceType,
             quantityOrdered,
+            itemUrl,
           })),
+        });
+
+        await n8nService.notifyOrderManifest({
+          orderId,
+          uniqueOrderRecordId: uniqueOrderId,
+          items: orderLineWebhookPayloads.map(({ deviceType, quantityOrdered, itemUrl }) => ({
+            deviceType,
+            quantityOrdered,
+            itemUrl,
+          })),
+          metadata: {
+            deliveryParty: formData.deliveryParty,
+            orderedBy: formData.orderedBy,
+          },
         });
       }
 
@@ -585,12 +609,56 @@ export const orderService = {
 
       return records.map(record => ({
         id: record.id,
-        fields: record.fields as StockOrderLineItem['fields']
+        fields: record.fields as unknown as StockOrderLineItem['fields']
       }));
     } catch (error) {
       console.error('Error fetching stock order items:', error);
       throw formatAirtableError(error, 'stock order items fetch');
     }
+  },
+
+  async getStockOrderItemsByOrders(orderNumbers: string[]): Promise<Record<string, StockOrderLineItem[]>> {
+    const uniqueOrderNumbers = Array.from(new Set(orderNumbers.filter(Boolean)));
+
+    if (uniqueOrderNumbers.length === 0) {
+      return {};
+    }
+
+    const results: Record<string, StockOrderLineItem[]> = {};
+    const batches = chunkArray(uniqueOrderNumbers, 12);
+
+    for (const batch of batches) {
+      const formulaClauses = batch
+        .map(number => `{Order Id} = '${escapeAirtableValue(number)}'`)
+        .join(', ');
+
+      const records = await tables.orders
+        .select({
+          filterByFormula: `OR(${formulaClauses})`,
+          sort: [{ field: 'Order Id', direction: 'asc' }],
+        })
+        .all();
+
+      records.forEach((record) => {
+        const orderId = coerceToString(record.fields['Order Id']);
+        if (!orderId) {
+          return;
+        }
+
+        const mapped: StockOrderLineItem = {
+          id: record.id,
+          fields: record.fields as unknown as StockOrderLineItem['fields'],
+        };
+
+        if (!results[orderId]) {
+          results[orderId] = [];
+        }
+
+        results[orderId].push(mapped);
+      });
+    }
+
+    return results;
   },
 
   async getDispatchLog(uniqueOrderRecordId: string): Promise<DispatchLogEntry[]> {

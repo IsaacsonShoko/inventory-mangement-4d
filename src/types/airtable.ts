@@ -1,5 +1,18 @@
 // Airtable Type Definitions
 
+export interface AirtableAttachment {
+  id: string;
+  url: string;
+  filename: string;
+  size: number;
+  type: string;
+  thumbnails?: Record<string, {
+    url: string;
+    width: number;
+    height: number;
+  }>;
+}
+
 export interface InventoryItem {
   id: string;
   fields: {
@@ -8,13 +21,8 @@ export interface InventoryItem {
     'Item_Category': string;
     'Item_Nature': string;
     'Item_Url'?: string;
-    'Thumbnail'?: Array<{
-      id: string;
-      url: string;
-      filename: string;
-      size: number;
-      type: string;
-    }>;
+    'Item Url'?: string;
+    'Thumbnail'?: AirtableAttachment[];
   };
 }
 
@@ -91,6 +99,7 @@ export interface CartItem {
   itemCategory: string;
   quantity: number;
   itemNature: string;
+  itemUrl?: string;
 }
 
 export interface UniqueOrder {
@@ -155,6 +164,13 @@ export interface StockOrderLineItem {
     'Charger Serial Number'?: string;
     'Dispatch Method'?: string;
     'Warehouse Fulfilling'?: string;
+    'Item Url'?: string;
+    'Item url'?: string;
+    'Item_Url'?: string;
+    'Item Image'?: string;
+    'Item image'?: string;
+    'Item Thumbnail'?: AirtableAttachment[];
+    'Thumbnail'?: AirtableAttachment[];
   };
 }
 

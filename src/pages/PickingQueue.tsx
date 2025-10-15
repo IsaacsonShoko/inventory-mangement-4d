@@ -24,9 +24,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { usePickingQueue } from '@/hooks/useAirtable';
-import { BUSINESS_LINES, formatOrderNumber, normaliseBusinessLine } from '@/lib/orders';
+import { usePickingQueue, useStockOrderItemsByOrders } from '@/hooks/useAirtable';
+import { BUSINESS_LINES, formatOrderNumber, normaliseBusinessLine, getLineItemImageUrl } from '@/lib/orders';
 import type { UniqueOrder } from '@/types/airtable';
+import ThemeToggle from '@/components/theme-toggle';
 
 const pickStatusTone: Record<string, string> = {
   'Not Picked': 'border-red-200 text-red-600 bg-red-50',
@@ -78,6 +79,16 @@ const PickingQueue = () => {
     });
   }, [orders]);
 
+  const orderNumbers = useMemo(
+    () =>
+      orders
+        .map((order) => formatOrderNumber(order))
+        .filter((value): value is string => Boolean(value)),
+    [orders],
+  );
+
+  const { data: lineItemsMap = {}, isLoading: lineItemsLoading } = useStockOrderItemsByOrders(orderNumbers);
+
   const populatedLines = queueStats.filter((stat) => stat.totalOrders > 0);
 
   const effectiveSelectedLine = useMemo(() => {
@@ -113,6 +124,7 @@ const PickingQueue = () => {
     const orderNumber = formatOrderNumber(order);
     const dateOrdered = getOrderDate(order.fields['Date Ordered']);
     const isExpanded = expandedOrderId === order.id;
+    const lineItems = orderNumber ? lineItemsMap[orderNumber] ?? [] : [];
 
     return (
       <div key={order.id} className="border-b">
@@ -201,6 +213,43 @@ const PickingQueue = () => {
                   Open Picking Cart
                 </Button>
               </div>
+
+              <div className="space-y-2">
+                <p className="text-xs uppercase font-semibold text-muted-foreground">Line Items</p>
+                {lineItemsLoading && lineItems.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">Loading line items...</div>
+                ) : lineItems.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">No line items captured for this order yet.</div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {lineItems.map((item) => {
+                      const imageUrl = getLineItemImageUrl(item);
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-3 rounded-md border border-border/40 bg-background p-3"
+                        >
+                          <div className="h-14 w-14 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                            {imageUrl ? (
+                              <img src={imageUrl} alt={item.fields['Device type'] ?? 'Inventory item'} className="h-full w-full object-cover" />
+                            ) : (
+                              <PackageIcon className="h-6 w-6 text-primary" />
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <p className="text-sm font-medium text-foreground">
+                              {item.fields['Device type'] ?? 'Unknown device'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Qty: {item.fields['Quantity ordered'] ?? 0}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -256,6 +305,7 @@ const PickingQueue = () => {
             <h1 className="text-xl font-semibold">Picking Queue</h1>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/20" />
             <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={isFetching}>
               {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
             </Button>

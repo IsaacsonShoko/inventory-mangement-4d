@@ -1,4 +1,4 @@
-import type { UniqueOrder } from '@/types/airtable';
+import type { StockOrderLineItem, UniqueOrder } from '@/types/airtable';
 
 export const BUSINESS_LINES = [
   'Absa',
@@ -31,4 +31,35 @@ export const normaliseBusinessLine = (value: string | undefined) => {
 
   const match = BUSINESS_LINES.find(line => line.toLowerCase() === value.toLowerCase());
   return match ?? value;
+};
+
+const getFirstAttachmentUrl = (attachments?: unknown): string | undefined => {
+  if (!attachments || !Array.isArray(attachments) || attachments.length === 0) {
+    return undefined;
+  }
+
+  const [first] = attachments as Array<{ url?: string }>;
+  return typeof first?.url === 'string' ? first.url : undefined;
+};
+
+export const getLineItemImageUrl = (item: StockOrderLineItem): string | undefined => {
+  const fields = item.fields as Record<string, unknown>;
+
+  const directUrl = [
+    fields['Item Url'],
+    fields['Item url'],
+    fields['Item_Url'],
+    fields['Item Image'],
+    fields['Item image'],
+  ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+  if (directUrl) {
+    return directUrl;
+  }
+
+  return (
+    getFirstAttachmentUrl(fields['Item Thumbnail']) ??
+    getFirstAttachmentUrl(fields['Thumbnail']) ??
+    undefined
+  );
 };

@@ -141,6 +141,18 @@ export const useStockOrderItems = (orderNumber?: string) => {
   });
 };
 
+export const useStockOrderItemsByOrders = (orderNumbers: string[]) => {
+  const enabled = orderNumbers.length > 0;
+  const cacheKey = enabled ? [...orderNumbers].sort().join('|') : null;
+
+  return useQuery({
+    queryKey: ['stockOrderItems', 'batch', cacheKey],
+    queryFn: () => orderService.getStockOrderItemsByOrders(orderNumbers),
+    enabled,
+    staleTime: 60 * 1000,
+  });
+};
+
 export const useDispatchLog = (uniqueOrderRecordId?: string) => {
   return useQuery({
     queryKey: ['dispatchLog', uniqueOrderRecordId],
