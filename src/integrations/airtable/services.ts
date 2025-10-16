@@ -435,38 +435,43 @@ export const orderService = {
       // Send all line items to n8n webhook
       // n8n will create Stock_Order records for each line item
       if (orderLineWebhookPayloads.length > 0) {
-        await Promise.all(
-          orderLineWebhookPayloads.map(payload => n8nService.submitOrderLine(payload))
-        );
-
-        // Send order summary notification
-        await n8nService.notifyOrderPlaced({
-          orderId,
-          totalItems: orderLineWebhookPayloads.length,
-          dateOrdered: formattedDateOrdered,
-          orderedBy: formData.orderedBy,
-          deliveryParty: formData.deliveryParty,
-          contractorCompany: formData.contractorCompany,
-          region: formData.region,
-          items: orderLineWebhookPayloads.map(({ deviceType, quantityOrdered, itemUrl }) => ({
-            deviceType,
-            quantityOrdered,
-            itemUrl,
-          })),
-        });
-
-        await n8nService.notifyOrderManifest({
-          orderId,
-          uniqueOrderRecordId: uniqueOrderId,
-          items: orderLineWebhookPayloads.map(({ deviceType, quantityOrdered, itemUrl }) => ({
-            deviceType,
-            quantityOrdered,
-            itemUrl,
-          })),
-          metadata: {
-            deliveryParty: formData.deliveryParty,
+        const webhookPromises: Promise<unknown>[] = [
+          ...orderLineWebhookPayloads.map((payload) => n8nService.submitOrderLine(payload)),
+          n8nService.notifyOrderPlaced({
+            orderId,
+            totalItems: orderLineWebhookPayloads.length,
+            dateOrdered: formattedDateOrdered,
             orderedBy: formData.orderedBy,
-          },
+            deliveryParty: formData.deliveryParty,
+            contractorCompany: formData.contractorCompany,
+            region: formData.region,
+            items: orderLineWebhookPayloads.map(({ deviceType, quantityOrdered, itemUrl }) => ({
+              deviceType,
+              quantityOrdered,
+              itemUrl,
+            })),
+          }),
+          n8nService.notifyOrderManifest({
+            orderId,
+            uniqueOrderRecordId: uniqueOrderId,
+            items: orderLineWebhookPayloads.map(({ deviceType, quantityOrdered, itemUrl }) => ({
+              deviceType,
+              quantityOrdered,
+              itemUrl,
+            })),
+            metadata: {
+              deliveryParty: formData.deliveryParty,
+              orderedBy: formData.orderedBy,
+            },
+          }),
+        ];
+
+        const webhookResults = await Promise.allSettled(webhookPromises);
+
+        webhookResults.forEach((result) => {
+          if (result.status === 'rejected') {
+            console.error('n8n webhook invocation failed', result.reason);
+          }
         });
       }
 
@@ -688,8 +693,24 @@ export const orderService = {
   },
 
   async getDispatchQueue(): Promise<UniqueOrder[]> {
-    const dispatchStatuses = ['Pending', 'Partial', 'Not Dispatched'];
-    return this.getUniqueOrders({ pickStatuses: ['Picked'], dispatchStatuses });
+    try {
+      const orders = await this.getUniqueOrders();
+      const allowedPickStatuses = new Set(['Picked']);
+      const allowedDispatchStatuses = new Set(['Pending', 'Partial', 'Not Dispatched']);
+
+      return orders.filter((order) => {
+        const normalizedPickStatus = order.fields['Pick Status'] ?? '';
+        const normalizedDispatchStatus = order.fields['Dispatch Status'] ?? '';
+
+        const pickReady = allowedPickStatuses.has(normalizedPickStatus);
+        const dispatchPending = normalizedDispatchStatus === '' || allowedDispatchStatuses.has(normalizedDispatchStatus);
+
+        return pickReady && dispatchPending;
+      });
+    } catch (error) {
+      console.error('Error fetching dispatch queue:', error);
+      throw formatAirtableError(error, 'dispatch queue fetch');
+    }
   },
 
   async updateUniqueOrder(recordId: string, fields: Partial<UniqueOrder['fields']>): Promise<UniqueOrder> {
