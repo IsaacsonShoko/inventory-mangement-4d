@@ -396,6 +396,7 @@ export const orderService = {
           ...(formData.recipientContactNumber && { 'Recipient Contact Number': formData.recipientContactNumber }),
           ...(formData.recipientEmail && { 'Recipient Email Address': formData.recipientEmail }),
           ...(formData.orderLocation && { 'Order Location': formData.orderLocation }),
+          ...(formData.cellPhoneNumber && { 'CellPhone Number': formData.cellPhoneNumber }),
         }
       }]);
 
@@ -428,6 +429,7 @@ export const orderService = {
         recipientAddress: formData.recipientAddress,
         recipientContactNumber: formData.recipientContactNumber,
         recipientEmail: formData.recipientEmail,
+        cellPhoneNumber: formData.cellPhoneNumber,
       }));
 
       // Send all line items to n8n webhook

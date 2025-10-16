@@ -145,6 +145,7 @@ const StockOrder = () => {
       recipientAddress: "",
       recipientContactNumber: "",
       recipientEmail: "",
+      cellPhoneNumber: "",
     },
   });
 
@@ -344,6 +345,7 @@ const StockOrder = () => {
       itemNature: formValues.itemNature,
       deliveryParty: formValues.deliveryParty,
       orderedBy: formValues.orderedBy,
+      cellPhoneNumber: formValues.cellPhoneNumber,
       ...(deliveryParty === 'Technician' && {
         contractorCompany: formValues.contractorCompany,
         region: formValues.region,
@@ -397,6 +399,7 @@ const StockOrder = () => {
         recipientAddress: "",
         recipientContactNumber: "",
         recipientEmail: "",
+        cellPhoneNumber: "",
       });
       
       setCart([]);
@@ -892,6 +895,20 @@ const StockOrder = () => {
                       />
                     </>
                   )}
+
+                  <FormField
+                    control={form.control}
+                    name="cellPhoneNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CellPhone Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+27..." {...field} type="tel" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={form.control}

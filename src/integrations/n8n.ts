@@ -56,6 +56,7 @@ export type OrderLineWebhookPayload = Record<string, unknown> & {
   recipientAddress?: string;
   recipientContactNumber?: string;
   recipientEmail?: string;
+  cellPhoneNumber?: string;
 };
 
 export type OrderPlacedWebhookPayload = Record<string, unknown> & {

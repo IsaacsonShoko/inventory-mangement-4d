@@ -90,6 +90,7 @@ export interface OrderFormData {
   orderedBy: string;
   orderLocation?: string;
   popId?: string;
+  cellPhoneNumber?: string;
 }
 
 export interface CartItem {
@@ -133,6 +134,7 @@ export interface UniqueOrder {
     'Order Summary (AI Generated)'?: string;
     'Dispatch Log'?: string[];
     'Stock Order'?: string[];
+    'CellPhone Number'?: string;
   };
 }
 
