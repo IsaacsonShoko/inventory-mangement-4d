@@ -67,6 +67,85 @@ const escapeAirtableValue = (value: string) => value.replace(/'/g, "\\'");
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const normaliseOrderIdInput = (value: unknown): string | undefined => {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  if (Array.isArray(value) && value.length > 0) {
+    return normaliseOrderIdInput(value[0]);
+  }
+
+  return undefined;
+};
+
+const buildOrderIdForms = (value: unknown) => {
+  const normalised = normaliseOrderIdInput(value);
+  const stringValues = new Set<string>();
+  const comparisonForms = new Set<string>();
+  const numericValues = new Set<number>();
+
+  if (!normalised) {
+    return { stringValues: Array.from(stringValues), comparisonForms, numericValues: Array.from(numericValues) };
+  }
+
+  const pushString = (candidate: string | undefined) => {
+    if (!candidate) return;
+    const trimmed = candidate.trim();
+    if (!trimmed) return;
+    stringValues.add(trimmed);
+    comparisonForms.add(trimmed.toUpperCase());
+  };
+
+  pushString(normalised);
+  pushString(normalised.toUpperCase());
+
+  const digitsOnly = normalised.replace(/[^0-9]/g, '');
+  if (digitsOnly.length > 0) {
+    pushString(digitsOnly);
+    const padded = digitsOnly.padStart(4, '0');
+    pushString(padded);
+    pushString(`ORD-${digitsOnly}`);
+    pushString(`ORD-${padded}`);
+
+    const numeric = Number.parseInt(digitsOnly, 10);
+    if (!Number.isNaN(numeric)) {
+      numericValues.add(numeric);
+    }
+  }
+
+  return {
+    stringValues: Array.from(stringValues),
+    comparisonForms,
+    numericValues: Array.from(numericValues),
+  };
+};
+
+const buildOrderIdFilterClauses = (value: unknown) => {
+  const { stringValues, numericValues, comparisonForms } = buildOrderIdForms(value);
+
+  const stringClauses = stringValues.map((candidate) => `{Order Id} = '${escapeAirtableValue(candidate)}'`);
+  const numericClauses = numericValues.map((numeric) => `VALUE({Order Id}) = ${numeric}`);
+
+  const clauses = [...stringClauses, ...numericClauses];
+
+  return {
+    clauses,
+    comparisonForms,
+  };
+};
+
+const castRecordFields = <T>(fields: unknown): T => fields as unknown as T;
+
 const extractOrderNumber = (fields: Record<string, unknown>): number | null => {
   const rawValue = fields['Order ID'];
 
@@ -220,7 +299,7 @@ export const inventoryService = {
       
       return records.map(record => ({
         id: record.id,
-        fields: record.fields as InventoryItem['fields']
+        fields: castRecordFields<InventoryItem['fields']>(record.fields)
       }));
     } catch (error) {
       console.error('Error fetching inventory:', error);
@@ -249,7 +328,7 @@ export const inventoryService = {
 
       const categories = new Set<string>();
       records.forEach(record => {
-        const value = coerceToString((record.fields as Record<string, unknown>)['Item_Category']);
+  const value = coerceToString((record.fields as Record<string, unknown>)['Item_Category']);
         if (value) {
           categories.add(value);
         }
@@ -268,7 +347,7 @@ export const inventoryService = {
 
       const natures = new Set<string>();
       records.forEach(record => {
-        const fields = record.fields as Record<string, unknown>;
+  const fields = record.fields as Record<string, unknown>;
         const recordCategory = coerceToString(fields['Item_Category']);
         if (category && recordCategory !== category) {
           return;
@@ -373,7 +452,7 @@ export const businessLinesService = {
       
       return records.map(record => ({
         id: record.id,
-        fields: record.fields as BusinessLine['fields']
+        fields: castRecordFields<BusinessLine['fields']>(record.fields)
       }));
     } catch (error) {
       console.error('Error fetching business lines:', error);
@@ -634,7 +713,7 @@ export const orderService = {
       
       return records.map(record => ({
         id: record.id,
-        fields: record.fields as Order['fields']
+        fields: castRecordFields<Order['fields']>(record.fields)
       }));
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -655,7 +734,7 @@ export const orderService = {
       
       return records.map(record => ({
         id: record.id,
-        fields: record.fields as Order['fields']
+        fields: castRecordFields<Order['fields']>(record.fields)
       }));
     } catch (error) {
       console.error('Error fetching order by ID:', error);
@@ -717,7 +796,7 @@ export const orderService = {
 
       return records.map(record => ({
         id: record.id,
-        fields: record.fields as UniqueOrder['fields']
+        fields: castRecordFields<UniqueOrder['fields']>(record.fields)
       }));
     } catch (error) {
       console.error('Error fetching unique orders:', error);
@@ -730,7 +809,7 @@ export const orderService = {
       const record = await tables.uniqueOrders.find(recordId);
       return {
         id: record.id,
-        fields: record.fields as UniqueOrder['fields']
+        fields: castRecordFields<UniqueOrder['fields']>(record.fields)
       };
     } catch (error) {
       console.error('Error fetching unique order:', error);
@@ -740,9 +819,17 @@ export const orderService = {
 
   async getStockOrderItems(orderNumber: string): Promise<StockOrderLineItem[]> {
     try {
+      const { clauses, comparisonForms } = buildOrderIdFilterClauses(orderNumber);
+
+      const filterByFormula = clauses.length === 0
+        ? undefined
+        : clauses.length === 1
+          ? clauses[0]
+          : `OR(${clauses.join(', ')})`;
+
       const records = await tables.orders
         .select({
-          filterByFormula: `{Order Id} = '${escapeAirtableValue(orderNumber)}'`,
+          ...(filterByFormula ? { filterByFormula } : {}),
           sort: [
             { field: 'Date Ordered', direction: 'asc' },
             { field: 'Device type', direction: 'asc' }
@@ -750,10 +837,24 @@ export const orderService = {
         })
         .all();
 
-      return records.map(record => ({
-        id: record.id,
-        fields: record.fields as unknown as StockOrderLineItem['fields']
-      }));
+      return records
+        .filter((record) => {
+          if (comparisonForms.size === 0) {
+            return true;
+          }
+
+          const recordForms = buildOrderIdForms(record.fields['Order Id']).comparisonForms;
+          for (const form of recordForms) {
+            if (comparisonForms.has(form)) {
+              return true;
+            }
+          }
+          return false;
+        })
+        .map(record => ({
+          id: record.id,
+          fields: castRecordFields<StockOrderLineItem['fields']>(record.fields)
+        }));
     } catch (error) {
       console.error('Error fetching stock order items:', error);
       throw formatAirtableError(error, 'stock order items fetch');
@@ -767,37 +868,65 @@ export const orderService = {
       return {};
     }
 
+    const orderMatchers = uniqueOrderNumbers
+      .map((orderNumber) => {
+        const { clauses, comparisonForms } = buildOrderIdFilterClauses(orderNumber);
+        return {
+          orderNumber,
+          clauses,
+          comparisonForms,
+        };
+      })
+      .filter((matcher) => matcher.clauses.length > 0);
+
+    const allClauses = orderMatchers.flatMap((matcher) => matcher.clauses);
+
+    if (allClauses.length === 0) {
+      return {};
+    }
+
+    const batches = chunkArray(allClauses, 30);
     const results: Record<string, StockOrderLineItem[]> = {};
-    const batches = chunkArray(uniqueOrderNumbers, 12);
 
     for (const batch of batches) {
-      const formulaClauses = batch
-        .map(number => `{Order Id} = '${escapeAirtableValue(number)}'`)
-        .join(', ');
+      const filterByFormula = batch.length === 1 ? batch[0] : `OR(${batch.join(', ')})`;
 
       const records = await tables.orders
         .select({
-          filterByFormula: `OR(${formulaClauses})`,
+          filterByFormula,
           sort: [{ field: 'Order Id', direction: 'asc' }],
         })
         .all();
 
       records.forEach((record) => {
-        const orderId = coerceToString(record.fields['Order Id']);
-        if (!orderId) {
+        const recordForms = buildOrderIdForms(record.fields['Order Id']).comparisonForms;
+        if (recordForms.size === 0) {
           return;
         }
 
         const mapped: StockOrderLineItem = {
           id: record.id,
-          fields: record.fields as unknown as StockOrderLineItem['fields'],
+          fields: castRecordFields<StockOrderLineItem['fields']>(record.fields),
         };
 
-        if (!results[orderId]) {
-          results[orderId] = [];
+        const matchedOrders: string[] = [];
+
+        for (const { orderNumber, comparisonForms } of orderMatchers) {
+          for (const form of recordForms) {
+            if (comparisonForms.has(form)) {
+              matchedOrders.push(orderNumber);
+              break;
+            }
+          }
         }
 
-        results[orderId].push(mapped);
+        matchedOrders.forEach((orderNumber) => {
+          const existing = results[orderNumber] ?? [];
+          if (!existing.some((item) => item.id === mapped.id)) {
+            existing.push(mapped);
+            results[orderNumber] = existing;
+          }
+        });
       });
     }
 
@@ -815,7 +944,7 @@ export const orderService = {
 
       return records.map(record => ({
         id: record.id,
-        fields: record.fields as DispatchLogEntry['fields']
+        fields: castRecordFields<DispatchLogEntry['fields']>(record.fields)
       }));
     } catch (error) {
       console.error('Error fetching dispatch log:', error);
@@ -837,7 +966,7 @@ export const orderService = {
 
       return records.map((record) => ({
         id: record.id,
-        fields: record.fields as UniqueOrder['fields'],
+        fields: castRecordFields<UniqueOrder['fields']>(record.fields),
       }));
     } catch (error) {
       console.error('Error fetching picking queue:', error);
@@ -860,7 +989,7 @@ export const orderService = {
 
       return records.map((record) => ({
         id: record.id,
-        fields: record.fields as UniqueOrder['fields'],
+        fields: castRecordFields<UniqueOrder['fields']>(record.fields),
       }));
     } catch (error) {
       console.error('Error fetching dispatch queue:', error);
@@ -873,7 +1002,7 @@ export const orderService = {
       const record = await tables.uniqueOrders.update(recordId, fields);
       return {
         id: record.id,
-        fields: record.fields as UniqueOrder['fields']
+        fields: castRecordFields<UniqueOrder['fields']>(record.fields)
       };
     } catch (error) {
       console.error('Error updating unique order:', error);
