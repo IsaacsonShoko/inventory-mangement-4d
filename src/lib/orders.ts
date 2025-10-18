@@ -11,19 +11,50 @@ export const BUSINESS_LINES = [
 ];
 
 export const formatOrderNumber = (order: UniqueOrder | undefined) => {
-  const rawId = order?.fields['Order ID'];
+  const rawId = order?.fields['Order ID'] as unknown;
 
-  if (!rawId && rawId !== 0) {
+  if (rawId === null || rawId === undefined) {
     return undefined;
   }
 
-  const numeric = typeof rawId === 'number' ? rawId : Number(rawId);
-
-  if (Number.isNaN(numeric)) {
-    return undefined;
+  if (typeof rawId === 'number' && Number.isFinite(rawId)) {
+    return `ORD-${rawId.toString().padStart(4, '0')}`;
   }
 
-  return `ORD-${numeric.toString().padStart(4, '0')}`;
+  if (typeof rawId === 'string') {
+    const trimmed = rawId.trim();
+    if (trimmed.length === 0) {
+      return undefined;
+    }
+
+    if (/^ORD-\d+$/i.test(trimmed)) {
+      const digits = trimmed.replace(/\D/g, '');
+      if (digits.length > 0) {
+        const numeric = Number.parseInt(digits, 10);
+        if (!Number.isNaN(numeric)) {
+          return `ORD-${numeric.toString().padStart(4, '0')}`;
+        }
+      }
+      return trimmed.toUpperCase();
+    }
+
+    if (/^\d+$/.test(trimmed)) {
+      const numeric = Number.parseInt(trimmed, 10);
+      return `ORD-${numeric.toString().padStart(4, '0')}`;
+    }
+
+    const digits = trimmed.match(/\d+/);
+    if (digits) {
+      const numeric = Number.parseInt(digits[0], 10);
+      if (!Number.isNaN(numeric)) {
+        return `ORD-${numeric.toString().padStart(4, '0')}`;
+      }
+    }
+
+    return trimmed.toUpperCase();
+  }
+
+  return undefined;
 };
 
 export const normaliseBusinessLine = (value: string | undefined) => {

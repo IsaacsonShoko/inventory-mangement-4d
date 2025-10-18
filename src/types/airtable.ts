@@ -106,7 +106,7 @@ export interface CartItem {
 export interface UniqueOrder {
   id: string;
   fields: {
-    'Order ID': number;
+    'Order ID': number | string;
     'Date Ordered': string;
     'Item Category': string;
     'Item Nature': string;
