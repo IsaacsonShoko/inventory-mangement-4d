@@ -12,7 +12,7 @@ import {
   Boxes,
   ArrowRight
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/theme-toggle";
@@ -116,52 +116,52 @@ const Landing = () => {
 
       <div className="relative z-10">
         <header className="border-b border-border/40 bg-background/60 backdrop-blur">
-          <div className="container mx-auto px-6 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="container mx-auto px-4 py-2.5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col md:flex-row md:items-center md:gap-3">
-              <span className="text-xl font-semibold">4D Analytics Inventory Management System</span>
-              <span className="text-sm text-muted-foreground">Welcome back, <span className="font-medium text-foreground">{userName}</span></span>
+              <span className="text-lg font-semibold">4D Analytics Inventory Management System</span>
+              <span className="text-xs text-muted-foreground">Welcome back, <span className="font-medium text-foreground">{userName}</span></span>
             </div>
             <ThemeToggle />
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-6 max-w-7xl space-y-8">
-          <section className="space-y-3">
-            <div className="text-center space-y-1">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent">
+        <main className="container mx-auto px-4 py-4 max-w-7xl space-y-5">
+          <section className="space-y-1.5">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent">
                 4D Analytics Inventory Management
               </h1>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
+              <p className="text-xs text-muted-foreground max-w-2xl mx-auto">
                 Streamline operations with automated workflows and real-time inventory control.
               </p>
             </div>
           </section>
 
-          <section className="space-y-4">
+          <section className="space-y-2.5">
             <div className="text-center">
-              <h2 className="text-xl font-semibold">Field Operations</h2>
+              <h2 className="text-base font-semibold">Field Operations</h2>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
               {fieldOperationModules.map(({ icon: Icon, title, description, path, color, status, testId }, index) => (
                 <Link key={title} to={path} data-testid={testId}>
                   <Card
                     className="group h-full border-border/50 bg-card/80 backdrop-blur hover:border-primary/50 hover:shadow-lg transition-all duration-300 animate-fade-in"
                     style={{ animationDelay: `${index * 80}ms` }}
                   >
-                    <CardContent className="p-4 space-y-3">
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon className="h-5 w-5 text-white" />
+                    <CardContent className="p-3 space-y-2">
+                      <div className={`w-8 h-8 rounded-md bg-gradient-to-br ${color} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className="h-4 w-4 text-white" />
                       </div>
-                      <div className="space-y-1.5">
-                        <h3 className="font-semibold flex items-center gap-2">
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-semibold flex items-center gap-1">
                           {title}
-                          <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
+                          <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
                         </h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
+                        <p className="text-[10px] text-muted-foreground leading-snug">
                           {description}
                         </p>
                       </div>
-                      <Badge variant={status === "active" ? "default" : "outline"} className="uppercase text-[10px]">
+                      <Badge variant={status === "active" ? "default" : "outline"} className="uppercase text-[9px] px-1.5 py-0.5">
                         {status === "active" ? "Active" : "Coming Soon"}
                       </Badge>
                     </CardContent>
@@ -171,37 +171,37 @@ const Landing = () => {
             </div>
           </section>
 
-          <section className="space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <h2 className="text-xl font-semibold">Admin Workspace</h2>
+          <section className="space-y-2.5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <h2 className="text-base font-semibold">Admin Workspace</h2>
               <Link to="/exceptions-report">
-                <Button variant="outline" size="sm" className="gap-2 hover:bg-primary/10">
-                  <FileBarChart className="h-4 w-4" />
+                <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs hover:bg-primary/10">
+                  <FileBarChart className="h-3.5 w-3.5" />
                   Exceptions Dashboard
                 </Button>
               </Link>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {adminWorkspaceModules.map(({ icon: Icon, title, description, path, color, status }, index) => (
                 <Link key={title} to={path} className="group">
                   <Card 
                     className="h-full border-border/50 bg-card/80 backdrop-blur hover:border-primary/50 hover:shadow-lg transition-all duration-300 animate-fade-in"
                     style={{ animationDelay: `${index * 80}ms` }}
                   >
-                    <CardContent className="p-4 space-y-3">
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform`}>
-                        <Icon className="h-5 w-5 text-white" />
+                    <CardContent className="p-3 space-y-2">
+                      <div className={`w-8 h-8 rounded-md bg-gradient-to-br ${color} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform`}>
+                        <Icon className="h-4 w-4 text-white" />
                       </div>
-                      <div className="space-y-1.5">
-                        <h3 className="font-semibold flex items-center gap-2">
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-semibold flex items-center gap-1">
                           {title}
-                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                          <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                         </h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
+                        <p className="text-[10px] text-muted-foreground leading-snug">
                           {description}
                         </p>
                       </div>
-                      <Badge variant={status === "active" ? "default" : "outline"} className="uppercase text-[10px]">
+                      <Badge variant={status === "active" ? "default" : "outline"} className="uppercase text-[9px] px-1.5 py-0.5">
                         {status === "active" ? "Active" : "Coming Soon"}
                       </Badge>
                     </CardContent>
