@@ -824,25 +824,44 @@ export const orderService = {
   },
 
   async getPickingQueue(): Promise<UniqueOrder[]> {
-    const pickStatuses = ['Not Picked', 'Pending', 'Partially Picked'];
-    return this.getUniqueOrders({ pickStatuses });
+    try {
+      const records = await tables.uniqueOrders
+        .select({
+          filterByFormula: "OR({Pick Status} = '', {Pick Status} = BLANK())",
+          sort: [
+            { field: 'Date Ordered', direction: 'asc' },
+            { field: 'Item Category', direction: 'asc' }
+          ],
+        })
+        .all();
+
+      return records.map((record) => ({
+        id: record.id,
+        fields: record.fields as UniqueOrder['fields'],
+      }));
+    } catch (error) {
+      console.error('Error fetching picking queue:', error);
+      throw formatAirtableError(error, 'picking queue fetch');
+    }
   },
 
   async getDispatchQueue(): Promise<UniqueOrder[]> {
     try {
-      const orders = await this.getUniqueOrders();
-      const allowedPickStatuses = new Set(['Picked']);
-      const allowedDispatchStatuses = new Set(['Pending', 'Partial', 'Not Dispatched']);
+      const records = await tables.uniqueOrders
+        .select({
+          filterByFormula:
+            "AND(NOT(OR({Pick Status} = '', {Pick Status} = BLANK())), OR({Dispatch Status} = '', {Dispatch Status} = BLANK()))",
+          sort: [
+            { field: 'Date Ordered', direction: 'asc' },
+            { field: 'Item Category', direction: 'asc' }
+          ],
+        })
+        .all();
 
-      return orders.filter((order) => {
-        const normalizedPickStatus = order.fields['Pick Status'] ?? '';
-        const normalizedDispatchStatus = order.fields['Dispatch Status'] ?? '';
-
-        const pickReady = allowedPickStatuses.has(normalizedPickStatus);
-        const dispatchPending = normalizedDispatchStatus === '' || allowedDispatchStatuses.has(normalizedDispatchStatus);
-
-        return pickReady && dispatchPending;
-      });
+      return records.map((record) => ({
+        id: record.id,
+        fields: record.fields as UniqueOrder['fields'],
+      }));
     } catch (error) {
       console.error('Error fetching dispatch queue:', error);
       throw formatAirtableError(error, 'dispatch queue fetch');
