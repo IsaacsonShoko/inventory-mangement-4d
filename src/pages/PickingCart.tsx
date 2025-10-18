@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import {
@@ -16,17 +16,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 import { useDispatchLog, useStockOrderItems, useUniqueOrderRecord, useUpdateUniqueOrder } from '@/hooks/useAirtable';
 import { useToast } from '@/hooks/use-toast';
-import { formatOrderNumber, getLineItemImageUrl } from '@/lib/orders';
+import { expandLineItemUnits, formatOrderNumber, getLineItemImageUrl, type ExpandedLineItemUnit } from '@/lib/orders';
 import { n8nService } from '@/integrations/n8n';
 import ThemeToggle from '@/components/theme-toggle';
 
@@ -76,10 +69,155 @@ const PickingCart = () => {
 
   const updateMutation = useUpdateUniqueOrder();
 
+  const expandedUnits = useMemo(() => expandLineItemUnits(lineItems), [lineItems]);
+
+  const unitsByLineItemId = useMemo<Record<string, ExpandedLineItemUnit[]>>(() => {
+    const map: Record<string, ExpandedLineItemUnit[]> = {};
+    expandedUnits.forEach((unit) => {
+      if (!map[unit.lineItemId]) {
+        map[unit.lineItemId] = [];
+      }
+      map[unit.lineItemId].push(unit);
+    });
+    return map;
+  }, [expandedUnits]);
+
+  const serialRequiredUnits = useMemo(
+    () => expandedUnits.filter((unit) => unit.isSerialised),
+    [expandedUnits],
+  );
+
+  const [serialValues, setSerialValues] = useState<Record<string, string>>({});
+  const [showValidation, setShowValidation] = useState(false);
+
+  useEffect(() => {
+    setSerialValues((previous) => {
+      const next: Record<string, string> = {};
+      expandedUnits.forEach((unit) => {
+        next[unit.unitId] = previous[unit.unitId] ?? '';
+      });
+      return next;
+    });
+    setShowValidation(false);
+  }, [expandedUnits]);
+
+  const trimmedSerialMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    Object.entries(serialValues).forEach(([unitId, value]) => {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        map[unitId] = trimmed;
+      }
+    });
+    return map;
+  }, [serialValues]);
+
+  const missingSerialUnitIds = useMemo(() => {
+    const missing = new Set<string>();
+    serialRequiredUnits.forEach((unit) => {
+      if (!trimmedSerialMap[unit.unitId]) {
+        missing.add(unit.unitId);
+      }
+    });
+    return missing;
+  }, [serialRequiredUnits, trimmedSerialMap]);
+
+  const duplicateSerialUnitIds = useMemo(() => {
+    const duplicates = new Set<string>();
+    const seen = new Map<string, string[]>();
+
+    serialRequiredUnits.forEach((unit) => {
+      const value = trimmedSerialMap[unit.unitId];
+      if (!value) return;
+      const normalised = value.toUpperCase();
+      const existing = seen.get(normalised) ?? [];
+      existing.push(unit.unitId);
+      seen.set(normalised, existing);
+    });
+
+    seen.forEach((unitIds) => {
+      if (unitIds.length > 1) {
+        unitIds.forEach((id) => duplicates.add(id));
+      }
+    });
+
+    return duplicates;
+  }, [serialRequiredUnits, trimmedSerialMap]);
+
+  const totalSerialRequired = serialRequiredUnits.length;
+  const totalSerialCaptured = serialRequiredUnits.filter((unit) =>
+    Boolean(trimmedSerialMap[unit.unitId])
+  ).length;
+
+  const canSubmitSerials =
+    totalSerialRequired === 0 || (missingSerialUnitIds.size === 0 && duplicateSerialUnitIds.size === 0);
+
+  const updateSerialValue = (unitId: string, value: string) => {
+    setSerialValues((previous) => ({
+      ...previous,
+      [unitId]: value,
+    }));
+  };
+
   const handleMarkPicked = () => {
     if (!recordId) return;
 
+    setShowValidation(true);
+
+    if (!canSubmitSerials) {
+      const description = missingSerialUnitIds.size > 0
+        ? 'Capture serial numbers for all required units before marking this order as picked.'
+        : 'Resolve duplicate serial numbers before marking this order as picked.';
+
+      toast({
+        title: 'Serial capture incomplete',
+        description,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const safeRecordId = recordId as string;
+
+    const serialUnitsPayload = expandedUnits.map((unit) => ({
+      unitId: unit.unitId,
+      lineItemId: unit.lineItemId,
+      unitIndex: unit.unitIndex,
+      totalUnits: unit.totalUnits,
+      deviceType: unit.deviceType,
+      itemCode: unit.itemCode,
+      isSerialised: unit.isSerialised,
+      serialNumber: trimmedSerialMap[unit.unitId] ?? null,
+    }));
+
+    const itemsPayload = lineItems.map((item) => {
+      const unitsForItem = unitsByLineItemId[item.id] ?? [];
+      const serialNumbers = unitsForItem
+        .map((unit) => trimmedSerialMap[unit.unitId])
+        .filter((value): value is string => Boolean(value));
+
+      const quantityOrdered = item.fields['Quantity ordered'] ?? unitsForItem.length;
+
+      return {
+        deviceType: item.fields['Device type'] ?? 'Unknown',
+        quantityOrdered,
+        itemUrl: getLineItemImageUrl(item),
+        itemCode: item.fields['Item Code'] as string | undefined,
+        itemDescription: item.fields['Item Description'] as string | undefined,
+        itemCategory: item.fields['Item Category'] as string | undefined,
+        itemNature: item.fields['Item Nature'] as string | undefined,
+        itemId: item.id,
+        serialNumbers,
+        units: unitsForItem.map((unit) => ({
+          unitId: unit.unitId,
+          unitIndex: unit.unitIndex,
+          totalUnits: unit.totalUnits,
+          serialNumber: trimmedSerialMap[unit.unitId] ?? null,
+          isSerialised: unit.isSerialised,
+          itemCode: unit.itemCode,
+        })),
+      };
+    });
 
     updateMutation.mutate(
       {
@@ -95,13 +233,6 @@ const PickingCart = () => {
             description: `${orderNumber ?? 'Order'} is ready for dispatch.`,
           });
 
-          const itemsPayload = lineItems.map((item) => ({
-            deviceType: item.fields['Device type'] ?? 'Unknown',
-            quantityOrdered: item.fields['Quantity ordered'] ?? 0,
-            itemUrl: getLineItemImageUrl(item),
-            itemCode: item.fields['Item Code'] as string | undefined,
-          }));
-
           void n8nService
             .notifyOrderPicked({
               orderId: orderNumber ?? safeRecordId,
@@ -111,6 +242,11 @@ const PickingCart = () => {
                 pickStatus: 'Picked',
                 dispatchStatus: uniqueOrder?.fields['Dispatch Status'] ?? 'Pending',
                 dateOrdered: uniqueOrder?.fields['Date Ordered'],
+                serialCapture: {
+                  requiredUnits: totalSerialRequired,
+                  capturedUnits: totalSerialCaptured,
+                  units: serialUnitsPayload,
+                },
               },
             })
             .catch((error) => {
@@ -133,6 +269,7 @@ const PickingCart = () => {
   const pickStatus = uniqueOrder?.fields['Pick Status'] ?? 'Not Picked';
   const dispatchStatus = uniqueOrder?.fields['Dispatch Status'] ?? 'Pending';
   const dateOrdered = safeFormatDate(uniqueOrder?.fields['Date Ordered']);
+  const inputsDisabled = pickStatus === 'Picked' || updateMutation.isPending;
 
   return (
     <div className="min-h-screen bg-background">
@@ -231,19 +368,37 @@ const PickingCart = () => {
         </Card>
 
         <Card className="overflow-hidden">
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="flex items-center gap-2">
               <ClipboardCheck className="h-5 w-5 text-primary" />
               Items to Pick
             </CardTitle>
-            <Button
-              onClick={handleMarkPicked}
-              disabled={pickStatus === 'Picked' || updateMutation.isPending || !recordId}
-              className="gap-2"
-            >
-              {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />} 
-              {pickStatus === 'Picked' ? 'Already Picked' : 'Mark Order as Picked'}
-            </Button>
+            <div className="flex flex-col items-stretch gap-1 sm:items-end">
+              <Button
+                onClick={handleMarkPicked}
+                disabled={pickStatus === 'Picked' || updateMutation.isPending || !recordId}
+                className="gap-2"
+              >
+                {updateMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ClipboardCheck className="h-4 w-4" />
+                )}
+                {pickStatus === 'Picked' ? 'Already Picked' : 'Mark Order as Picked'}
+              </Button>
+              {totalSerialRequired > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Serial units captured: {totalSerialCaptured}/{totalSerialRequired}
+                </p>
+              )}
+              {totalSerialRequired > 0 && !canSubmitSerials && (
+                <p className="text-xs text-destructive">
+                  {duplicateSerialUnitIds.size > 0
+                    ? 'Resolve duplicate serial numbers before marking as picked.'
+                    : 'Capture all required serial numbers to continue.'}
+                </p>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {itemsLoading ? (
@@ -258,51 +413,148 @@ const PickingCart = () => {
             ) : lineItems.length === 0 ? (
               <div className="p-6 text-center text-muted-foreground">No line items found for this order.</div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[60px]">Item</TableHead>
-                    <TableHead>Device Type</TableHead>
-                    <TableHead className="hidden lg:table-cell">Description</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead className="hidden lg:table-cell">Item Code</TableHead>
-                    <TableHead className="hidden xl:table-cell">Bin / Package</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lineItems.map((item) => {
-                    const imageUrl = getLineItemImageUrl(item);
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+              <div className="space-y-6 p-4">
+                {lineItems.map((item) => {
+                  const unitsForItem = unitsByLineItemId[item.id] ?? [];
+                  const imageUrl = getLineItemImageUrl(item);
+                  const quantityOrdered = item.fields['Quantity ordered'] ?? unitsForItem.length;
+                  const requiresSerial = unitsForItem.some((unit) => unit.isSerialised);
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-lg border border-border/40 bg-card/40 p-4 shadow-sm"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-start gap-3">
+                          <div className="h-14 w-14 rounded-md bg-muted flex items-center justify-center overflow-hidden">
                             {imageUrl ? (
-                              <img src={imageUrl} alt={item.fields['Device type'] ?? 'Inventory item'} className="h-full w-full object-cover" />
+                              <img
+                                src={imageUrl}
+                                alt={item.fields['Device type'] ?? 'Inventory item'}
+                                className="h-full w-full object-cover"
+                              />
                             ) : (
-                              <PackageSearch className="h-5 w-5 text-primary" />
+                              <PackageSearch className="h-6 w-6 text-primary" />
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell className="font-medium text-foreground">
-                          {item.fields['Device type'] ?? 'Unknown'}
-                        </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground">
-                        {item.fields['Item Description'] ?? '—'}
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-semibold">{item.fields['Quantity ordered'] ?? 0}</span>
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell font-mono text-xs">
-                        {item.fields['Item Code'] ?? '—'}
-                      </TableCell>
-                      <TableCell className="hidden xl:table-cell text-muted-foreground">
-                        {item.fields['Package Reference'] ?? item.fields['Order Location'] ?? '—'}
-                      </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-foreground">
+                              {item.fields['Device type'] ?? 'Unknown device'}
+                            </p>
+                            <p className="text-xs text-muted-foreground max-w-md">
+                              {item.fields['Item Description'] ?? 'No description captured.'}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                              <span>Qty: {quantityOrdered}</span>
+                              {(item.fields['Item Code'] as string | undefined) && (
+                                <span className="font-semibold">
+                                  {item.fields['Item Code'] as string}
+                                </span>
+                              )}
+                              {requiresSerial ? (
+                                <span className="rounded-full border border-emerald-400 px-1.5 py-0.5 font-semibold text-emerald-600">
+                                  Serial Capture
+                                </span>
+                              ) : (
+                                <span className="rounded-full border border-muted-foreground/40 px-1.5 py-0.5 font-semibold text-muted-foreground">
+                                  Stock Item
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-1 md:text-right">
+                          <p>Bin / Package: {item.fields['Package Reference'] ?? item.fields['Order Location'] ?? '—'}</p>
+                          {item.fields['Item Category'] && <p>Category: {item.fields['Item Category']}</p>}
+                          {item.fields['Item Nature'] && <p>Nature: {item.fields['Item Nature']}</p>}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {unitsForItem.map((unit) => {
+                          const serialValue = serialValues[unit.unitId] ?? '';
+                          const hasDuplicate = duplicateSerialUnitIds.has(unit.unitId);
+                          const hasMissing = unit.isSerialised && showValidation && missingSerialUnitIds.has(unit.unitId);
+                          const hasError = unit.isSerialised && (hasDuplicate || hasMissing);
+                          const helperText = hasDuplicate
+                            ? 'Duplicate serial captured'
+                            : hasMissing
+                              ? 'Serial required'
+                              : '';
+
+                          return (
+                            <div
+                              key={unit.unitId}
+                              className={`rounded-lg border bg-background p-3 shadow-sm transition-colors ${
+                                hasError
+                                  ? 'border-destructive/70 ring-1 ring-destructive/30'
+                                  : 'border-border/40 hover:border-primary/40'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                                  {unit.imageUrl ? (
+                                    <img
+                                      src={unit.imageUrl}
+                                      alt={unit.deviceType}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <PackageSearch className="h-5 w-5 text-primary" />
+                                  )}
+                                </div>
+                                <div className="flex-1 space-y-1">
+                                  <p className="text-sm font-medium text-foreground">{unit.deviceType}</p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {unit.description ?? 'No description'}
+                                  </p>
+                                  <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                    <span>
+                                      Unit {unit.unitIndex} of {unit.totalUnits}
+                                    </span>
+                                    {unit.itemCode && <span className="font-semibold">{unit.itemCode}</span>}
+                                    <span
+                                      className={`rounded-full border px-1.5 py-0.5 font-semibold ${
+                                        unit.isSerialised
+                                          ? 'border-emerald-400 text-emerald-600'
+                                          : 'border-muted-foreground/40 text-muted-foreground'
+                                      }`}
+                                    >
+                                      {unit.isSerialised ? 'Serial' : 'Stock'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {unit.isSerialised ? (
+                                <div className="mt-3 space-y-1">
+                                  <p className="text-xs font-semibold text-muted-foreground">Serial Number</p>
+                                  <Input
+                                    value={serialValue}
+                                    onChange={(event) => updateSerialValue(unit.unitId, event.target.value)}
+                                    placeholder="Scan or enter serial"
+                                    autoComplete="off"
+                                    inputMode="text"
+                                    aria-invalid={hasError}
+                                    disabled={inputsDisabled}
+                                    className={hasError ? 'border-destructive focus-visible:ring-destructive' : undefined}
+                                  />
+                                  {hasError && (
+                                    <p className="text-xs text-destructive">{helperText}</p>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="mt-3 text-xs text-muted-foreground">No serial capture required.</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>

@@ -25,7 +25,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { usePickingQueue, useStockOrderItemsByOrders } from '@/hooks/useAirtable';
-import { BUSINESS_LINES, formatOrderNumber, normaliseBusinessLine, getLineItemImageUrl } from '@/lib/orders';
+import { BUSINESS_LINES, formatOrderNumber, normaliseBusinessLine, expandLineItemUnits } from '@/lib/orders';
 import type { UniqueOrder } from '@/types/airtable';
 import ThemeToggle from '@/components/theme-toggle';
 
@@ -124,7 +124,8 @@ const PickingQueue = () => {
     const orderNumber = formatOrderNumber(order);
     const dateOrdered = getOrderDate(order.fields['Date Ordered']);
     const isExpanded = expandedOrderId === order.id;
-    const lineItems = orderNumber ? lineItemsMap[orderNumber] ?? [] : [];
+  const lineItems = orderNumber ? lineItemsMap[orderNumber] ?? [] : [];
+  const expandedUnits = expandLineItemUnits(lineItems);
 
     return (
       <div key={order.id} className="border-b">
@@ -216,37 +217,43 @@ const PickingQueue = () => {
 
               <div className="space-y-2">
                 <p className="text-xs uppercase font-semibold text-muted-foreground">Line Items</p>
-                {lineItemsLoading && lineItems.length === 0 ? (
+                {lineItemsLoading && expandedUnits.length === 0 ? (
                   <div className="text-xs text-muted-foreground">Loading line items...</div>
-                ) : lineItems.length === 0 ? (
+                ) : expandedUnits.length === 0 ? (
                   <div className="text-xs text-muted-foreground">No line items captured for this order yet.</div>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {lineItems.map((item) => {
-                      const imageUrl = getLineItemImageUrl(item);
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-3 rounded-md border border-border/40 bg-background p-3"
-                        >
-                          <div className="h-14 w-14 rounded-md bg-muted flex items-center justify-center overflow-hidden">
-                            {imageUrl ? (
-                              <img src={imageUrl} alt={item.fields['Device type'] ?? 'Inventory item'} className="h-full w-full object-cover" />
-                            ) : (
-                              <PackageIcon className="h-6 w-6 text-primary" />
-                            )}
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <p className="text-sm font-medium text-foreground">
-                              {item.fields['Device type'] ?? 'Unknown device'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Qty: {item.fields['Quantity ordered'] ?? 0}
-                            </p>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {expandedUnits.map((unit) => (
+                      <div
+                        key={unit.unitId}
+                        className="flex items-center gap-3 rounded-md border border-border/40 bg-background p-3"
+                      >
+                        <div className="h-14 w-14 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                          {unit.imageUrl ? (
+                            <img src={unit.imageUrl} alt={unit.deviceType} className="h-full w-full object-cover" />
+                          ) : (
+                            <PackageIcon className="h-6 w-6 text-primary" />
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium text-foreground">{unit.deviceType}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {unit.description ?? 'No description'}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                            <span>
+                              Unit {unit.unitIndex} of {unit.totalUnits}
+                            </span>
+                            {unit.itemCode && <span className="font-semibold">{unit.itemCode}</span>}
+                            <span
+                              className={`rounded-full border px-1.5 py-0.5 font-semibold ${unit.isSerialised ? 'border-emerald-400 text-emerald-600' : 'border-muted-foreground/40 text-muted-foreground'}`}
+                            >
+                              {unit.isSerialised ? 'Serial' : 'Stock'}
+                            </span>
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
