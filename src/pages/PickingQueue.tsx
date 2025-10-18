@@ -110,7 +110,7 @@ const PickingQueue = () => {
     navigate(`/picking/cart/${recordId}`);
   };
 
-  const renderStatusBadge = (status?: string, toneMap: Record<string, string>, fallbackTone: string) => {
+  const renderStatusBadge = (status: string | undefined, toneMap: Record<string, string>, fallbackTone: string) => {
     if (!status) return null;
     const tone = toneMap[status] ?? fallbackTone;
     return (

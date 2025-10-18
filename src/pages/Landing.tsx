@@ -125,38 +125,45 @@ const Landing = () => {
           </div>
         </header>
 
-        <main className="container mx-auto px-6 py-12 max-w-6xl space-y-16">
-          <section className="space-y-6">
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-semibold">Field Operations</h1>
+        <main className="container mx-auto px-4 py-6 max-w-7xl space-y-8">
+          <section className="space-y-3">
+            <div className="text-center space-y-1">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent">
+                4D Analytics Inventory Management
+              </h1>
               <p className="text-muted-foreground max-w-2xl mx-auto">
-                Launch field-ready workflows for orders, counts, assets, and tracking from a single control centre.
+                Streamline operations with automated workflows and real-time inventory control.
               </p>
             </div>
-            <div className="grid gap-6 md:grid-cols-2">
+          </section>
+
+          <section className="space-y-4">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold">Field Operations</h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {fieldOperationModules.map(({ icon: Icon, title, description, path, color, status, testId }, index) => (
                 <Link key={title} to={path} data-testid={testId}>
                   <Card
-                    className="group h-full border-primary/20 bg-primary/5 backdrop-blur hover:scale-[1.02] transition-all duration-300"
-                    style={{ animationDelay: `${index * 120}ms` }}
+                    className="group h-full border-border/50 bg-card/80 backdrop-blur hover:border-primary/50 hover:shadow-lg transition-all duration-300 animate-fade-in"
+                    style={{ animationDelay: `${index * 80}ms` }}
                   >
-                    <CardHeader>
-                      <div className={`w-16 h-16 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon className="h-8 w-8 text-white" />
+                    <CardContent className="p-4 space-y-3">
+                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className="h-5 w-5 text-white" />
                       </div>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        {title}
-                        <ArrowRight className="h-5 w-5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
-                      </CardTitle>
-                      <CardDescription className="text-muted-foreground">
-                        {description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Badge variant="secondary" className="px-3 py-1">
-                        {status === "active" ? "Active" : "Coming soon"}
+                      <div className="space-y-1.5">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          {title}
+                          <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
+                        </h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {description}
+                        </p>
+                      </div>
+                      <Badge variant={status === "active" ? "default" : "outline"} className="uppercase text-[10px]">
+                        {status === "active" ? "Active" : "Coming Soon"}
                       </Badge>
-                      <span>Powered by Airtable queues</span>
                     </CardContent>
                   </Card>
                 </Link>
@@ -164,39 +171,37 @@ const Landing = () => {
             </div>
           </section>
 
-          <section className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-              <div>
-                <h2 className="text-3xl font-semibold">Admin Workspace</h2>
-                <p className="text-muted-foreground max-w-2xl">
-                  Manage queues, fulfilment handovers, and technician records that keep operations aligned.
-                </p>
-              </div>
+          <section className="space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <h2 className="text-xl font-semibold">Admin Workspace</h2>
               <Link to="/exceptions-report">
-                <Button variant="ghost" className="gap-2">
-                  <FileBarChart className="h-5 w-5" />
-                  Open Exceptions Dashboard
+                <Button variant="outline" size="sm" className="gap-2 hover:bg-primary/10">
+                  <FileBarChart className="h-4 w-4" />
+                  Exceptions Dashboard
                 </Button>
               </Link>
             </div>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {adminWorkspaceModules.map(({ icon: Icon, title, description, path, color, status }) => (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {adminWorkspaceModules.map(({ icon: Icon, title, description, path, color, status }, index) => (
                 <Link key={title} to={path} className="group">
-                  <Card className="h-full border border-border/40 bg-card/80 backdrop-blur hover:border-primary/50 transition-all duration-300">
-                    <CardContent className="p-5 space-y-4">
-                      <div className={`w-12 h-12 rounded-md bg-gradient-to-br ${color} flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
-                        <Icon className="h-6 w-6 text-white" />
+                  <Card 
+                    className="h-full border-border/50 bg-card/80 backdrop-blur hover:border-primary/50 hover:shadow-lg transition-all duration-300 animate-fade-in"
+                    style={{ animationDelay: `${index * 80}ms` }}
+                  >
+                    <CardContent className="p-4 space-y-3">
+                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform`}>
+                        <Icon className="h-5 w-5 text-white" />
                       </div>
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <div className="space-y-1.5">
+                        <h3 className="font-semibold flex items-center gap-2">
                           {title}
                           <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                         </h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
+                        <p className="text-xs text-muted-foreground leading-relaxed">
                           {description}
                         </p>
                       </div>
-                      <Badge variant={status === "active" ? "default" : "outline"} className="uppercase tracking-wide text-[11px]">
+                      <Badge variant={status === "active" ? "default" : "outline"} className="uppercase text-[10px]">
                         {status === "active" ? "Active" : "Coming Soon"}
                       </Badge>
                     </CardContent>
