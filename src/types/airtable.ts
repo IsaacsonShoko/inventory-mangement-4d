@@ -16,7 +16,7 @@ export interface AirtableAttachment {
 export interface InventoryItem {
   id: string;
   fields: {
-    'Item_Name': string;
+    'Device Type': string;
     'Item_Description': string;
     'Item_Category': string;
     'Item_Nature': string;

@@ -293,7 +293,7 @@ export const inventoryService = {
       const records = await tables.inventory
         .select({
           filterByFormula: filterFormula.length > 0 ? `AND(${filterFormula.join(', ')})` : '',
-          sort: [{ field: 'Item_Name', direction: 'asc' }]
+          sort: [{ field: 'Device Type', direction: 'asc' }]
         })
         .all();
       
@@ -317,7 +317,7 @@ export const inventoryService = {
     
     const searchLower = query.toLowerCase();
     return items.filter(item => 
-      item.fields['Item_Name']?.toLowerCase().includes(searchLower) ||
+      item.fields['Device Type']?.toLowerCase().includes(searchLower) ||
       item.fields['Item_Description']?.toLowerCase().includes(searchLower)
     );
   },

@@ -272,7 +272,7 @@ const StockOrder = () => {
     if (!searchQuery) return true;
     const search = searchQuery.toLowerCase();
     return (
-      item.fields['Item_Name']?.toLowerCase().includes(search) ||
+      item.fields['Device Type']?.toLowerCase().includes(search) ||
       item.fields['Item_Description']?.toLowerCase().includes(search)
     );
   }) || [];
@@ -295,7 +295,7 @@ const StockOrder = () => {
 
     const cartItem: CartItem = {
       id: item.id,
-      itemName: item.fields['Item_Name'],
+      itemName: item.fields['Device Type'],
       itemDescription: item.fields['Item_Description'],
       itemCategory: item.fields['Item_Category'],
       quantity,
@@ -1023,7 +1023,7 @@ const StockOrder = () => {
                           {imageUrl ? (
                             <img 
                               src={imageUrl} 
-                              alt={item.fields['Item_Name']}
+                              alt={item.fields['Device Type']}
                               className="h-full w-full object-cover"
                             />
                           ) : (
@@ -1033,7 +1033,7 @@ const StockOrder = () => {
                         <div className="flex-1 space-y-2">
                           <div className="space-y-1">
                             <p className="text-sm font-medium">
-                              Item code: {item.fields['Item_Name']}
+                              Device Type: {item.fields['Device Type']}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {item.fields['Item_Description']}
