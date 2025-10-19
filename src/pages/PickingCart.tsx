@@ -90,6 +90,12 @@ const PickingCart = () => {
   const [serialValues, setSerialValues] = useState<Record<string, string>>({});
   const [showValidation, setShowValidation] = useState(false);
 
+  // Create a stable key from unit IDs to detect actual changes
+  const unitIdsKey = useMemo(() => 
+    expandedUnits.map(u => u.unitId).sort().join(','),
+    [expandedUnits]
+  );
+
   useEffect(() => {
     setSerialValues((previous) => {
       const next: Record<string, string> = {};
@@ -99,7 +105,7 @@ const PickingCart = () => {
       return next;
     });
     setShowValidation(false);
-  }, [expandedUnits]);
+  }, [unitIdsKey]); // Use stable key instead of expandedUnits
 
   const trimmedSerialMap = useMemo(() => {
     const map: Record<string, string> = {};
