@@ -497,15 +497,7 @@ type StockOrderPickedUpdate = {
   quantity: number;
   stockAvailability: string;
   pickStatus: string;
-  packer: string;
-  terminalSerialNumber?: string | null;
-  cradleSerialNumber?: string | null;
-  chargerSerialNumber?: string | null;
-  cashConnectSerialNumber?: string | null;
-  chargerPacked?: string | null;
-  cables?: string | null;
-  itemCode?: string | null;
-  itemDescription?: string | null;
+  packer?: string | null;
 };
 
 const normalizeOptionalField = (value?: string | null) => {
@@ -515,25 +507,6 @@ const normalizeOptionalField = (value?: string | null) => {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
-};
-
-const normalizeStockAvailability = (value?: string | null) => {
-  const normalized = normalizeOptionalField(value);
-  if (!normalized) {
-    return undefined;
-  }
-
-  const lower = normalized.toLowerCase();
-
-  if (lower === 'in stock') {
-    return 'In Stock';
-  }
-
-  if (lower === 'out of stock') {
-    return 'Out of stock';
-  }
-
-  return normalized;
 };
 
 const normalizePickStatusValue = (value?: string | null): string | undefined => {
@@ -619,30 +592,20 @@ const aggregatePickedItemsByRecord = (pickedItems: StockOrderPickedUpdate[]): St
     if (!existing) {
       grouped.set(item.stockOrderId, {
         ...item,
-        stockAvailability: normalizeStockAvailability(item.stockAvailability) ?? item.stockAvailability,
         pickStatus: normalizePickStatusValue(item.pickStatus) ?? item.pickStatus,
       });
       return;
     }
 
     existing.quantity += item.quantity;
-    existing.stockAvailability = normalizeStockAvailability(item.stockAvailability) ?? existing.stockAvailability;
     existing.pickStatus = mergePickStatuses(existing.pickStatus, item.pickStatus) ?? existing.pickStatus;
     existing.packer = existing.packer || item.packer;
-    existing.terminalSerialNumber = item.terminalSerialNumber ?? existing.terminalSerialNumber;
-    existing.cradleSerialNumber = item.cradleSerialNumber ?? existing.cradleSerialNumber;
-    existing.chargerSerialNumber = item.chargerSerialNumber ?? existing.chargerSerialNumber;
-    existing.cashConnectSerialNumber = item.cashConnectSerialNumber ?? existing.cashConnectSerialNumber;
-    existing.chargerPacked = item.chargerPacked ?? existing.chargerPacked;
-    existing.cables = item.cables ?? existing.cables;
-    existing.itemCode = item.itemCode ?? existing.itemCode;
-    existing.itemDescription = item.itemDescription ?? existing.itemDescription;
+    existing.stockAvailability = item.stockAvailability || existing.stockAvailability;
   });
 
   return Array.from(grouped.entries()).map(([stockOrderId, item]) => ({
     ...item,
     stockOrderId,
-    stockAvailability: normalizeStockAvailability(item.stockAvailability) ?? item.stockAvailability,
     pickStatus: normalizePickStatusValue(item.pickStatus) ?? item.pickStatus,
   }));
 };
@@ -654,54 +617,9 @@ const mapPickedItemToStockOrderUpdate = (pickedItem: StockOrderPickedUpdate) => 
     fields['QTY dispatched'] = pickedItem.quantity;
   }
 
-  const stockAvailability = normalizeStockAvailability(pickedItem.stockAvailability);
-  if (stockAvailability !== undefined) {
-    fields['Stock Availability'] = stockAvailability;
-  }
-
   const pickStatus = mapPickStatusForAirtable(pickedItem.pickStatus);
   if (pickStatus !== undefined) {
     fields['Pick Status'] = pickStatus;
-  }
-
-  const terminalSerial = normalizeOptionalField(pickedItem.terminalSerialNumber);
-  if (terminalSerial !== undefined) {
-    fields['Terminal Serial Number'] = terminalSerial;
-  }
-
-  const cradleSerial = normalizeOptionalField(pickedItem.cradleSerialNumber);
-  if (cradleSerial !== undefined) {
-    fields['Cradle Serial Number'] = cradleSerial;
-  }
-
-  const chargerSerial = normalizeOptionalField(pickedItem.chargerSerialNumber);
-  if (chargerSerial !== undefined) {
-    fields['Charger Serial Number'] = chargerSerial;
-  }
-
-  const cashConnectSerial = normalizeOptionalField(pickedItem.cashConnectSerialNumber);
-  if (cashConnectSerial !== undefined) {
-    fields['CashConnect Serial Number'] = cashConnectSerial;
-  }
-
-  const chargerPacked = normalizeOptionalField(pickedItem.chargerPacked);
-  if (chargerPacked !== undefined) {
-    fields['Charger Packed'] = chargerPacked;
-  }
-
-  const cables = normalizeOptionalField(pickedItem.cables);
-  if (cables !== undefined) {
-    fields['Cables'] = cables;
-  }
-
-  const itemCode = normalizeOptionalField(pickedItem.itemCode);
-  if (itemCode !== undefined) {
-    fields['Item Code'] = itemCode;
-  }
-
-  const itemDescription = normalizeOptionalField(pickedItem.itemDescription);
-  if (itemDescription !== undefined) {
-    fields['Item Description'] = itemDescription;
   }
 
   const packer = normalizeOptionalField(pickedItem.packer);
