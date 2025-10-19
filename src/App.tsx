@@ -13,7 +13,7 @@ import Tracking from "./pages/Tracking";
 import PointOfPresence from "./pages/PointOfPresence";
 import StockAlerts from "./pages/StockAlerts";
 import PickingQueue from "./pages/PickingQueue";
-import PickingCart from "./pages/PickingCart";
+import PickingCart from "./pages/PickingCartNew";
 import DispatchQueue from "./pages/DispatchQueue";
 import DispatchCart from "./pages/DispatchCart";
 import NotFound from "./pages/NotFound";
