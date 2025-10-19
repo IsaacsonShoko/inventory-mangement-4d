@@ -53,7 +53,7 @@ export interface Order {
     'Date Ordered': string;
     'Item Category': string;
     'Item Nature': string;
-  'Device type': string;
+  'Device Type': string;
     'Quantity ordered': number;
     'Contractor Company'?: string;
     'Region'?: string;
@@ -142,7 +142,7 @@ export interface StockOrderLineItem {
   id: string;
   fields: {
     'Order Id': string;
-    'Device type': string;
+    'Device Type': string;
     'Date Ordered'?: string;
     'Quantity ordered'?: number;
     'QTY dispatched'?: number;
@@ -184,7 +184,7 @@ export interface DispatchLogEntry {
     'Item Category'?: string;
     'Item Nature'?: string;
     'Item Description'?: string;
-    'Device type'?: string;
+    'Device Type'?: string;
     'Quantity'?: number;
     'Contractor Company'?: string;
     'Region'?: string;

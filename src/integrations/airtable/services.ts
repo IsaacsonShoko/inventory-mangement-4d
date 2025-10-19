@@ -832,7 +832,7 @@ export const orderService = {
           ...(filterByFormula ? { filterByFormula } : {}),
           sort: [
             { field: 'Date Ordered', direction: 'asc' },
-            { field: 'Device type', direction: 'asc' }
+            { field: 'Device Type', direction: 'asc' }
           ]
         })
         .all();

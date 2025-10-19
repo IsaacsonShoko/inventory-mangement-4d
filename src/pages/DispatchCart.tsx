@@ -136,7 +136,7 @@ const DispatchCart = () => {
           });
 
           const itemsPayload = lineItems.map((item) => ({
-            deviceType: item.fields['Device type'] ?? 'Unknown',
+            deviceType: item.fields['Device Type'] ?? 'Unknown',
             quantityOrdered: item.fields['Quantity ordered'] ?? 0,
             itemUrl: getLineItemImageUrl(item),
             itemCode: item.fields['Item Code'] as string | undefined,
@@ -309,14 +309,14 @@ const DispatchCart = () => {
                         <TableCell>
                           <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center overflow-hidden">
                             {imageUrl ? (
-                              <img src={imageUrl} alt={item.fields['Device type'] ?? 'Inventory item'} className="h-full w-full object-cover" />
+                              <img src={imageUrl} alt={item.fields['Device Type'] ?? 'Inventory item'} className="h-full w-full object-cover" />
                             ) : (
                               <PackageSearch className="h-5 w-5 text-primary" />
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="font-medium text-foreground">
-                          {item.fields['Device type'] ?? 'Unknown'}
+                          {item.fields['Device Type'] ?? 'Unknown'}
                         </TableCell>
                       <TableCell className="hidden lg:table-cell text-muted-foreground">
                         {item.fields['Item Description'] ?? '—'}

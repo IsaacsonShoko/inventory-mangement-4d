@@ -199,7 +199,7 @@ const PickingCart = () => {
       const quantityOrdered = item.fields['Quantity ordered'] ?? unitsForItem.length;
 
       return {
-        deviceType: item.fields['Device type'] ?? 'Unknown',
+        deviceType: item.fields['Device Type'] ?? 'Unknown',
         quantityOrdered,
         itemUrl: getLineItemImageUrl(item),
         itemCode: item.fields['Item Code'] as string | undefined,
@@ -431,7 +431,7 @@ const PickingCart = () => {
                             {imageUrl ? (
                               <img
                                 src={imageUrl}
-                                alt={item.fields['Device type'] ?? 'Inventory item'}
+                                alt={item.fields['Device Type'] ?? 'Inventory item'}
                                 className="h-full w-full object-cover"
                               />
                             ) : (
@@ -440,7 +440,7 @@ const PickingCart = () => {
                           </div>
                           <div className="space-y-1">
                             <p className="text-sm font-semibold text-foreground">
-                              {item.fields['Device type'] ?? 'Unknown device'}
+                              {item.fields['Device Type'] ?? 'Unknown device'}
                             </p>
                             <p className="text-xs text-muted-foreground max-w-md">
                               {item.fields['Item Description'] ?? 'No description captured.'}
