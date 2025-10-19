@@ -827,6 +827,12 @@ export const orderService = {
           ? clauses[0]
           : `OR(${clauses.join(', ')})`;
 
+      console.log('[Stock Order Query]', {
+        orderNumber,
+        filterByFormula,
+        clauses,
+      });
+
       const records = await tables.orders
         .select({
           ...(filterByFormula ? { filterByFormula } : {}),
@@ -836,6 +842,12 @@ export const orderService = {
           ]
         })
         .all();
+
+      console.log('[Stock Order Results]', {
+        orderNumber,
+        recordCount: records.length,
+        recordIds: records.map(r => ({ id: r.id, orderId: r.fields['Order Id'] })),
+      });
 
       return records
         .filter((record) => {
