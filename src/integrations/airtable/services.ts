@@ -508,6 +508,25 @@ const normalizeOptionalField = (value?: string | null) => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const normalizeStockAvailability = (value?: string | null) => {
+  const normalized = normalizeOptionalField(value);
+  if (!normalized) {
+    return undefined;
+  }
+
+  const lower = normalized.toLowerCase();
+
+  if (lower === 'in stock') {
+    return 'In Stock';
+  }
+
+  if (lower === 'out of stock') {
+    return 'Out of stock';
+  }
+
+  return normalized;
+};
+
 const normalizePickStatusValue = (value?: string | null): string | undefined => {
   const normalized = normalizeOptionalField(value);
   if (!normalized) {
@@ -591,6 +610,7 @@ const aggregatePickedItemsByRecord = (pickedItems: StockOrderPickedUpdate[]): St
     if (!existing) {
       grouped.set(item.stockOrderId, {
         ...item,
+        stockAvailability: normalizeStockAvailability(item.stockAvailability) ?? item.stockAvailability,
         pickStatus: normalizePickStatusValue(item.pickStatus) ?? item.pickStatus,
       });
       return;
@@ -598,12 +618,16 @@ const aggregatePickedItemsByRecord = (pickedItems: StockOrderPickedUpdate[]): St
 
     existing.quantity += item.quantity;
     existing.pickStatus = mergePickStatuses(existing.pickStatus, item.pickStatus) ?? existing.pickStatus;
-    existing.stockAvailability = item.stockAvailability || existing.stockAvailability;
+    const normalizedStockAvailability = normalizeStockAvailability(item.stockAvailability);
+    if (normalizedStockAvailability !== undefined) {
+      existing.stockAvailability = normalizedStockAvailability;
+    }
   });
 
   return Array.from(grouped.entries()).map(([stockOrderId, item]) => ({
     ...item,
     stockOrderId,
+    stockAvailability: normalizeStockAvailability(item.stockAvailability) ?? item.stockAvailability,
     pickStatus: normalizePickStatusValue(item.pickStatus) ?? item.pickStatus,
   }));
 };
@@ -613,6 +637,11 @@ const mapPickedItemToStockOrderUpdate = (pickedItem: StockOrderPickedUpdate) => 
 
   if (Number.isFinite(pickedItem.quantity)) {
     fields['QTY dispatched'] = pickedItem.quantity;
+  }
+
+  const stockAvailability = normalizeStockAvailability(pickedItem.stockAvailability);
+  if (stockAvailability !== undefined) {
+    fields['Stock Availability'] = stockAvailability;
   }
 
   const pickStatus = mapPickStatusForAirtable(pickedItem.pickStatus);
