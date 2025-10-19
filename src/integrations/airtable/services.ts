@@ -1123,21 +1123,89 @@ export const orderService = {
     }
   },
 
-  async getDispatchQueue(): Promise<DispatchLogEntry[]> {
+  async getDispatchQueue(): Promise<UniqueOrder[]> {
     try {
-      const records = await tables.dispatchLog
+      const dispatchRecords = await tables.dispatchLog
         .select({
-          sort: [
-            { field: 'Date Dispatched', direction: 'desc' },
-            { field: 'Device type', direction: 'asc' },
-          ],
+          filterByFormula: "OR({Shipped} = '', {Shipped} = BLANK(), {Shipped} = 'No')",
+          sort: [{ field: 'Date Dispatched', direction: 'desc' }],
         })
         .all();
 
-      return records.map((record) => ({
-        id: record.id,
-        fields: castRecordFields<DispatchLogEntry['fields']>(record.fields),
-      }));
+      if (!dispatchRecords.length) {
+        return [];
+      }
+
+      const uniqueOrderIds = new Set<string>();
+      const dispatchDates = new Map<string, string | undefined>();
+
+      dispatchRecords.forEach((record) => {
+        const fields = castRecordFields<DispatchLogEntry['fields']>(record.fields);
+        const linkedOrders = fields['Order Id'] ?? [];
+        const dispatchedDate = fields['Date Dispatched'];
+
+        linkedOrders.forEach((orderId) => {
+          uniqueOrderIds.add(orderId);
+
+          if (!dispatchDates.has(orderId)) {
+            dispatchDates.set(orderId, dispatchedDate);
+            return;
+          }
+
+          const existingDate = dispatchDates.get(orderId);
+          if (dispatchedDate && (!existingDate || dispatchedDate > existingDate)) {
+            dispatchDates.set(orderId, dispatchedDate);
+          }
+        });
+      });
+
+      if (!uniqueOrderIds.size) {
+        return [];
+      }
+
+      const orders: UniqueOrder[] = [];
+      const batches = chunkArray(Array.from(uniqueOrderIds), 25);
+
+      for (const batch of batches) {
+        const clauses = batch.map((orderId) => `RECORD_ID()='${escapeAirtableValue(orderId)}'`);
+        const filterByFormula = clauses.length === 1 ? clauses[0] : `OR(${clauses.join(', ')})`;
+
+        const records = await tables.uniqueOrders
+          .select({
+            filterByFormula,
+            sort: [{ field: 'Date Ordered', direction: 'asc' }],
+          })
+          .all();
+
+        records.forEach((record) => {
+          orders.push({
+            id: record.id,
+            fields: castRecordFields<UniqueOrder['fields']>(record.fields),
+          });
+        });
+      }
+
+      orders.sort((a, b) => {
+        const aDate = dispatchDates.get(a.id);
+        const bDate = dispatchDates.get(b.id);
+
+        if (aDate && bDate) {
+          if (aDate > bDate) return -1;
+          if (aDate < bDate) return 1;
+        } else if (aDate) {
+          return -1;
+        } else if (bDate) {
+          return 1;
+        }
+
+        const aOrdered = a.fields['Date Ordered'] ?? '';
+        const bOrdered = b.fields['Date Ordered'] ?? '';
+        if (aOrdered > bOrdered) return -1;
+        if (aOrdered < bOrdered) return 1;
+        return 0;
+      });
+
+      return orders;
     } catch (error) {
       console.error('Error fetching dispatch queue:', error);
       throw formatAirtableError(error, 'dispatch queue fetch');
