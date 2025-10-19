@@ -497,7 +497,6 @@ type StockOrderPickedUpdate = {
   quantity: number;
   stockAvailability: string;
   pickStatus: string;
-  packer?: string | null;
 };
 
 const normalizeOptionalField = (value?: string | null) => {
@@ -599,7 +598,6 @@ const aggregatePickedItemsByRecord = (pickedItems: StockOrderPickedUpdate[]): St
 
     existing.quantity += item.quantity;
     existing.pickStatus = mergePickStatuses(existing.pickStatus, item.pickStatus) ?? existing.pickStatus;
-    existing.packer = existing.packer || item.packer;
     existing.stockAvailability = item.stockAvailability || existing.stockAvailability;
   });
 
@@ -620,11 +618,6 @@ const mapPickedItemToStockOrderUpdate = (pickedItem: StockOrderPickedUpdate) => 
   const pickStatus = mapPickStatusForAirtable(pickedItem.pickStatus);
   if (pickStatus !== undefined) {
     fields['Pick Status'] = pickStatus;
-  }
-
-  const packer = normalizeOptionalField(pickedItem.packer);
-  if (packer !== undefined) {
-    fields['Packer'] = packer;
   }
 
   return {

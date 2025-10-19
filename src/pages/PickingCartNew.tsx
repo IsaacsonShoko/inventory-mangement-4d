@@ -183,15 +183,6 @@ const PickingCartNew = () => {
         quantity: item.quantity,
         stockAvailability: item.stockAvailability,
         pickStatus: item.pickStatus,
-        packer: item.packer,
-        terminalSerialNumber: item.terminalSerialNumber ?? null,
-        cradleSerialNumber: item.cradleSerialNumber ?? null,
-        chargerSerialNumber: item.chargerSerialNumber ?? null,
-        cashConnectSerialNumber: item.cashConnectSerialNumber ?? null,
-        chargerPacked: item.chargerPacked ?? null,
-        cables: item.cables ?? null,
-        itemCode: item.itemCode ?? null,
-        itemDescription: item.itemDescription ?? null,
       }));
 
       await stockOrderUpdateMutation.mutateAsync({
