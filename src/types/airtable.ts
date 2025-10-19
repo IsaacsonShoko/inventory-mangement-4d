@@ -164,6 +164,10 @@ export interface StockOrderLineItem {
     'Terminal Serial Number'?: string;
     'Cradle Serial Number'?: string;
     'Charger Serial Number'?: string;
+    'CashConnect Serial Number'?: string;
+    'Charger Packed'?: string;
+    'Cables'?: string;
+    'Packer'?: string;
     'Dispatch Method'?: string;
     'Warehouse Fulfilling'?: string;
     'Item Url'?: string;
