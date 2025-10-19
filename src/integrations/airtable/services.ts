@@ -1123,22 +1123,20 @@ export const orderService = {
     }
   },
 
-  async getDispatchQueue(): Promise<UniqueOrder[]> {
+  async getDispatchQueue(): Promise<DispatchLogEntry[]> {
     try {
-      const records = await tables.uniqueOrders
+      const records = await tables.dispatchLog
         .select({
-          filterByFormula:
-            "AND(NOT(OR({Pick Status} = '', {Pick Status} = BLANK())), OR({Dispatch Status} = '', {Dispatch Status} = BLANK()))",
           sort: [
-            { field: 'Date Ordered', direction: 'asc' },
-            { field: 'Item Category', direction: 'asc' }
+            { field: 'Date Dispatched', direction: 'desc' },
+            { field: 'Device type', direction: 'asc' },
           ],
         })
         .all();
 
       return records.map((record) => ({
         id: record.id,
-        fields: castRecordFields<UniqueOrder['fields']>(record.fields),
+        fields: castRecordFields<DispatchLogEntry['fields']>(record.fields),
       }));
     } catch (error) {
       console.error('Error fetching dispatch queue:', error);
