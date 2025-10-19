@@ -1,0 +1,1327 @@
+Screens:
+  Dispatching Queue:
+    Properties:
+      OnVisible: =Set(varMenu, false);
+    Children:
+      - stackRoot_10:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
+          Properties:
+            Fill: =varTheme.palette.themeLighter
+            Height: =720
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =2*varTheme.U
+            PaddingLeft: =4*varTheme.U
+            PaddingRight: =4*varTheme.U
+            PaddingTop: =2*varTheme.U
+            Width: =Parent.Width-Self.X
+            X: =
+            Y: =Header_7.Height - 20
+          Children:
+            - conSamplesAutoWidthLabel_6:
+                Control: GroupContainer@1.3.0
+                Variant: ManualLayout
+                Properties:
+                  Height: |+
+                    =stackRoot_10.Height
+                  Width: =stackRoot_10.Width
+                  X: =stackRoot_10.X
+                  Y: =stackRoot_10.Y
+                Children:
+                  - Elevation1_113:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =505
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =133
+                        X: =12
+                        Y: =185
+                  - TabList1_4:
+                      Control: TabList@2.2.31
+                      Properties:
+                        Alignment: ='TabList.Alignment'.Vertical
+                        FontColor: =RGBA(109, 49, 162, 1)
+                        FontSize: =10
+                        FontWeight: =FontWeight.Bold
+                        Height: =334
+                        Items: |+
+                          =Table(
+                              {
+                                  ItemKey: 1,
+                                  ItemDisplayName: "ABSA"
+                              },
+                              {
+                                  ItemKey: 2,
+                                  ItemDisplayName: "Cash Connect"
+                              },
+                              {
+                                  ItemKey: 3,
+                                  ItemDisplayName: "VPS"
+                              },
+                              {
+                                  ItemKey: 4,
+                                  ItemDisplayName: "Modems"
+                              },
+                               {
+                                  ItemKey: 7,
+                                  ItemDisplayName: "SIM Management"
+                              },
+
+                              {
+                                  ItemKey: 5,
+                                  ItemDisplayName: "Accessories"
+                              },
+                              {
+                                  ItemKey: 6,
+                                  ItemDisplayName: "Other"
+                              }
+                          )
+                        Size: ='TabList.Size'.Large
+                        Width: =133
+                        X: =12
+                        Y: =252
+                      Children:
+                        - ItemDisplayName1_4:
+                            Control: TabListDataField@1.5.0
+                            Variant: textualColumn
+                            IsLocked: true
+                            Properties:
+                              FieldDisplayName: ="ItemDisplayName"
+                              FieldName: ="ItemDisplayName"
+                              FieldType: ="s"
+                              Order: =1
+                  - Elevation1_114:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =507
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =395
+                        X: =157
+                        Y: =183
+                  - AbsaQueGal_4:
+                      Control: Gallery@2.15.0
+                      Variant: BrowseLayout_Vertical_TwoTextVariant_ver5.0
+                      Properties:
+                        Height: =427
+                        Items: |-
+                          =Switch(
+                             TabList1_4.Selected.ItemKey,
+                              1, Filter('Unique Orders', 'Item Category' = "Absa" && !IsBlank('Pick Status') && IsBlank('Dispatch Status') ) ,
+                              2, Filter('Unique Orders', 'Item Category' = "Cash Connect" && !IsBlank('Pick Status')  && IsBlank('Dispatch Status')),
+                              3, Filter('Unique Orders', 'Item Category' = "Vps"&& !IsBlank('Pick Status')  && IsBlank('Dispatch Status')),
+                              4, Filter('Unique Orders', 'Item Category' = "Modems" && !IsBlank('Pick Status')  && IsBlank('Dispatch Status')),
+                              5, Filter('Unique Orders','Item Category' = "Accessories" && !IsBlank('Pick Status')  && IsBlank('Dispatch Status')),
+                              7,Filter('Unique Orders', 'Item Category' = "Sim Management" && !IsBlank('Pick Status')&& IsBlank('Dispatch Status')),
+                              Filter('Unique Orders','Item Category' = "Other" && !IsBlank('Pick Status')  && IsBlank('Dispatch Status'))
+                          )
+                        TemplateFill: |+
+                          =RGBA(0,0,0,0)
+                        TemplateSize: =96
+                        Width: =363.00
+                        X: =175
+                        Y: =252
+                      Children:
+                        - Rectangle7_4:
+                            Control: Rectangle@2.3.0
+                            Properties:
+                              BorderColor: =If(ThisItem.IsSelected,RGBA(126,76,158,100),RGBA(181,153,198,100))
+                              BorderThickness: =1
+                              DisabledFill: =RGBA(181,153,198,100)
+                              Fill: =If(ThisItem.IsSelected,RGBA(126,76,158,100),RGBA(181,153,198,100))
+                              Height: =90
+                              OnSelect: =Select(Parent)
+                              Width: =353.00
+                              X: =2.84
+                        - Title3_17:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =Self.Size * 1.8
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =12
+                              Text: =ThisItem.'Contractor Company'
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =246.88
+                              X: =39.85
+                              Y: =5
+                        - Subtitle1_6:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =Self.Size * 1.8
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =12
+                              Text: =ThisItem.Technician
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =246.88
+                              X: =39.85
+                              Y: =24
+                        - NextArrow3_4:
+                            Control: Classic/Icon@2.5.0
+                            Properties:
+                              AccessibleLabel: =Self.Tooltip
+                              Color: =RGBA(166, 166, 166, 1)
+                              Height: =50
+                              Icon: =Icon.ChevronRight
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =16
+                              PaddingLeft: =16
+                              PaddingRight: =11.38
+                              PaddingTop: =11.38
+                              Tooltip: ="View Order details"
+                              Width: =35.56
+                              X: =263.96
+                              Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+                        - Separator4_4:
+                            Control: Rectangle@2.3.0
+                            Properties:
+                              Fill: =RGBA(255, 255, 255, 1)
+                              Height: =0
+                              OnSelect: =Select(Parent)
+                              Width: =355
+                              X: =0.00
+                              Y: =Parent.TemplateHeight - Self.Height
+                        - Title3_19:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =25
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =12
+                              Text: =ThisItem.'Item Category'
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =125.93
+                              X: =39.85
+                              Y: =45
+                        - Title3_20:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =26
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =12
+                              Text: =ThisItem.'Pick Status'
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =169.34
+                              X: =39.85
+                              Y: =64
+                        - Title3_18:
+                            Control: Label@2.5.1
+                            Properties:
+                              Align: =Align.Center
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =FontWeight.Bold
+                              Height: =34
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =10
+                              Text: =ThisItem.ID
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =37.00
+                              X: =2.84
+                              Y: =36
+                        - Icon7:
+                            Control: Classic/Icon@2.5.0
+                            Properties:
+                              Color: =Color.White
+                              Height: =51
+                              Icon: =Icon.Send
+                              OnSelect: =Navigate('Dispatching Cart')
+                              X: =285
+                              Y: =13
+                        - Title3_21:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =15
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =9.96
+                              Text: ="Dispatch Order"
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =92
+                              X: =263
+                              Y: =64
+                  - Elevation1_115:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =55
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =395
+                        X: =157
+                        Y: =180
+                  - Label1_243:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =16
+                        FontWeight: =FontWeight.Semibold
+                        Height: =61
+                        PaddingTop: =0.00
+                        Text: ="Select an Order to Dispatch"
+                        Width: =328.68
+                        X: =164
+                        Y: =183
+                  - Elevation1_116:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =507
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =763
+                        X: =571
+                        Y: =180
+                  - Elevation1_117:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =55
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =763
+                        X: =571
+                        Y: =180
+                  - Label1_244:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.white
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =45
+                        PaddingTop: =0.00
+                        Text: ="Order Manifest"
+                        Width: =621.00
+                        X: =670
+                        Y: =182
+                  - Elevation1_127:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disOtherCard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =159
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =1164
+                        Y: =3
+                  - Elevation1_131:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disAccessoriesCard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =159
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =778
+                        Y: =3
+                  - Elevation1_129:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disModemsCard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =159
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =587
+                        Y: =3
+                  - Elevation1_123:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disVPS
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =159
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =396
+                        Y: =3
+                  - Elevation1_121:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disCashConnectCard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =159
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =206
+                        Y: =3
+                  - Elevation1_119:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: DisABSAcard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =159
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =13
+                        Y: =2
+                  - Label1_246:
+                      Control: FluentV8/Label@1.8.6
+                      Group: DisABSAcard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =51
+                        PaddingTop: =0.00
+                        Text: |+
+                          =//Count(Distinct(Filter('Dispatch Log', 'Item Category' = "ABSA" && IsBlank(Shipped)),'Order Id'))
+                          CountRows(Filter('Unique Orders', 'Item Category' = "Absa" && 
+                                  !IsBlank('Pick Status') && 
+                                  'Pick Status' <> "Not picked" && 
+                                  IsBlank('Dispatch Status')))
+                        Width: =82.54
+                        X: =100
+                        Y: =15
+                  - Label1_254:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disCashConnectCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: |-
+                          =CountRows(Filter('Unique Orders', 'Item Category' = "Cash Connect" && 
+                                  !IsBlank('Pick Status') && 
+                                  'Pick Status' <> "Not picked" && 
+                                  IsBlank('Dispatch Status')))
+
+                          //Count(Distinct(Filter('Dispatch Log', 'Item Category' = "Cash Connect" && IsBlank(Shipped)),'Order Id'))
+                        Width: =82.54
+                        X: =300
+                        Y: =24
+                  - Label1_259:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disVPS
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: |-
+                          =CountRows(Filter('Unique Orders', 'Item Category' = "Vps" && 
+                                  !IsBlank('Pick Status') && 
+                                  'Pick Status' <> "Not picked" && 
+                                  IsBlank('Dispatch Status')))
+                          //Count(Distinct(Filter('Dispatch Log', 'Item Category' = "VPS" && IsBlank(Shipped)),'Order Id'))
+                        Width: =73.28
+                        X: =493
+                        Y: =24
+                  - Label1_272:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disModemsCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =45
+                        PaddingTop: =0.00
+                        Text: |-
+                          =CountRows(Filter('Unique Orders','Item Category' = "Modems" && 
+                                  !IsBlank('Pick Status') && 
+                                  'Pick Status' <> "Not picked" && 
+                                  IsBlank('Dispatch Status')))
+                          //Count(Distinct(Filter('Dispatch Log', 'Item Category' = "Modems" && IsBlank(Shipped)),'Order Id'))
+                        Width: =94.62
+                        X: =665
+                        Y: =19
+                  - Label1_278:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disAccessoriesCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =40
+                        PaddingTop: =0.00
+                        Text: |-
+                          =
+                          CountRows(Filter('Unique Orders', 'Item Category' = "Accessories" && 
+                                  !IsBlank('Pick Status') && 
+                                  'Pick Status' <> "Not picked" && 
+                                  IsBlank('Dispatch Status')))
+
+                          //Count(Distinct(Filter('Dispatch Log', 'Item Category' = "Accessories" && IsBlank(Shipped)),'Order Id'))
+                        Width: =71
+                        X: =877
+                        Y: =21
+                  - Label1_269:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disOtherCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: |-
+                          =CountRows(Filter('Unique Orders', 'Item Category' = "Other"&& 
+                                  !IsBlank('Pick Status') && 
+                                  'Pick Status' <> "Not picked" && 
+                                  IsBlank('Dispatch Status')))
+                          //Count(Distinct(Filter('Dispatch Log', 'Item Category' = "Other" && IsBlank(Shipped)),'Order Id'))
+                        Width: =82.54
+                        X: =1252
+                        Y: =19
+                  - Label1_247:
+                      Control: FluentV8/Label@1.8.6
+                      Group: DisABSAcard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =49
+                        PaddingTop: =0.00
+                        Text: =If(IsBlank( Sum(Filter('Dispatch Log', 'Item Category' = "Absa" && IsBlank(Shipped)), 'Quantity ') ),0,Sum(Filter('Dispatch Log', 'Item Category' = "Absa" && IsBlank(Shipped)), 'Quantity '))
+                        Width: =82.54
+                        X: =101
+                        Y: =66
+                  - Label1_245:
+                      Control: FluentV8/Label@1.8.6
+                      Group: DisABSAcard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Orders Packed"
+                        Width: =82
+                        X: =20
+                        Y: =23
+                  - Label1_248:
+                      Control: FluentV8/Label@1.8.6
+                      Group: DisABSAcard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Total Items"
+                        Width: =82
+                        X: =12
+                        Y: =73
+                  - Elevation1_120:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disCashConnectCard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =50
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =206
+                        Y: =116
+                  - Label1_250:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disCashConnectCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =16
+                        FontWeight: =FontWeight.Semibold
+                        Height: =46
+                        PaddingTop: =0.00
+                        Text: ="Cash Connect"
+                        Width: =145
+                        X: =213
+                        Y: =116
+                  - Elevation1_122:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disVPS
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =50
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =396
+                        Y: =116
+                  - Elevation1_118:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: DisABSAcard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =50
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =13
+                        Y: =115
+                  - Label1_255:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disVPS
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =20
+                        FontWeight: =FontWeight.Semibold
+                        Height: =40
+                        PaddingTop: =0.00
+                        Text: ="VPS"
+                        Width: =133.76
+                        X: =419
+                        Y: =114
+                  - Label1_249:
+                      Control: FluentV8/Label@1.8.6
+                      Group: DisABSAcard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =16
+                        FontWeight: =FontWeight.Semibold
+                        Height: =61
+                        PaddingTop: =0.00
+                        Text: ="ABSA"
+                        Width: =133.76
+                        X: =12
+                        Y: =105
+                  - Label1_253:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disCashConnectCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =47
+                        PaddingTop: =0.00
+                        Text: =If(IsBlank( Sum(Filter('Dispatch Log', 'Item Category' = "Cash Connect" && IsBlank(Shipped)), 'Quantity ') ),0,Sum(Filter('Dispatch Log', 'Item Category' = "Cash Connect" && IsBlank(Shipped)), 'Quantity ') )
+                        Width: =82.54
+                        X: =300
+                        Y: =67
+                  - Label1_258:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disVPS
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =39
+                        PaddingTop: =0.00
+                        Text: =If(IsBlank( Sum(Filter('Dispatch Log','Item Category' = "Vps"  && IsBlank(Shipped)), 'Quantity ') ),0,Sum(Filter('Dispatch Log', 'Item Category' = "Vps" && IsBlank(Shipped)), 'Quantity '))
+                        Width: =71.86
+                        X: =495
+                        Y: =67
+                  - Label1_273:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disModemsCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =40
+                        PaddingTop: =0.00
+                        Text: =If(IsBlank( Sum(Filter('Dispatch Log', 'Item Category' = "Modems" && IsBlank(Shipped)), 'Quantity ') ),0,Sum(Filter('Dispatch Log', 'Item Category' = "Modems" && IsBlank(Shipped)), 'Quantity ') )
+                        Width: =86.80
+                        X: =670
+                        Y: =73
+                  - Label1_277:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disAccessoriesCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =42
+                        PaddingTop: =0.00
+                        Text: =If(IsBlank( Sum(Filter('Dispatch Log', 'Item Category' = "Accessories" && IsBlank(Shipped)), 'Quantity ') ),0,Sum(Filter('Dispatch Log','Item Category' = "Accessories" && IsBlank(Shipped)), 'Quantity '))
+                        Width: =71
+                        X: =877
+                        Y: =66
+                  - Label1_267:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disOtherCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =42
+                        PaddingTop: =0.00
+                        Text: =If(IsBlank( Sum(Filter('Dispatch Log', 'Item Category' = "Other"&& IsBlank(Shipped)), 'Quantity ') ),0, Sum(Filter('Dispatch Log','Item Category' = "Other" && IsBlank(Shipped)), 'Quantity ') )
+                        Width: =82.54
+                        X: =1252
+                        Y: =67
+                  - Label1_252:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disCashConnectCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Orders Packed"
+                        Width: =82
+                        X: =209
+                        Y: =24
+                  - Label1_251:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disCashConnectCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Total Items"
+                        Width: =82
+                        X: =209
+                        Y: =68
+                  - Label1_257:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disVPS
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Orders Packed"
+                        Width: =82
+                        X: =397
+                        Y: =24
+                  - Label1_256:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disVPS
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Total Items"
+                        Width: =86.80
+                        X: =397
+                        Y: =70
+                  - Label1_274:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disModemsCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Orders Packed"
+                        Width: =86.80
+                        X: =589
+                        Y: =27
+                  - Label1_271:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disModemsCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =34
+                        PaddingTop: =0.00
+                        Text: ="Total Items"
+                        Width: =86.80
+                        X: =589
+                        Y: =73
+                  - Label1_279:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disAccessoriesCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Orders Packed"
+                        Width: =86.80
+                        X: =777
+                        Y: =25
+                  - Label1_276:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disAccessoriesCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Total Items"
+                        Width: =86.80
+                        X: =778
+                        Y: =66
+                  - Label1_268:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disOtherCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Orders Packed"
+                        Width: =86.80
+                        X: =1167
+                        Y: =19
+                  - Label1_266:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disOtherCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Total Items"
+                        Width: =86.80
+                        X: =1165
+                        Y: =67
+                  - Elevation1_124:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disSIMmgtCard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =159
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170
+                        X: =970
+                  - Label1_260:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disSIMmgtCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =40
+                        PaddingTop: =0.00
+                        Text: |+
+                          =//Count(Distinct(Filter('Dispatch Log', 'Item Category' = "ABSA" && IsBlank(Shipped)),'Order Id'))
+                          CountRows(Filter('Unique Orders','Item Category' = "Sim Management" && 
+                                  !IsBlank('Pick Status') && 
+                                  'Pick Status' <> "Not picked" && 
+                                  IsBlank('Dispatch Status')))
+                        Width: =82
+                        X: =1059
+                        Y: =29
+                  - Label1_261:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disSIMmgtCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =16
+                        FontWeight: =FontWeight.Bold
+                        Height: =46
+                        PaddingTop: =0.00
+                        Text: =If(IsBlank( Sum(Filter('Dispatch Log', 'Item Category' = "Sim Management" && IsBlank(Shipped)), 'Quantity ') ),0,Sum(Filter('Dispatch Log', 'Item Category' = "Sim Management" && IsBlank(Shipped)), 'Quantity '))
+                        Width: =82
+                        X: =1059
+                        Y: =74
+                  - Label1_262:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disSIMmgtCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =41
+                        PaddingTop: =0.00
+                        Text: ="Orders Packed"
+                        Width: =96
+                        X: =970
+                        Y: =28
+                  - Label1_263:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disSIMmgtCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =9
+                        FontWeight: =FontWeight.Semibold
+                        Height: =41
+                        PaddingTop: =0.00
+                        Text: ="Total Items"
+                        Width: =88
+                        X: =978
+                        Y: =75
+                  - Elevation1_125:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disSIMmgtCard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =47
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170
+                        X: =970
+                        Y: =119
+                  - Label1_264:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disSIMmgtCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =16
+                        FontWeight: =FontWeight.Semibold
+                        Height: =37
+                        PaddingTop: =0.00
+                        Text: ="SIM"
+                        Width: =162
+                        X: =978
+                        Y: =129
+                  - Elevation1_126:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disOtherCard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =50
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =1164
+                        Y: =116
+                  - Label1_265:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disOtherCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =16
+                        FontWeight: =FontWeight.Semibold
+                        Height: =41
+                        PaddingTop: =0.00
+                        Text: ="Other"
+                        Width: =133.76
+                        X: =1184
+                        Y: =118
+                  - Elevation1_128:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disModemsCard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =50
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =587
+                        Y: =116
+                  - Label1_270:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disModemsCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =16
+                        FontWeight: =FontWeight.Semibold
+                        Height: =42
+                        PaddingTop: =0.00
+                        Text: ="Modems"
+                        Width: =133.76
+                        X: =606
+                        Y: =119
+                  - Elevation1_130:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Group: disAccessoriesCard
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =50
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =170.76
+                        X: =778
+                        Y: =116
+                  - Label1_275:
+                      Control: FluentV8/Label@1.8.6
+                      Group: disAccessoriesCard
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =20
+                        FontWeight: =FontWeight.Semibold
+                        Height: =43
+                        PaddingTop: =0.00
+                        Text: ="Accessories"
+                        Width: =133.76
+                        X: =796
+                        Y: =119
+                  - Elevation1_132:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =55
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =133
+                        X: =12
+                        Y: =181
+                  - Label1_242:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Left
+                        Color: =varTheme.palette.white
+                        FontSize: =10
+                        FontWeight: =FontWeight.Semibold
+                        Height: =54
+                        PaddingTop: =0.00
+                        Text: ="Select a Queue"
+                        Width: =115
+                        X: =16
+                        Y: =179
+      - Header_7:
+          Control: CanvasComponent
+          ComponentName: Header
+          ComponentLibraryUniqueName: cat_powercatcomponentlibrary_0be3a
+          Properties:
+            BackButtonVisible: =false
+            Color: =
+            ContentWidth: =App.Width
+            Fill: =Color.Transparent
+            HeaderFill: =varTheme.palette.themeDarkAlt
+            Height: =68
+            LeftButtonImage: |+
+              ="data:image/svg+xml," & 
+               EncodeUrl(
+                  "<svg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg' fill='none' stroke='#ffffff'><g id='SVGRepo_bgCarrier' stroke-width='0'></g><g id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'></g><g id='SVGRepo_iconCarrier'><path fill='#ffffff' fill-rule='evenodd' d='M19 4a1 1 0 01-1 1H2a1 1 0 010-2h16a1 1 0 011 1zm0 6a1 1 0 01-1 1H2a1 1 0 110-2h16a1 1 0 011 1zm-1 7a1 1 0 100-2H2a1 1 0 100 2h16z'></path></g></svg>"
+              )
+            LeftButtonVisible: =true
+            OnBackSelect: =true
+            OnLeftButtonSelect: =Set(varMenu, true )
+            OnRightButtonSelect: =true
+            RightButtonImage: |-
+              ="data:image/svg+xml," & 
+               EncodeUrl(
+                  "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' version='1.1' viewBox='-10 0 2068 2048'>
+                <g transform='matrix(1 0 0 -1 0 2048),rotate(0,1034,1024)'>
+                 <path fill='#ffffff'
+              d='M1783 1060q0 -9 0.5 -18t0.5 -18t-0.5 -18t-0.5 -18l259 -161l-159 -383l-297 68q-24 -26 -50 -50l68 -297l-383 -159l-161 259q-9 0 -18 -0.5t-18 -0.5t-18 0.5t-18 0.5l-161 -259l-383 159l68 297q-26 24 -50 50l-297 -68l-159 383l259 161q0 9 -0.5 18t-0.5 18t0.5 18t0.5 18l-259 161l159 383l297 -68q24 26 50 50l-68 297l383 159l161 -259q9 0 18 0.5t18 0.5t18 -0.5t18 -0.5l161 259l383 -159l-68 -297q26 -24 50 -50l297 68l159 -383zM1666 930q2 24 4 47.5t2 47.5q0 23 -2 47t-4 47l236 147l-86 208l-271 -63q-31 38 -63.5 70t-70.5 64l63 271l-208 86l-148 -236q-23 2 -47 4t-47 2q-24 0 -47.5 -2t-47.5 -4l-147 236l-208 -86l63 -271q-38 -31 -70 -63.5t-64 -70.5l-271 63l-86 -208l236 -148q-2 -24 -4 -47.5t-2 -47.5q0 -23 2 -47t4 -47l-236 -147l86 -208l271 63q31 -38 63.5 -70t70.5 -64l-63 -271l208 -86l148 236q23 -2 47 -4t47 -2q24 0 47.5 2t47.5 4l147 -236l208 86l-63 271q38 31 70 63.5t64 70.5l271 -63l86 208zM1024 1400q78 0 146.5 -29.5t119.5 -80.5t80.5 -119.5t29.5 -146.5t-29.5 -146.5t-80.5 -119.5t-119.5 -80.5t-146.5 -29.5t-146.5 29.5t-119.5 80.5t-80.5 119.5t-29.5 146.5t29.5 146.5t80.5 119.5t119.5 80.5t146.5 29.5zM1024 760q55 0 103 20.5t84 56.5t56.5 84t20.5 103t-20.5 103t-56.5 84t-84 56.5t-103 20.5t-103 -20.5t-84 -56.5t-56.5 -84t-20.5 -103t20.5 -103t56.5 -84t84 -56.5t103 -20.5z' />
+                </g>
+
+              </svg>"
+              )
+            RightButtonVisible: =false
+            Text: =
+            Theme: |-
+              ={
+              	palette: {
+              		themePrimary: "#0078d4",
+              		themeLighterAlt: "#eff6fc",
+              		themeLighter: "#deecf9",
+              		themeLight: "#c7e0f4",
+              		themeTertiary: "#71afe5",
+              		themeSecondary: "#2b88d8",
+              		themeDarkAlt: "#106ebe",
+              		themeDark: "#005a9e",
+              		themeDarker: "#004578",
+              		neutralLighterAlt: "#faf9f8",
+              		neutralLighter: "#f3f2f1",
+              		neutralLight: "#edebe9",
+              		neutralQuaternaryAlt: "#e1dfdd",
+              		neutralQuaternary: "#d0d0d0",
+              		neutralTertiaryAlt: "#c8c6c4",
+              		neutralTertiary: "#a19f9d",
+              		neutralSecondary: "#605e5c",
+              		neutralPrimaryAlt: "#3b3a39",
+              		neutralPrimary: "#323130",
+              		neutralDark: "#201f1e",
+              		black: "#000000",
+              		white: "#ffffff"
+              	}
+              }
+            Width: =App.Width
+      - DataTable1_3:
+          Control: DataTable@1.0.3
+          Properties:
+            HeadingColor: =RGBA(255, 255, 255, 1)
+            HeadingSize: =10
+            Height: =429
+            Items: =Filter('Dispatch Log','Order Id' = AbsaQueGal_4.Selected.ID && IsBlank('Package Reference'))
+            Size: =9.24
+            Width: =740
+            X: =605
+            Y: =299
+          Children:
+            - Item Category_Column1_3:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Item Category"
+                  FieldName: ="field_1"
+                  Order: =2
+                  Text: =ThisItem.'Item Category'
+                  Width: =91.78
+            - Item Nature_Column1_3:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Item Nature"
+                  FieldName: ="field_2"
+                  Order: =3
+                  Text: =ThisItem.'Item Nature'
+                  Width: =91.06
+            - Order Id_Column1_3:
+                Control: DataTableColumn@1.0.1
+                Variant: Number
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Order Id"
+                  FieldName: ="OrderId"
+                  Order: =1
+                  Text: =ThisItem.'Order Id'
+                  Width: =57.63
+            - Device type _Column1_3:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Device type "
+                  FieldName: ="field_5"
+                  Order: =6
+                  Text: =ThisItem.'Device type '
+                  Width: =159.36
+            - Terminal Serial Number_Column1_3:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Terminal Serial Number"
+                  FieldName: ="Terminal_x0020_Serial_x0020_Numb"
+                  Order: =7
+                  Text: =ThisItem.'Terminal Serial Number'
+                  Visible: =If(AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",true,false)
+                  Width: =145.84
+            - Cradle Serial Number_Column1_3:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Cradle Serial Number"
+                  FieldName: ="Title"
+                  Order: =8
+                  Text: =ThisItem.'Cradle Serial Number'
+                  Visible: =If(AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",true,false)
+                  Width: =140.16
+            - Charger Serial Number_Column1_3:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Charger Serial Number"
+                  FieldName: ="Charger_x0020_Serial_x0020_Numbe"
+                  Order: =9
+                  Text: =ThisItem.'Charger Serial Number'
+                  Visible: =If(AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",true,false)
+                  Width: =149.42
+            - Pick Status_Column1_1:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  FieldDisplayName: ="Pick Status"
+                  FieldName: ="PickStatus"
+                  Order: =12
+                  Text: =ThisItem.'Pick Status'
+            - CashConnect SerialNumber_Column1_1:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  FieldDisplayName: ="CashConnect SerialNumber"
+                  FieldName: ="CashConnectSerialNumber"
+                  Order: =10
+                  Text: =ThisItem.'CashConnect SerialNumber'
+                  Visible: =If(AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",true,false)
+            - Item Code_Column1_1:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  FieldDisplayName: ="Item Code"
+                  FieldName: ="ItemCode"
+                  Order: =11
+                  Text: =ThisItem.'Item Code'
+                  Visible: =If(AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",true,false)
+      - Label1_283:
+          Control: FluentV8/Label@1.8.6
+          Properties:
+            Alignment: =Align.Center
+            Color: =Color.White
+            FontSize: =19
+            FontWeight: =FontWeight.Semibold
+            Height: =40
+            PaddingTop: =0.00
+            Text: ="Dispatching Queue"
+            Width: =302.36
+            X: =524
+            Y: =3
+      - ExpandMenu_5:
+          Control: CanvasComponent
+          ComponentName: ExpandMenu
+          ComponentLibraryUniqueName: cat_powercatcomponentlibrary_0be3a
+          Group: Menu_3
+          Properties:
+            DefaultExpandValue: =false
+            Fill: =varTheme.palette.neutralLight
+            Height: =763
+            IsNavigationEnabled: =true
+            Items: |-
+              =Table(
+              {Icon: "Home", Label: "Home", Screen:'Landing Page', Tooltip:"Go to Home Page"}, 
+              {Icon: "PowerBILogo", Label: "Picking Queue", Screen:'Picking Queue', Tooltip:"Go to Picking Queue"}, 
+              {Icon: "ShoppingCart", Label: "Picking Cart", Screen:'Picking Cart', Tooltip:"Go to Picking Cart"}, 
+              {Icon: "PowerBILogo", Label: "Dispatch Queue", Screen:'Dispatching Queue', Tooltip:"Go to Dispatching Queue"}, 
+              {Icon: "ShoppingCart", Label: "Dispatch Cart", Screen:'Dispatching Cart', Tooltip:"Go to Picking Queue"}
+              )
+            OnButtonSelect: =true
+            OnExpandSelect: =true
+            Theme: |-
+              ={
+              	palette: {
+              		themePrimary: "#0078d4",
+              		themeLighterAlt: "#eff6fc",
+              		themeLighter: "#deecf9",
+              		themeLight: "#c7e0f4",
+              		themeTertiary: "#71afe5",
+              		themeSecondary: "#2b88d8",
+              		themeDarkAlt: "#106ebe",
+              		themeDark: "#005a9e",
+              		themeDarker: "#004578",
+              		neutralLighterAlt: "#faf9f8",
+              		neutralLighter: "#f3f2f1",
+              		neutralLight: "#edebe9",
+              		neutralQuaternaryAlt: "#e1dfdd",
+              		neutralQuaternary: "#d0d0d0",
+              		neutralTertiaryAlt: "#c8c6c4",
+              		neutralTertiary: "#a19f9d",
+              		neutralSecondary: "#605e5c",
+              		neutralPrimaryAlt: "#3b3a39",
+              		neutralPrimary: "#323130",
+              		neutralDark: "#201f1e",
+              		black: "#000000",
+              		white: "#ffffff"
+              	}
+              }
+            Visible: '=varMenu '
+            Width: =233
+      - Icon11_3:
+          Control: Classic/Icon@2.5.0
+          Group: Menu_3
+          Properties:
+            Height: =32
+            Icon: =Icon.CancelBadge
+            OnSelect: =Set(varMenu, false)
+            Visible: '=varMenu '
+            Width: =32
+            X: =190
+            Y: =7

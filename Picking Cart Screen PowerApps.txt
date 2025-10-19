@@ -1,0 +1,3117 @@
+Screens:
+  Picking Cart:
+    Properties:
+      OnVisible: =Set(varOrderAmounts,ShowColumns(  Filter('Xlink Stock Order','Order Id' = AbsaQueGal_3.Selected.ID),'Device type ','Quantity ordered'));Set(varMenu, false);
+    Children:
+      - stackRoot_5:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
+          Properties:
+            Fill: =varTheme.palette.themeLighter
+            Height: =720
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =2*varTheme.U
+            PaddingLeft: =4*varTheme.U
+            PaddingRight: =4*varTheme.U
+            PaddingTop: =2*varTheme.U
+            Width: =Parent.Width-Self.X
+            X: =
+            Y: =Header_2.Height - 20
+          Children:
+            - conSamplesAutoWidthLabel_1:
+                Control: GroupContainer@1.3.0
+                Variant: ManualLayout
+                Properties:
+                  Height: |+
+                    =stackRoot_5.Height
+                  Width: =stackRoot_5.Width
+                  X: =stackRoot_5.X
+                  Y: =stackRoot_5.Y
+                Children:
+                  - Elevation1_81:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =70
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =1308
+                        X: =11
+                        Y: =11
+                  - Elevation1_78:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =610
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =408
+                        X: =11
+                        Y: =95
+                  - Progress1_1:
+                      Control: Progress@1.1.34
+                      Properties:
+                        Height: =34
+                        Max: =Sum(ShowColumns(Filter('Xlink Stock Order','Order Id' = AbsaQueGal_3.Selected.ID),'Quantity ordered'),field_3)
+                        ProgressColor: ='Progress.ProgressColor'.Success
+                        Thickness: ='Progress.Thickness'.Large
+                        Value: |+
+                          =If(AbsaItemsGal_4.Selected.'Item Nature'.Value = "Non - serialised",Sum( colGroupedDispatch,field_6),CountRows(colDispatch) )
+                        Width: =1225
+                        X: =21
+                        Y: =36
+                  - Elevation1_76:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =610
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =357
+                        X: =961
+                        Y: =95
+                  - Elevation1_75:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =610
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =512
+                        X: =436
+                        Y: =95
+                  - Button1_9:
+                      Control: FluentV8/Button@1.5.13
+                      Properties:
+                        ButtonType: ='Button.ButtonType'.Standard
+                        DisplayMode: |+
+                          =If(
+                              CountRows(Filter(AbsaItemsGal_2.AllItems, ValidationStatus = "Mismatch")) > 0 || CountRows(colDispatch)= 0,
+                              DisplayMode.Disabled,
+                              DisplayMode.Edit
+                          )
+                        FillColor: =varTheme.palette.themePrimary
+                        Height: =21
+                        OnSelect: |-
+                          =Set(varShowSpinner,true);
+                          Set(varOrderPickedID,Text(AbsaQueGal_3.Selected.ID));
+                          Collect('Dispatch Log',colDispatch);
+
+
+
+                          SubmitForm(Form1_2);
+
+                          ClearCollect(
+                              colRecordsToUpdate,
+                              Filter('Xlink Stock Order', 'Order Id' = AbsaQueGal_3.Selected.ID)
+                          );
+
+                          ForAll(
+                              colRecordsToUpdate,
+                              Patch(
+                                  'Xlink Stock Order',
+                                  ThisRecord,
+                                  {'Pick Status': LookUp(colDispatch, ID = ThisRecord.StockOrderID).'Pick Status',
+                                  'QTY dispatched': LookUp(colGroupedDispatch, ID=ThisRecord.StockOrderID).Count}
+                              )
+                          );
+                          OrderPicked.Run(varOrderPickedID);
+                          Clear(colDispatch);Clear(colGroupedDispatch);
+
+                          Refresh('Dispatch Log');Refresh('Unique Orders');Refresh('Xlink Stock Order');ResetForm(Form1_2);
+                          Set(varShowSpinner,false);
+                          Navigate('Picking Queue');
+                          Notify("Order succesfully picked",NotificationType.Success,20);
+                        PaddingTop: =0.00
+                        Text: ="Submit"
+                        TextColor: =varTheme.palette.white
+                        Width: =70
+                        X: =1232
+                        Y: =672
+                  - ABSAadd_3:
+                      Control: FluentV8/Button@1.5.13
+                      Properties:
+                        ButtonType: ='Button.ButtonType'.Standard
+                        DisplayMode: =If(Label1_188.Text = "100%",DisplayMode.Disabled, DisplayMode.Edit)
+                        FillColor: =varTheme.palette.neutralPrimary
+                        FontWeight: =FontWeight.Lighter
+                        Height: =21
+                        OnSelect: |+
+                          =If(AbsaItemsGal_4.Selected.'Item Nature'.Value = "Non - serialised",Collect(colDispatch, PanelContentForm_5.Updates),
+
+
+
+                          If(CountRows(
+                          If( AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",
+                          Filter(
+                              colDispatch,
+                              ('CashConnect SerialNumber' = PanelContentForm_5.Updates.'CashConnect SerialNumber' && !IsBlank('CashConnect SerialNumber'))
+                          )
+                          ,Filter(
+                              colDispatch,
+                              ('Terminal Serial Number' = PanelContentForm_5.Updates.'Terminal Serial Number' && !IsBlank('Terminal Serial Number')) ||
+                              ('Cradle Serial Number' = PanelContentForm_5.Updates.'Cradle Serial Number' && !IsBlank('Cradle Serial Number')) ||
+                              ('Charger Serial Number' = PanelContentForm_5.Updates.'Charger Serial Number' && !IsBlank('Charger Serial Number')) 
+                          ))) = 0, Collect(colDispatch, PanelContentForm_5.Updates),
+                              Notify(
+                                  "Duplicate item detected,please scan different item",NotificationType.Error)));
+
+                          ResetForm(PanelContentForm_5);
+
+                          ClearCollect(
+                              colGroupedDispatch1,
+                              AddColumns(
+                                  GroupBy(colDispatch, 'Device type ',field_6,StockOrderID, GroupedItems),
+                                  Count, CountRows(GroupedItems),
+                                  QuantityOrdered, LookUp(varOrderAmounts,field_5 = ThisRecord.Title,field_3)));
+                          ClearCollect(
+                              colGroupedDispatch,
+                              AddColumns(
+                                  colGroupedDispatch1,
+                                  ValidationStatus,
+                                  Switch(
+                                      true,
+                                      IsBlank(ThisRecord.QuantityOrdered), "Device not Ordered",
+                                   If(AbsaItemsGal_4.Selected.'Item Nature'.Value = "Non - serialised",ThisRecord.field_6 = ThisRecord.QuantityOrdered,ThisRecord.Count = ThisRecord.QuantityOrdered), "Match",
+                                   If(AbsaItemsGal_4.Selected.'Item Nature'.Value = "Non - serialised",ThisRecord.field_6 < ThisRecord.QuantityOrdered,   ThisRecord.Count < ThisRecord.QuantityOrdered), "Partial Pick",
+                                   If(AbsaItemsGal_4.Selected.'Item Nature'.Value = "Non - serialised",ThisRecord.field_6 > ThisRecord.QuantityOrdered,   ThisRecord.Count > ThisRecord.QuantityOrdered), "Mismatch",
+                                      "Unknown"
+                                  )
+                              )
+                          );
+                        PaddingTop: =0.00
+                        Text: ="Add"
+                        TextColor: =varTheme.palette.white
+                        Width: =70
+                        X: =862
+                        Y: =672
+                  - Label1_175:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.neutralPrimary
+                        FontSize: =14
+                        FontWeight: =FontWeight.Bold
+                        Height: =31
+                        PaddingTop: =0.00
+                        Text: ="Pick and Prep Progress"
+                        Width: =426.88
+                        X: =446
+                        Y: =11
+                  - Elevation1_77:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =50
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =357
+                        X: =961
+                        Y: =95
+                  - AbsaItemsGal_2:
+                      Control: Gallery@2.15.0
+                      Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+                      Properties:
+                        Height: =417
+                        Items: |-
+                          =colGroupedDispatch
+
+                          //'Xlink Stock Order'
+                        TemplateFill: =RGBA(0,0,0,0)
+                        TemplateSize: =89
+                        Width: =325
+                        X: =985
+                        Y: =210
+                      Children:
+                        - Rectangle6_2:
+                            Control: Rectangle@2.3.0
+                            Properties:
+                              Fill: =If(ThisItem.IsSelected,RGBA(126,76,158,100),RGBA(181,153,198,100))
+                              Height: =76
+                              OnSelect: =Select(Parent)
+                              Width: =319
+                              X: =0.00
+                              Y: =4
+                        - Image3_2:
+                            Control: Image@2.2.3
+                            Properties:
+                              Height: =72
+                              Image: =LookUp(Documents,ThisItem.field_5 =  'Device Type',Thumbnail.Medium)
+                              OnSelect: =Select(Parent)
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              RadiusBottomLeft: =8
+                              RadiusBottomRight: =8
+                              RadiusTopLeft: =8
+                              RadiusTopRight: =8
+                              Width: =51.22
+                              X: =11.38
+                              Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+                        - Title2_2:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =21
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =12
+                              Text: =ThisItem.field_5
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =184
+                              X: =73.28
+                              Y: =6
+                        - Subtitle3_2:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =Self.Size * 1.8
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =12.82
+                              Text: |-
+                                ="Picked: "& If(AbsaItemsGal_4.Selected.'Item Nature'.Value = "Non - serialised",ThisItem.field_6,ThisItem.Count )
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =112.41
+                              X: =73.28
+                              Y: =Title2_2.Y + Title2_2.Height
+                        - Separator3_2:
+                            Control: Rectangle@2.3.0
+                            Properties:
+                              Fill: =RGBA(255, 255, 255, 1)
+                              Height: =8
+                              OnSelect: =Select(Parent)
+                              Width: =235
+                              X: =0.00
+                              Y: =Parent.TemplateHeight - Self.Height
+                        - Title2_3:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =21
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =12
+                              Text: |-
+                                ="Validation: "&  ThisItem.ValidationStatus
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =184
+                              X: =73
+                              Y: =50
+                        - Icon10:
+                            Control: Classic/Icon@2.5.0
+                            Properties:
+                              Color: =RGBA(255, 255, 255, 1)
+                              Height: =47
+                              Icon: =Icon.Trash
+                              OnSelect: |-
+                                =ClearCollect(
+                                    colTemp,
+                                    Filter(
+                                        colDispatch,
+                                        'Device type ' = AbsaItemsGal_2.Selected.field_5
+                                    ));
+                                ForAll(
+                                    colTemp,
+                                    Remove(
+                                        colDispatch,
+                                        ThisRecord
+                                    )
+                                );
+                                Clear(colTemp)
+
+                                ;
+                                Remove(colGroupedDispatch,ThisItem);
+                              Width: =44
+                              X: =257
+                              Y: =20
+                  - PanelContentForm_5:
+                      Control: Form@2.4.4
+                      Variant: Classic
+                      Layout: Vertical
+                      Properties:
+                        DataSource: ='Dispatch Log'
+                        DefaultMode: =FormMode.New
+                        Height: =498
+                        NumberOfColumns: =1
+                        Visible: = true
+                        Width: =487
+                        X: =454
+                        Y: =158
+                      Children:
+                        - DataCard2_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: BlankCard
+                            Properties:
+                              BorderThickness: =1
+                              Height: =45
+                              Width: =486
+                              X: =0
+                              Y: =0
+                            Children:
+                              - Label1_179:
+                                  Control: FluentV8/Label@1.8.6
+                                  Properties:
+                                    Alignment: =Align.Center
+                                    Color: =varTheme.palette.neutralPrimary
+                                    FontSize: =12
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =39
+                                    PaddingTop: =0.00
+                                    Text: ="Enter Stock Information"
+                                    Width: =399.84
+                                    X: =18
+                                    Y: =6
+                        - Stock Availability_DataCard2_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicAllowedValuesStringEdit
+                            Properties:
+                              AllowedValues: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.AllowedValues, 'Stock Availability')
+                              DataField: ="StockAvailability"
+                              Default: =ThisItem.'Stock Availability'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Stock Availability')
+                              Required: =true
+                              Update: =DataCardValue20_1.Selected.Value
+                              Width: =487
+                              X: =0
+                              Y: =1
+                            Children:
+                              - DataCardKey21_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue20_1:
+                                  Control: Classic/DropDown@2.3.1
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    ChevronFill: =RGBA(255, 255, 255, 1)
+                                    ChevronHoverFill: =RGBA(255, 255, 255, 1)
+                                    Default: =Parent.Default
+                                    DisplayMode: =Parent.DisplayMode
+                                    Items: =["","In Stock","Out of stock"]
+                                    Items.Value: =Value
+                                    PaddingRight: =7.11
+                                    PaddingTop: =7.11
+                                    PressedColor: =RGBA(255, 255, 255, 1)
+                                    SelectionColor: =RGBA(255, 255, 255, 1)
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey21_1.Y + DataCardKey21_1.Height + 5
+                              - ErrorMessage21_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue20_1.Y + DataCardValue20_1.Height
+                              - StarVisible21_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey21_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey21_1.Y
+                        - Pick Status_DataCard2_2:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicAllowedValuesStringEdit
+                            Properties:
+                              AllowedValues: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.AllowedValues, 'Pick Status')
+                              DataField: ="PickStatus"
+                              Default: =ThisItem.'Pick Status'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Pick Status')
+                              Required: =true
+                              Update: =DataCardValue19_2.Selected.Value
+                              Width: =487
+                              X: =0
+                              Y: =2
+                            Children:
+                              - DataCardKey20_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue19_2:
+                                  Control: Classic/DropDown@2.3.1
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    ChevronFill: =RGBA(255, 255, 255, 1)
+                                    ChevronHoverFill: =RGBA(255, 255, 255, 1)
+                                    Default: =Parent.Default
+                                    DisplayMode: =Parent.DisplayMode
+                                    Items: |-
+                                      =If(DataCardValue20_1.Selected.Value = "In Stock",
+                                        ["","Picked in full","Partially picked"], ["","Not picked"])
+                                    Items.Value: =Value
+                                    PaddingRight: =7.11
+                                    PaddingTop: =7.11
+                                    PressedColor: =RGBA(255, 255, 255, 1)
+                                    SelectionColor: =RGBA(255, 255, 255, 1)
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey20_2.Y + DataCardKey20_2.Height + 5
+                              - ErrorMessage20_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue19_2.Y + DataCardValue19_2.Height
+                              - StarVisible20_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey20_2.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey20_2.Y
+                        - Quantity _DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicNumberEdit
+                            Properties:
+                              DataField: ="field_6"
+                              Default: =1
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Quantity ')
+                              Required: =If(AbsaItemsGal_4.Selected.'Item Nature'.Value = "Non - serialised",true,false)
+                              Update: =Value(DataCardValue9_1.Text)
+                              Width: =487
+                              X: =0
+                              Y: =3
+                            Children:
+                              - DataCardKey11_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =34
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue9_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =If( AbsaItemsGal_4.Selected.'Item Nature'.Value = "Serialised",1,"")
+                                    DelayOutput: =true
+                                    DisplayMode: |+
+                                      =If( AbsaItemsGal_4.Selected.'Item Nature'.Value = "Serialised",DisplayMode.Disabled,DisplayMode.Edit)
+                                    Format: =TextFormat.Number
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey11_1.Y + DataCardKey11_1.Height + 5
+                              - ErrorMessage11_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.24
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue9_1.Y + DataCardValue9_1.Height
+                              - StarVisible11_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    Height: =DataCardKey11_1.Height
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey11_1.Y
+                        - Packer_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="Packer"
+                              Default: =ThisItem.Packer
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,Packer)
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, Packer)
+                              Required: =false
+                              Update: =DataCardValue3_2.Text
+                              Width: =487
+                              X: =0
+                              Y: =4
+                            Children:
+                              - DataCardKey3_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue3_2:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =User().Email
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey3_2.Y + DataCardKey3_2.Height + 5
+                              - ErrorMessage3_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue3_2.Y + DataCardValue3_2.Height
+                              - StarVisible3_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey3_2.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey3_2.Y
+                        - DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: BlankCard
+                            Properties:
+                              BorderThickness: =1
+                              Height: =45
+                              Visible: =If(AbsaItemsGal_4.Selected.'Item Nature'.Value = "Serialised",true,false)
+                              Width: =486
+                              X: =0
+                              Y: =5
+                            Children:
+                              - Label1_180:
+                                  Control: FluentV8/Label@1.8.6
+                                  Properties:
+                                    Alignment: =Align.Center
+                                    Color: =varTheme.palette.neutralPrimary
+                                    FontSize: =12
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =45
+                                    PaddingTop: =0.00
+                                    Text: '=If(TabList1_3.Selected.ItemKey = 2,"Scan QR Code/Capture Item details seperate by a (,) comma","Scan Device Serial numbers below") '
+                                    Width: =445
+                                    X: =0.00
+                        - Item Description_DataCard2_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            IsLocked: true
+                            Properties:
+                              DataField: ="field_3"
+                              Default: =ThisItem.'Item Description'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Item Description')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Item Description')
+                              Required: =false
+                              Update: =DataCardValue34_1.Text
+                              Visible: =If(TabList1_3.Selected.ItemKey = 2,true,false)
+                              Width: =487
+                              X: =0
+                              Y: =6
+                            Children:
+                              - DataCardKey36_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue34_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =Parent.Default
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey36_1.Y + DataCardKey36_1.Height + 5
+                              - ErrorMessage35_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue34_1.Y + DataCardValue34_1.Height
+                              - StarVisible35_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey36_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey36_1.Y
+                        - Item Code_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="ItemCode"
+                              Default: =ThisItem.'Item Code'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Item Code')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Item Code')
+                              Required: =false
+                              Update: =DataCardValue33_1.Text
+                              Visible: =If(TabList1_3.Selected.ItemKey = 2,true,false)
+                              Width: =487
+                              X: =0
+                              Y: =7
+                            Children:
+                              - DataCardKey35_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue33_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: |-
+                                      =If(
+                                          Len(DataCardValue34_1.Text) - Len(Substitute(DataCardValue34_1.Text, ",", "")) >= 1,
+                                          Left(DataCardValue34_1.Text, Find(",", DataCardValue34_1.Text) - 1),
+                                          DataCardValue34_1.Text 
+                                      )
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey35_1.Y + DataCardKey35_1.Height + 5
+                              - ErrorMessage34_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue33_1.Y + DataCardValue33_1.Height
+                              - StarVisible34_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey35_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey35_1.Y
+                        - CashConnect SerialNumber_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="CashConnectSerialNumber"
+                              Default: =ThisItem.'CashConnect SerialNumber'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'CashConnect SerialNumber')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'CashConnect SerialNumber')
+                              Required: =false
+                              Update: =DataCardValue16_1.Text
+                              Visible: =If(TabList1_3.Selected.ItemKey = 2,true,false)
+                              Width: =487
+                              X: =0
+                              Y: =8
+                            Children:
+                              - DataCardKey17_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue16_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: |+
+                                      =If(
+                                          Len(DataCardValue34_1.Text) - Len(Substitute(DataCardValue34_1.Text, ",", "")) > 1,
+                                             Left(Mid(DataCardValue34_1.Text, 14, 5), 5),
+                                          If(
+                                              Len(DataCardValue34_1.Text) - Len(Substitute(DataCardValue34_1.Text, ",", "")) = 1,
+                                              Mid(DataCardValue34_1.Text, Find(",", DataCardValue34_1.Text) + 1, Len(DataCardValue34_1.Text) - Find(",", DataCardValue34_1.Text)),
+                                              ""
+                                          )
+                                      )
+
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey17_1.Y + DataCardKey17_1.Height + 5
+                              - ErrorMessage17_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue16_1.Y + DataCardValue16_1.Height
+                              - StarVisible17_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey17_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey17_1.Y
+                        - Terminal Serial Number_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="Terminal_x0020_Serial_x0020_Numb"
+                              Default: =ThisItem.'Terminal Serial Number'
+                              DisplayName: ="Manufacture Serial Number"
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Terminal Serial Number')
+                              Required: =false
+                              Update: =DataCardValue14_1.Text
+                              Visible: =If(AbsaItemsGal_4.Selected.'Item Nature'.Value = "Serialised",true,false)
+                              Width: =487
+                              X: =0
+                              Y: =9
+                            Children:
+                              - DataCardKey9_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: |+
+                                      =If(TabList1_3.Selected.ItemKey = 2 
+                                      || TabList1_3.Selected.ItemKey = 7 
+                                      || TabList1_3.Selected.ItemKey = 5
+                                      || TabList1_3.Selected.ItemKey = 6,"Serial Number",Parent.DisplayName)
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue14_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =Parent.Default
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey9_1.Y + DataCardKey9_1.Height + 5
+                              - ErrorMessage9_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue14_1.Y + DataCardValue14_1.Height
+                              - StarVisible9_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey9_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey9_1.Y
+                        - Cradle Serial Number_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            IsLocked: true
+                            Properties:
+                              DataField: ="Title"
+                              Default: =ThisItem.'Cradle Serial Number'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Cradle Serial Number')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Cradle Serial Number')
+                              Required: =false
+                              Update: =DataCardValue1_1.Text
+                              Visible: |-
+                                =/*If(TabList1_3.Selected.ItemKey = 2 
+                                || TabList1_3.Selected.ItemKey = 7 
+                                || TabList1_3.Selected.ItemKey = 5
+                                || TabList1_3.Selected.ItemKey = 6,false,true)*/ false
+                              Width: =487
+                              X: =0
+                              Y: =10
+                            Children:
+                              - DataCardKey1_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue1_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =Parent.Default
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey1_1.Y + DataCardKey1_1.Height + 5
+                              - ErrorMessage1_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue1_1.Y + DataCardValue1_1.Height
+                              - StarVisible1_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey1_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey1_1.Y
+                        - ChargerPacked_DataCard2_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicAllowedValuesStringEdit
+                            Properties:
+                              AllowedValues: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.AllowedValues, ChargerPacked)
+                              DataField: ="ChargerPacked"
+                              Default: =ThisItem.ChargerPacked
+                              DisplayName: ="Charger"
+                              Required: =false
+                              Update: =DataCardValue18_2.Selected.Value
+                              Visible: |-
+                                =If(TabList1_3.Selected.ItemKey = 2 
+                                || TabList1_3.Selected.ItemKey = 7 
+                                || TabList1_3.Selected.ItemKey = 5
+                                || TabList1_3.Selected.ItemKey = 6,false,true)
+                              Width: =487
+                              X: =0
+                              Y: =11
+                            Children:
+                              - DataCardKey19_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue18_2:
+                                  Control: Classic/DropDown@2.3.1
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    ChevronFill: =RGBA(255, 255, 255, 1)
+                                    ChevronHoverFill: =RGBA(255, 255, 255, 1)
+                                    Default: =Parent.Default
+                                    DisplayMode: =Parent.DisplayMode
+                                    Items: =["","Y","N"]
+                                    Items.Value: =Value
+                                    PaddingRight: =7.11
+                                    PaddingTop: =7.11
+                                    PressedColor: =RGBA(255, 255, 255, 1)
+                                    SelectionColor: =RGBA(255, 255, 255, 1)
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey19_2.Y + DataCardKey19_2.Height + 5
+                              - ErrorMessage19_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue18_2.Y + DataCardValue18_2.Height
+                              - StarVisible19_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey19_2.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey19_2.Y
+                        - Charger Serial Number_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            IsLocked: true
+                            Properties:
+                              DataField: ="Charger_x0020_Serial_x0020_Numbe"
+                              Default: =ThisItem.'Charger Serial Number'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Charger Serial Number')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Charger Serial Number')
+                              Required: =false
+                              Update: =DataCardValue15_1.Text
+                              Visible: |-
+                                =If(TabList1_3.Selected.ItemKey = 2 
+                                || TabList1_3.Selected.ItemKey = 7 
+                                || TabList1_3.Selected.ItemKey = 5
+                                || TabList1_3.Selected.ItemKey = 6,false,true)
+                              Width: =487
+                              X: =0
+                              Y: =12
+                            Children:
+                              - DataCardKey16_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue15_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =Parent.Default
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey16_1.Y + DataCardKey16_1.Height + 5
+                              - ErrorMessage16_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue15_1.Y + DataCardValue15_1.Height
+                              - StarVisible16_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey16_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey16_1.Y
+                        - Cables_DataCard2_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicAllowedValuesStringEdit
+                            Properties:
+                              AllowedValues: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.AllowedValues, Cables)
+                              DataField: ="Cables"
+                              Default: =ThisItem.Cables
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,Cables)
+                              Required: =false
+                              Update: =DataCardValue23_1.Selected.Value
+                              Visible: |-
+                                =If(TabList1_3.Selected.ItemKey = 2 
+                                || TabList1_3.Selected.ItemKey = 7 
+                                || TabList1_3.Selected.ItemKey = 5
+                                || TabList1_3.Selected.ItemKey = 6,false,true)
+                              Width: =487
+                              X: =0
+                              Y: =13
+                            Children:
+                              - DataCardKey24_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue23_1:
+                                  Control: Classic/DropDown@2.3.1
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    ChevronFill: =RGBA(255, 255, 255, 1)
+                                    ChevronHoverFill: =RGBA(255, 255, 255, 1)
+                                    Default: =Parent.Default
+                                    DisplayMode: =Parent.DisplayMode
+                                    Items: =["","Y","N"]
+                                    Items.Value: =Value
+                                    PaddingRight: =7.11
+                                    PaddingTop: =7.11
+                                    PressedColor: =RGBA(255, 255, 255, 1)
+                                    SelectionColor: =RGBA(255, 255, 255, 1)
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey24_1.Y + DataCardKey24_1.Height + 5
+                              - ErrorMessage24_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue23_1.Y + DataCardValue23_1.Height
+                              - StarVisible24_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey24_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey24_1.Y
+                        - Paper Rolls_DataCard2_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicAllowedValuesStringEdit
+                            Properties:
+                              AllowedValues: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.AllowedValues, 'Paper Rolls')
+                              DataField: ="PaperRolls"
+                              Default: =ThisItem.'Paper Rolls'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Paper Rolls')
+                              Required: =false
+                              Update: =DataCardValue24_1.Selected.Value
+                              Visible: |-
+                                =If(TabList1_3.Selected.ItemKey = 2 
+                                || TabList1_3.Selected.ItemKey = 7 
+                                || TabList1_3.Selected.ItemKey = 5
+                                || TabList1_3.Selected.ItemKey = 6,false,true)
+                              Width: =487
+                              X: =0
+                              Y: =14
+                            Children:
+                              - DataCardKey25_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue24_1:
+                                  Control: Classic/DropDown@2.3.1
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    ChevronFill: =RGBA(255, 255, 255, 1)
+                                    ChevronHoverFill: =RGBA(255, 255, 255, 1)
+                                    Default: =Parent.Default
+                                    DisplayMode: =Parent.DisplayMode
+                                    Items: =[0,1,2,3,4,5]
+                                    Items.Value: =Value
+                                    PaddingRight: =7.11
+                                    PaddingTop: =7.11
+                                    PressedColor: =RGBA(255, 255, 255, 1)
+                                    SelectionColor: =RGBA(255, 255, 255, 1)
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey25_1.Y + DataCardKey25_1.Height + 5
+                              - ErrorMessage25_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue24_1.Y + DataCardValue24_1.Height
+                              - StarVisible25_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey25_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey25_1.Y
+                        - DataCard3_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: BlankCard
+                            Properties:
+                              BorderThickness: =1
+                              Height: =64
+                              Width: =486
+                              X: =0
+                              Y: =15
+                            Children:
+                              - Label1_182:
+                                  Control: FluentV8/Label@1.8.6
+                                  Properties:
+                                    Alignment: =Align.Center
+                                    Color: =varTheme.palette.neutralPrimary
+                                    FontSize: =14
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =49
+                                    PaddingTop: =0.00
+                                    Text: ="Order Details"
+                                    Width: =396.27
+                                    X: =4.27
+                                    Y: =3
+                        - Order Id_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicNumberEdit
+                            Properties:
+                              DataField: ="OrderId"
+                              Default: =ThisItem.'Order Id'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Order Id')
+                              Required: =false
+                              Update: =Value(DataCardValue7_1.Text)
+                              Width: =487
+                              X: =0
+                              Y: =16
+                            Children:
+                              - DataCardKey8_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue7_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =AbsaItemsGal_4.Selected.'Order Id'
+                                    DelayOutput: =true
+                                    DisplayMode: =DisplayMode.Disabled
+                                    Format: =TextFormat.Number
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey8_1.Y + DataCardKey8_1.Height + 5
+                              - ErrorMessage8_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue7_1.Y + DataCardValue7_1.Height
+                              - StarVisible8_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey8_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey8_1.Y
+                        - Technician _DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="field_9"
+                              Default: =AbsaItemsGal_4.Selected.'Technician '
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Technician ')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Technician ')
+                              Required: =false
+                              Update: =DataCardValue12_1.Text
+                              Width: =487
+                              X: =0
+                              Y: =17
+                            Children:
+                              - DataCardKey14_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =34
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue12_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =Parent.Default
+                                    DelayOutput: =true
+                                    DisplayMode: =DisplayMode.Disabled
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey14_1.Y + DataCardKey14_1.Height + 5
+                              - ErrorMessage14_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.24
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue12_1.Y + DataCardValue12_1.Height
+                              - StarVisible14_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    Height: =DataCardKey14_1.Height
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey14_1.Y
+                        - Contractor Company _DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="field_8"
+                              Default: =AbsaItemsGal_4.Selected.'Contractor Company'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Contractor Company ')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Contractor Company ')
+                              Required: =false
+                              Update: =DataCardValue11_1.Text
+                              Width: =487
+                              X: =0
+                              Y: =18
+                            Children:
+                              - DataCardKey13_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =34
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue11_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =Parent.Default
+                                    DelayOutput: =true
+                                    DisplayMode: =DisplayMode.Disabled
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey13_1.Y + DataCardKey13_1.Height + 5
+                              - ErrorMessage13_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.24
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue11_1.Y + DataCardValue11_1.Height
+                              - StarVisible13_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    Height: =DataCardKey13_1.Height
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey13_1.Y
+                        - Region _DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="field_7"
+                              Default: =AbsaItemsGal_4.Selected.'Region '.Value
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Region ')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Region ')
+                              Required: =false
+                              Update: =DataCardValue10_1.Text
+                              Width: =487
+                              X: =0
+                              Y: =19
+                            Children:
+                              - DataCardKey12_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =34
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue10_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =Parent.Default
+                                    DelayOutput: =true
+                                    DisplayMode: =DisplayMode.Disabled
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey12_1.Y + DataCardKey12_1.Height + 5
+                              - ErrorMessage12_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.24
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue10_1.Y + DataCardValue10_1.Height
+                              - StarVisible12_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    Height: =DataCardKey12_1.Height
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey12_1.Y
+                        - Device type _DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="field_5"
+                              Default: =AbsaItemsGal_4.Selected.'Device type '
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Device type ')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Device type ')
+                              Required: =false
+                              Update: =DataCardValue8_1.Text
+                              Width: =487
+                              X: =0
+                              Y: =20
+                            Children:
+                              - DataCardKey10_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =34
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue8_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =Parent.Default
+                                    DelayOutput: =true
+                                    DisplayMode: =DisplayMode.Disabled
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey10_1.Y + DataCardKey10_1.Height + 5
+                              - ErrorMessage10_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.24
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue8_1.Y + DataCardValue8_1.Height
+                              - StarVisible10_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    Height: =DataCardKey10_1.Height
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey10_1.Y
+                        - Item Nature_DataCard2_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="field_2"
+                              Default: =AbsaItemsGal_4.Selected.'Item Nature'.Value
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Item Nature')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Item Nature')
+                              Required: =false
+                              Update: =DataCardValue5_1.Text
+                              Width: =487
+                              X: =0
+                              Y: =21
+                            Children:
+                              - DataCardKey6_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =34
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue5_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =AbsaItemsGal_4.Selected.'Item Nature'.Value
+                                    DelayOutput: =true
+                                    DisplayMode: =DisplayMode.Disabled
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey6_1.Y + DataCardKey6_1.Height + 5
+                              - ErrorMessage6_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.24
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue5_1.Y + DataCardValue5_1.Height
+                              - StarVisible6_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    Height: =DataCardKey6_1.Height
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey6_1.Y
+                        - Item Category_DataCard2_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="field_1"
+                              Default: =AbsaItemsGal_4.Selected.'Item Category'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Item Category')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Item Category')
+                              Required: =false
+                              Update: =DataCardValue4_2.Text
+                              Width: =487
+                              X: =0
+                              Y: =22
+                            Children:
+                              - DataCardKey5_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =34
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue4_2:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =Parent.Default
+                                    DelayOutput: =true
+                                    DisplayMode: =DisplayMode.Disabled
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =8.53
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey5_1.Y + DataCardKey5_1.Height + 5
+                              - ErrorMessage5_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.24
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue4_2.Y + DataCardValue4_2.Height
+                              - StarVisible5_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    Height: =DataCardKey5_1.Height
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey5_1.Y
+                        - Date Dispatched _DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicDateTimeEdit
+                            Properties:
+                              DataField: ="field_0"
+                              Default: =Today()
+                              DisplayMode: =DisplayMode.Disabled
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Date Dispatched ')
+                              Required: =false
+                              Update: =If(Not IsBlank(DateValue1_1.SelectedDate), DateTime(Year(DateValue1_1.SelectedDate), Month(DateValue1_1.SelectedDate), Day(DateValue1_1.SelectedDate), Value(HourValue1_1.Selected.Value), Value(MinuteValue1_1.Selected.Value), 0))
+                              Width: =487
+                              X: =0
+                              Y: =23
+                            Children:
+                              - DataCardKey4_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =34
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DateValue1_1:
+                                  Control: Classic/DatePicker@2.6.0
+                                  MetadataKey: DateFieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    DefaultDate: =Parent.Default
+                                    DisplayMode: =Parent.DisplayMode
+                                    EndYear: =Year(Today())+100
+                                    IconFill: =RGBA(255, 255, 255, 1)
+                                    IsEditable: =true
+                                    PaddingBottom: =0
+                                    PaddingLeft: =If(Self.DisplayMode = DisplayMode.Edit, 5, 0)
+                                    PaddingRight: =3.56
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    StartYear: =1899
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =186.40
+                                    X: =21.34
+                                    Y: =DataCardKey4_2.Y + DataCardKey4_2.Height + 5
+                              - HourValue1_1:
+                                  Control: Classic/DropDown@2.3.1
+                                  MetadataKey: HourFieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    ChevronFill: =RGBA(255, 255, 255, 1)
+                                    ChevronHoverFill: =RGBA(255, 255, 255, 1)
+                                    Default: =Text(Hour(Parent.Default),"00")
+                                    DisplayMode: =Parent.DisplayMode
+                                    Height: =DateValue1_1.Height
+                                    Items: =["00","01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18","19","20","21","22","23"]
+                                    Items.Value: =Value
+                                    PaddingBottom: =5
+                                    PaddingLeft: =If(Self.DisplayMode = DisplayMode.Edit, 5, 0)
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    PressedColor: =RGBA(255, 255, 255, 1)
+                                    SelectionColor: =RGBA(255, 255, 255, 1)
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =86.09
+                                    X: =214.86
+                                    Y: =DateValue1_1.Y
+                              - Separator2_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: HourMinuteSeparator
+                                  Properties:
+                                    Align: =Align.Center
+                                    FontWeight: =FontWeight.Bold
+                                    Height: =HourValue1_1.Height
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.24
+                                    Text: =":"
+                                    Width: =7.11
+                                    Wrap: =false
+                                    X: =300.94
+                                    Y: =HourValue1_1.Y
+                              - MinuteValue1_1:
+                                  Control: Classic/DropDown@2.3.1
+                                  MetadataKey: MinuteFieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    ChevronFill: =RGBA(255, 255, 255, 1)
+                                    ChevronHoverFill: =RGBA(255, 255, 255, 1)
+                                    Default: =Text(Minute(Parent.Default),"00")
+                                    DisplayMode: =Parent.DisplayMode
+                                    Height: =HourValue1_1.Height
+                                    Items: =["00","01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59"]
+                                    Items.Value: =Value
+                                    PaddingBottom: =5
+                                    PaddingLeft: =If(Self.DisplayMode = DisplayMode.Edit, 5, 0)
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    PressedColor: =RGBA(255, 255, 255, 1)
+                                    SelectionColor: =RGBA(255, 255, 255, 1)
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =86.09
+                                    X: =308.05
+                                    Y: =HourValue1_1.Y
+                              - ErrorMessage4_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.24
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =HourValue1_1.Y + HourValue1_1.Height
+                              - StarVisible4_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    Height: =DataCardKey4_2.Height
+                                    PaddingLeft: =0
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey4_2.Y
+                        - StockOrderID_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicNumberEdit
+                            Properties:
+                              DataField: ="StockOrderID"
+                              Default: =ThisItem.StockOrderID
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,StockOrderID)
+                              Required: =false
+                              Update: =Value(DataCardValue2_2.Text)
+                              Width: =487
+                              X: =0
+                              Y: =24
+                            Children:
+                              - DataCardKey2_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =372.80
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue2_2:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =AbsaItemsGal_4.Selected.ID
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    Format: =TextFormat.Number
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardKey2_2.Y + DataCardKey2_2.Height + 5
+                              - ErrorMessage2_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =372.80
+                                    X: =21.34
+                                    Y: =DataCardValue2_2.Y + DataCardValue2_2.Height
+                              - StarVisible2_2:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey2_2.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey2_2.Y
+                        - Dispatch_To_Location_DataCard1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="Dispatch_To_Location"
+                              Default: =ThisItem.Dispatch_To_Location
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,Dispatch_To_Location)
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, Dispatch_To_Location)
+                              Required: =false
+                              Update: =DataCardValue46.Text
+                              Visible: =false
+                              Width: =487
+                              X: =0
+                              Y: =25
+                            Children:
+                              - DataCardKey48:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    Text: =Parent.DisplayName
+                                    Width: =Parent.Width - 60
+                                    Wrap: =false
+                                    X: =30
+                                    Y: =10
+                              - DataCardValue46:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: ="DISPATCH BIN"
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =Parent.Width - 60
+                                    X: =30
+                                    Y: =DataCardKey48.Y + DataCardKey48.Height + 5
+                              - ErrorMessage48:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0
+                                    PaddingTop: =0
+                                    Size: =14
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =Parent.Width - 60
+                                    X: =30
+                                    Y: =DataCardValue46.Y + DataCardValue46.Height
+                              - StarVisible48:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey48.Height
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =30
+                                    Wrap: =false
+                                    Y: =DataCardKey48.Y
+                        - TimePicked_DataCard1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicDateEdit
+                            Properties:
+                              DataField: ="TimePicked"
+                              Default: =ThisItem.TimePicked
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,TimePicked)
+                              Required: =false
+                              Update: =DataCardValue47.SelectedDate
+                              Visible: =false
+                              Width: =487
+                              X: =0
+                              Y: =26
+                            Children:
+                              - DataCardKey54:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    Text: =Parent.DisplayName
+                                    Width: =Parent.Width - 60
+                                    Wrap: =false
+                                    X: =30
+                                    Y: =10
+                              - DataCardValue47:
+                                  Control: Classic/DatePicker@2.6.0
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    DefaultDate: =Now()
+                                    DisplayMode: =Parent.DisplayMode
+                                    EndYear: =Year(Today())+100
+                                    IconFill: =RGBA(255, 255, 255, 1)
+                                    IsEditable: =true
+                                    PaddingBottom: =0
+                                    PaddingLeft: =If(Self.DisplayMode = DisplayMode.Edit, 5, 0)
+                                    StartYear: =1899
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =Parent.Width - 60
+                                    X: =30
+                                    Y: =DataCardKey54.Y + DataCardKey54.Height + 5
+                              - ErrorMessage54:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0
+                                    PaddingTop: =0
+                                    Size: =14
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =Parent.Width - 60
+                                    X: =30
+                                    Y: =DataCardValue47.Y + DataCardValue47.Height
+                              - StarVisible54:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey54.Height
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =30
+                                    Wrap: =false
+                                    Y: =DataCardKey54.Y
+                  - Circle1_1:
+                      Control: Circle@2.3.0
+                      Properties:
+                        Fill: =Color.Gray
+                        Height: =56.92
+                        Width: =56.92
+                        X: =1255
+                        Y: =19
+                  - Label1_188:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.white
+                        FontSize: =10
+                        FontWeight: =FontWeight.Semibold
+                        Height: =56.92
+                        PaddingTop: =0.00
+                        Text: "=\r\nIf(CountRows(colDispatch) = 0,\r\n        \r\n        \"\",\r\n   Text(\r\n         (If(AbsaItemsGal_4.Selected.'Item Nature'.Value = \"Non - serialised\",Sum( colGroupedDispatch,field_6),CountRows(colDispatch) )\r\n         /\r\n         Sum(ShowColumns(Filter('Xlink Stock Order','Order Id' = AbsaQueGal_3.Selected.ID),'Quantity ordered'),field_3))*100,\"##%\")     \r\n)\r\n"
+                        Width: =56.92
+                        X: =1255
+                        Y: =21
+                  - AbsaItemsGal_4:
+                      Control: Gallery@2.15.0
+                      Variant: BrowseLayout_Vertical_TwoTextOneImageVariant_ver5.0
+                      Properties:
+                        Height: =490
+                        Items: |-
+                          =Filter('Xlink Stock Order','Order Id' = AbsaQueGal_3.Selected.ID)
+
+                          //'Xlink Stock Order'
+                        TemplateFill: =RGBA(0,0,0,0)
+                        TemplateSize: =112
+                        Width: =364
+                        X: =29
+                        Y: =182
+                      Children:
+                        - Rectangle6_4:
+                            Control: Rectangle@2.3.0
+                            Properties:
+                              Fill: =If(ThisItem.IsSelected,RGBA(126,76,158,100),RGBA(181,153,198,100))
+                              OnSelect: =Select(Parent)
+                              Width: =363
+                              X: =0.00
+                              Y: =4
+                        - Image3_4:
+                            Control: Image@2.2.3
+                            Properties:
+                              Height: =72
+                              Image: =LookUp(Documents,ThisItem.'Device type ' = 'Device Type',Thumbnail.Medium)
+                              OnSelect: =Select(Parent)
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              RadiusBottomLeft: =8
+                              RadiusBottomRight: =8
+                              RadiusTopLeft: =8
+                              RadiusTopRight: =8
+                              Width: =51.22
+                              X: =11.38
+                              Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+                        - Title2_4:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =Self.Size * 1.8
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =12
+                              Text: =ThisItem.'Device type '
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =112.41
+                              X: =73.28
+                              Y: =(Parent.TemplateHeight - (Self.Size * 1.8 + Subtitle3_4.Size * 1.8)) / 2
+                        - Subtitle3_4:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =Self.Size * 1.8
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =12
+                              Text: |-
+                                ="Qty: "&ThisItem.'Quantity ordered'
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =112.41
+                              X: =73.28
+                              Y: =Title2_4.Y + Title2_4.Height
+                        - NextArrow2_2:
+                            Control: Classic/Icon@2.5.0
+                            Properties:
+                              AccessibleLabel: =Self.Tooltip
+                              Color: =RGBA(166, 166, 166, 1)
+                              Height: =50
+                              Icon: =Icon.ChevronRight
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =16
+                              PaddingLeft: =16
+                              PaddingRight: =11.38
+                              PaddingTop: =11.38
+                              Tooltip: ="View item details"
+                              Width: =35.56
+                              X: =315
+                              Y: =(Parent.TemplateHeight / 2) - (Self.Height / 2)
+                        - Separator3_4:
+                            Control: Rectangle@2.3.0
+                            Properties:
+                              Fill: =RGBA(255, 255, 255, 1)
+                              Height: =8
+                              OnSelect: =Select(Parent)
+                              Width: =235
+                              X: =0.00
+                              Y: =Parent.TemplateHeight - Self.Height
+                        - Title2_7:
+                            Control: Label@2.5.1
+                            Properties:
+                              BorderColor: =RGBA(0, 0, 0, 1)
+                              Color: =RGBA(255, 255, 255, 1)
+                              FontWeight: =If(ThisItem.IsSelected, FontWeight.Semibold, FontWeight.Normal)
+                              Height: =20
+                              OnSelect: =Select(Parent)
+                              PaddingBottom: =0
+                              PaddingLeft: =0
+                              PaddingRight: =0.00
+                              PaddingTop: =0.00
+                              Size: =12
+                              Text: =LookUp(Documents,ThisItem.'Device type ' = 'Device Type','Item Description ')
+                              VerticalAlign: =VerticalAlign.Top
+                              Width: =253
+                              X: =73
+                              Y: =14
+                  - Label1_237:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =14
+                        FontWeight: =FontWeight.Semibold
+                        Height: =42
+                        PaddingTop: =0.00
+                        Text: ="Pick Cart"
+                        Width: =302.36
+                        X: =998
+                        Y: =99
+                  - Elevation1_79:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =51
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =408
+                        X: =11
+                        Y: =92
+                  - Label1_236:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =14
+                        FontWeight: =FontWeight.Semibold
+                        Height: =42
+                        PaddingTop: =0.00
+                        Text: ="Order Cart"
+                        Width: =382
+                        X: =20
+                        Y: =102
+                  - Label1_238:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.black
+                        FontSize: =14
+                        FontWeight: =FontWeight.Lighter
+                        Height: =58
+                        PaddingTop: =0.00
+                        Text: ="Pick Cart quantities must match Order Cart quantities unless its a partial pick"
+                        VerticalAlignment: =VerticalAlign.Top
+                        Width: =357
+                        X: =961
+                        Y: =150
+                  - Form1_2:
+                      Control: Form@2.4.4
+                      Layout: Vertical
+                      Properties:
+                        DataSource: ='Unique Orders'
+                        Height: =181
+                        Item: =LookUp('Unique Orders',ID = Value( AbsaQueGal_3.Selected.ID))
+                        NumberOfColumns: =1
+                        Visible: =false
+                        Width: =311.62
+                        X: =39
+                        Y: =499
+                      Children:
+                        - Stock Availability_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: TextualEdit
+                            Properties:
+                              DataField: ="StockAvailability"
+                              Default: =ThisItem.'Stock Availability'
+                              DisplayName: =DataSourceInfo([@'Unique Orders'],DataSourceInfo.DisplayName,'Stock Availability')
+                              MaxLength: =DataSourceInfo([@'Unique Orders'], DataSourceInfo.MaxLength, 'Stock Availability')
+                              Required: =false
+                              Update: =DataCardValue38_1.Value
+                              Width: =311
+                              X: =0
+                              Y: =0
+                            Children:
+                              - DataCardKey40_1:
+                                  Control: Text@0.0.51
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    Height: =22
+                                    Size: =9.96
+                                    Text: =Parent.DisplayName
+                                    Weight: ='TextCanvas.Weight'.Semibold
+                                    Width: =277.47
+                                    Wrap: =false
+                                    X: =17.07
+                                    Y: =10
+                              - DataCardValue38_1:
+                                  Control: TextInput@0.0.54
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    AccessibleLabel: =Parent.DisplayName
+                                    DisplayMode: =Parent.DisplayMode
+                                    Mode: ="'TextInputCanvas.Mode'.TextInputModeSingleLine"
+                                    Required: =Parent.Required
+                                    ValidationState: =If(IsBlank(Parent.Error), "None", "Error")
+                                    Value: =First(colDispatch).'Stock Availability'
+                                    Width: =277.47
+                                    X: =17.07
+                                    Y: =DataCardKey40_1.Y + DataCardKey40_1.Height + 4
+                              - ErrorMessage40_1:
+                                  Control: Text@0.0.51
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    Height: =30
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =And(!IsBlank(Parent.Error), Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =277.47
+                                    X: =17.07
+                                    Y: =DataCardValue38_1.Y + DataCardValue38_1.Height
+                              - StarVisible40_1:
+                                  Control: Text@0.0.51
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: ='TextCanvas.Align'.Center
+                                    Height: =30
+                                    Size: =9.96
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    X: =0.00
+                                    Y: =DataCardKey40_1.Y
+                        - Pick Status_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: TextualEdit
+                            Properties:
+                              DataField: ="PickStatus"
+                              Default: =ThisItem.'Pick Status'
+                              DisplayName: =DataSourceInfo([@'Unique Orders'],DataSourceInfo.DisplayName,'Pick Status')
+                              MaxLength: =DataSourceInfo([@'Unique Orders'], DataSourceInfo.MaxLength, 'Pick Status')
+                              Required: =false
+                              Update: =DataCardValue39_1.Value
+                              Width: =311
+                              X: =0
+                              Y: =1
+                            Children:
+                              - DataCardKey41_1:
+                                  Control: Text@0.0.51
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    Height: =22
+                                    Size: =9.96
+                                    Text: =Parent.DisplayName
+                                    Weight: ='TextCanvas.Weight'.Semibold
+                                    Width: =277.47
+                                    Wrap: =false
+                                    X: =17.07
+                                    Y: =10
+                              - DataCardValue39_1:
+                                  Control: TextInput@0.0.54
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    AccessibleLabel: =Parent.DisplayName
+                                    DisplayMode: =Parent.DisplayMode
+                                    Mode: ="'TextInputCanvas.Mode'.TextInputModeSingleLine"
+                                    Required: =Parent.Required
+                                    ValidationState: =If(IsBlank(Parent.Error), "None", "Error")
+                                    Value: =First(colDispatch).'Pick Status'
+                                    Width: =277.47
+                                    X: =17.07
+                                    Y: =DataCardKey41_1.Y + DataCardKey41_1.Height + 4
+                              - ErrorMessage41_1:
+                                  Control: Text@0.0.51
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    Height: =30
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =And(!IsBlank(Parent.Error), Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =277.47
+                                    X: =17.07
+                                    Y: =DataCardValue39_1.Y + DataCardValue39_1.Height
+                              - StarVisible41_1:
+                                  Control: Text@0.0.51
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: ='TextCanvas.Align'.Center
+                                    Height: =30
+                                    Size: =9.96
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    X: =0.00
+                                    Y: =DataCardKey41_1.Y
+                  - Elevation1_80:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =51
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =512
+                        X: =436
+                        Y: =94
+                  - Label1_239:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =14
+                        FontWeight: =FontWeight.Semibold
+                        Height: =42
+                        PaddingTop: =0.00
+                        Text: ="Pick and Prep Details"
+                        Width: =382
+                        X: =504
+                        Y: =98
+      - Header_2:
+          Control: CanvasComponent
+          ComponentName: Header
+          ComponentLibraryUniqueName: cat_powercatcomponentlibrary_0be3a
+          Properties:
+            BackButtonVisible: =false
+            Color: =
+            ContentWidth: =App.Width
+            Fill: =Color.Transparent
+            HeaderFill: =varTheme.palette.themeDarkAlt
+            Height: =68
+            LeftButtonImage: |+
+              ="data:image/svg+xml," & 
+               EncodeUrl(
+                  "<svg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg' fill='none' stroke='#ffffff'><g id='SVGRepo_bgCarrier' stroke-width='0'></g><g id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'></g><g id='SVGRepo_iconCarrier'><path fill='#ffffff' fill-rule='evenodd' d='M19 4a1 1 0 01-1 1H2a1 1 0 010-2h16a1 1 0 011 1zm0 6a1 1 0 01-1 1H2a1 1 0 110-2h16a1 1 0 011 1zm-1 7a1 1 0 100-2H2a1 1 0 100 2h16z'></path></g></svg>"
+              )
+            LeftButtonVisible: =true
+            OnBackSelect: =true
+            OnLeftButtonSelect: =Set(varMenu, true )
+            OnRightButtonSelect: =true
+            RightButtonImage: |-
+              ="data:image/svg+xml," & 
+               EncodeUrl(
+                  "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' version='1.1' viewBox='-10 0 2068 2048'>
+                <g transform='matrix(1 0 0 -1 0 2048),rotate(0,1034,1024)'>
+                 <path fill='#ffffff'
+              d='M1783 1060q0 -9 0.5 -18t0.5 -18t-0.5 -18t-0.5 -18l259 -161l-159 -383l-297 68q-24 -26 -50 -50l68 -297l-383 -159l-161 259q-9 0 -18 -0.5t-18 -0.5t-18 0.5t-18 0.5l-161 -259l-383 159l68 297q-26 24 -50 50l-297 -68l-159 383l259 161q0 9 -0.5 18t-0.5 18t0.5 18t0.5 18l-259 161l159 383l297 -68q24 26 50 50l-68 297l383 159l161 -259q9 0 18 0.5t18 0.5t18 -0.5t18 -0.5l161 259l383 -159l-68 -297q26 -24 50 -50l297 68l159 -383zM1666 930q2 24 4 47.5t2 47.5q0 23 -2 47t-4 47l236 147l-86 208l-271 -63q-31 38 -63.5 70t-70.5 64l63 271l-208 86l-148 -236q-23 2 -47 4t-47 2q-24 0 -47.5 -2t-47.5 -4l-147 236l-208 -86l63 -271q-38 -31 -70 -63.5t-64 -70.5l-271 63l-86 -208l236 -148q-2 -24 -4 -47.5t-2 -47.5q0 -23 2 -47t4 -47l-236 -147l86 -208l271 63q31 -38 63.5 -70t70.5 -64l-63 -271l208 -86l148 236q23 -2 47 -4t47 -2q24 0 47.5 2t47.5 4l147 -236l208 86l-63 271q38 31 70 63.5t64 70.5l271 -63l86 208zM1024 1400q78 0 146.5 -29.5t119.5 -80.5t80.5 -119.5t29.5 -146.5t-29.5 -146.5t-80.5 -119.5t-119.5 -80.5t-146.5 -29.5t-146.5 29.5t-119.5 80.5t-80.5 119.5t-29.5 146.5t29.5 146.5t80.5 119.5t119.5 80.5t146.5 29.5zM1024 760q55 0 103 20.5t84 56.5t56.5 84t20.5 103t-20.5 103t-56.5 84t-84 56.5t-103 20.5t-103 -20.5t-84 -56.5t-56.5 -84t-20.5 -103t20.5 -103t56.5 -84t84 -56.5t103 -20.5z' />
+                </g>
+
+              </svg>"
+              )
+            RightButtonVisible: =false
+            Text: =
+            Theme: |-
+              ={
+              	palette: {
+              		themePrimary: "#0078d4",
+              		themeLighterAlt: "#eff6fc",
+              		themeLighter: "#deecf9",
+              		themeLight: "#c7e0f4",
+              		themeTertiary: "#71afe5",
+              		themeSecondary: "#2b88d8",
+              		themeDarkAlt: "#106ebe",
+              		themeDark: "#005a9e",
+              		themeDarker: "#004578",
+              		neutralLighterAlt: "#faf9f8",
+              		neutralLighter: "#f3f2f1",
+              		neutralLight: "#edebe9",
+              		neutralQuaternaryAlt: "#e1dfdd",
+              		neutralQuaternary: "#d0d0d0",
+              		neutralTertiaryAlt: "#c8c6c4",
+              		neutralTertiary: "#a19f9d",
+              		neutralSecondary: "#605e5c",
+              		neutralPrimaryAlt: "#3b3a39",
+              		neutralPrimary: "#323130",
+              		neutralDark: "#201f1e",
+              		black: "#000000",
+              		white: "#ffffff"
+              	}
+              }
+            Width: =App.Width
+      - Label1_282:
+          Control: FluentV8/Label@1.8.6
+          Properties:
+            Alignment: =Align.Center
+            Color: =Color.White
+            FontSize: =19
+            FontWeight: =FontWeight.Semibold
+            Height: =40
+            PaddingTop: =0.00
+            Text: ="Picking Cart"
+            Width: =302.36
+            X: =524
+            Y: =8
+      - Rectangle4_4:
+          Control: Rectangle@2.3.0
+          Group: Spinner_1
+          Properties:
+            Fill: =RGBA(169,169,169,.75)
+            Height: =768
+            Visible: =varShowSpinner
+            Width: =1366
+            X: =0.00
+      - Elevation1_27:
+          Control: CodeComponent
+          ComponentName: cat_PowerCAT.Elevation
+          Group: Spinner_1
+          Properties:
+            Depth: ='PowerCAT.Elevation.Depth'.Depth64
+            Height: =251
+            HoverDepth: ='PowerCAT.Elevation.HoverDepth'.Depth64
+            PaddingRight: =0.00
+            PaddingTop: =0.00
+            Visible: =varShowSpinner
+            Width: =663
+            X: =287
+            Y: =229
+      - Spinner1_3:
+          Control: CodeComponent
+          ComponentName: cat_PowerCAT.Spinner
+          Group: Spinner_1
+          Properties:
+            BackgroundColor: ="#FFFFFF"
+            Height: =251
+            Label: ="Submitting Order..."
+            LabelPosition: ='PowerCAT.Spinner.LabelPosition'.Bottom
+            SpinnerAlignment: ='PowerCAT.Spinner.SpinnerAlignment'.Center
+            SpinnerSize: ='PowerCAT.Spinner.SpinnerSize'.Large
+            Theme: =
+            Visible: =varShowSpinner
+            Width: =663
+            X: =287
+            Y: =229
+      - ExpandMenu_4:
+          Control: CanvasComponent
+          ComponentName: ExpandMenu
+          ComponentLibraryUniqueName: cat_powercatcomponentlibrary_0be3a
+          Group: Menu_2
+          Properties:
+            DefaultExpandValue: =false
+            Fill: =varTheme.palette.neutralLight
+            Height: =763
+            IsNavigationEnabled: =true
+            Items: |-
+              =Table(
+              {Icon: "Home", Label: "Home", Screen:'Landing Page', Tooltip:"Go to Home Page"}, 
+              {Icon: "PowerBILogo", Label: "Picking Queue", Screen:'Picking Queue', Tooltip:"Go to Picking Queue"}, 
+              {Icon: "ShoppingCart", Label: "Picking Cart", Screen:'Picking Cart', Tooltip:"Go to Picking Cart"}, 
+              {Icon: "PowerBILogo", Label: "Dispatch Queue", Screen:'Dispatching Queue', Tooltip:"Go to Dispatching Queue"}, 
+              {Icon: "ShoppingCart", Label: "Dispatch Cart", Screen:'Dispatching Cart', Tooltip:"Go to Picking Queue"}
+              )
+            OnButtonSelect: =true
+            OnExpandSelect: =true
+            Theme: |-
+              ={
+              	palette: {
+              		themePrimary: "#0078d4",
+              		themeLighterAlt: "#eff6fc",
+              		themeLighter: "#deecf9",
+              		themeLight: "#c7e0f4",
+              		themeTertiary: "#71afe5",
+              		themeSecondary: "#2b88d8",
+              		themeDarkAlt: "#106ebe",
+              		themeDark: "#005a9e",
+              		themeDarker: "#004578",
+              		neutralLighterAlt: "#faf9f8",
+              		neutralLighter: "#f3f2f1",
+              		neutralLight: "#edebe9",
+              		neutralQuaternaryAlt: "#e1dfdd",
+              		neutralQuaternary: "#d0d0d0",
+              		neutralTertiaryAlt: "#c8c6c4",
+              		neutralTertiary: "#a19f9d",
+              		neutralSecondary: "#605e5c",
+              		neutralPrimaryAlt: "#3b3a39",
+              		neutralPrimary: "#323130",
+              		neutralDark: "#201f1e",
+              		black: "#000000",
+              		white: "#ffffff"
+              	}
+              }
+            Visible: '=varMenu '
+            Width: =233
+      - Icon11_2:
+          Control: Classic/Icon@2.5.0
+          Group: Menu_2
+          Properties:
+            Height: =32
+            Icon: =Icon.CancelBadge
+            OnSelect: =Set(varMenu, false)
+            Visible: '=varMenu '
+            Width: =32
+            X: =189
+            Y: =8
