@@ -517,6 +517,136 @@ const normalizeOptionalField = (value?: string | null) => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const normalizeStockAvailability = (value?: string | null) => {
+  const normalized = normalizeOptionalField(value);
+  if (!normalized) {
+    return undefined;
+  }
+
+  const lower = normalized.toLowerCase();
+
+  if (lower === 'in stock') {
+    return 'In Stock';
+  }
+
+  if (lower === 'out of stock') {
+    return 'Out of stock';
+  }
+
+  return normalized;
+};
+
+const normalizePickStatusValue = (value?: string | null): string | undefined => {
+  const normalized = normalizeOptionalField(value);
+  if (!normalized) {
+    return undefined;
+  }
+
+  const lower = normalized.toLowerCase();
+
+  if (lower.includes('not picked')) {
+    return 'not picked';
+  }
+
+  if (lower.includes('partial')) {
+    return 'partially picked';
+  }
+
+  if (lower.includes('picked')) {
+    return 'picked';
+  }
+
+  return normalized;
+};
+
+const mapPickStatusForAirtable = (value?: string | null) => {
+  const normalized = normalizePickStatusValue(value);
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  switch (normalized) {
+    case 'picked':
+      return 'Picked';
+    case 'partially picked':
+      return 'Partially Picked';
+    case 'not picked':
+      return 'Not Picked';
+    default:
+      return normalized;
+  }
+};
+
+const pickStatusPriority = (value?: string | null) => {
+  const normalized = normalizePickStatusValue(value);
+
+  switch (normalized) {
+    case 'not picked':
+      return 3;
+    case 'partially picked':
+      return 2;
+    case 'picked':
+      return 1;
+    default:
+      return 0;
+  }
+};
+
+const mergePickStatuses = (current?: string | null, incoming?: string | null) => {
+  if (!current) {
+    return normalizePickStatusValue(incoming) ?? incoming ?? current;
+  }
+
+  if (!incoming) {
+    return normalizePickStatusValue(current) ?? current;
+  }
+
+  const currentNormalized = normalizePickStatusValue(current) ?? current;
+  const incomingNormalized = normalizePickStatusValue(incoming) ?? incoming;
+
+  return pickStatusPriority(incomingNormalized) > pickStatusPriority(currentNormalized)
+    ? incomingNormalized
+    : currentNormalized;
+};
+
+const aggregatePickedItemsByRecord = (pickedItems: StockOrderPickedUpdate[]): StockOrderPickedUpdate[] => {
+  const grouped = new Map<string, StockOrderPickedUpdate>();
+
+  pickedItems.forEach((item) => {
+    const existing = grouped.get(item.stockOrderId);
+
+    if (!existing) {
+      grouped.set(item.stockOrderId, {
+        ...item,
+        stockAvailability: normalizeStockAvailability(item.stockAvailability) ?? item.stockAvailability,
+        pickStatus: normalizePickStatusValue(item.pickStatus) ?? item.pickStatus,
+      });
+      return;
+    }
+
+    existing.quantity += item.quantity;
+    existing.stockAvailability = normalizeStockAvailability(item.stockAvailability) ?? existing.stockAvailability;
+    existing.pickStatus = mergePickStatuses(existing.pickStatus, item.pickStatus) ?? existing.pickStatus;
+    existing.packer = existing.packer || item.packer;
+    existing.terminalSerialNumber = item.terminalSerialNumber ?? existing.terminalSerialNumber;
+    existing.cradleSerialNumber = item.cradleSerialNumber ?? existing.cradleSerialNumber;
+    existing.chargerSerialNumber = item.chargerSerialNumber ?? existing.chargerSerialNumber;
+    existing.cashConnectSerialNumber = item.cashConnectSerialNumber ?? existing.cashConnectSerialNumber;
+    existing.chargerPacked = item.chargerPacked ?? existing.chargerPacked;
+    existing.cables = item.cables ?? existing.cables;
+    existing.itemCode = item.itemCode ?? existing.itemCode;
+    existing.itemDescription = item.itemDescription ?? existing.itemDescription;
+  });
+
+  return Array.from(grouped.entries()).map(([stockOrderId, item]) => ({
+    ...item,
+    stockOrderId,
+    stockAvailability: normalizeStockAvailability(item.stockAvailability) ?? item.stockAvailability,
+    pickStatus: normalizePickStatusValue(item.pickStatus) ?? item.pickStatus,
+  }));
+};
+
 const mapPickedItemToStockOrderUpdate = (pickedItem: StockOrderPickedUpdate) => {
   const fields: Partial<StockOrderLineItem['fields']> = {};
 
@@ -524,12 +654,12 @@ const mapPickedItemToStockOrderUpdate = (pickedItem: StockOrderPickedUpdate) => 
     fields['QTY dispatched'] = pickedItem.quantity;
   }
 
-  const stockAvailability = normalizeOptionalField(pickedItem.stockAvailability);
+  const stockAvailability = normalizeStockAvailability(pickedItem.stockAvailability);
   if (stockAvailability !== undefined) {
     fields['Stock Availability'] = stockAvailability;
   }
 
-  const pickStatus = normalizeOptionalField(pickedItem.pickStatus);
+  const pickStatus = mapPickStatusForAirtable(pickedItem.pickStatus);
   if (pickStatus !== undefined) {
     fields['Pick Status'] = pickStatus;
   }
@@ -590,7 +720,9 @@ const updateStockOrderLineItems = async (pickedItems: StockOrderPickedUpdate[]) 
     return;
   }
 
-  const updates = pickedItems.map(mapPickedItemToStockOrderUpdate);
+  const aggregated = aggregatePickedItemsByRecord(pickedItems);
+  const updates = aggregated.map(mapPickedItemToStockOrderUpdate);
+
   const batches = chunkArray(updates, 10);
 
   for (const batch of batches) {
