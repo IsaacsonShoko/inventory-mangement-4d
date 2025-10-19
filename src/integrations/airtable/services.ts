@@ -133,10 +133,10 @@ const buildOrderIdForms = (value: unknown) => {
 const buildOrderIdFilterClauses = (value: unknown) => {
   const { stringValues, numericValues, comparisonForms } = buildOrderIdForms(value);
 
-  const stringClauses = stringValues.map((candidate) => `{Order Id} = '${escapeAirtableValue(candidate)}'`);
-  const numericClauses = numericValues.map((numeric) => `VALUE({Order Id}) = ${numeric}`);
+  // Order Id is now a number field in Airtable, so we only need numeric comparison
+  const numericClauses = numericValues.map((numeric) => `{Order Id} = ${numeric}`);
 
-  const clauses = [...stringClauses, ...numericClauses];
+  const clauses = [...numericClauses];
 
   return {
     clauses,
