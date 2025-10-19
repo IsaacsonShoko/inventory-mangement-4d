@@ -115,6 +115,7 @@ export interface OrderPlacedWebhookPayload {
   region: string | null;
   formData: OrderFormDataSnapshot;
   cartItems: CartItemSnapshot[];
+  lineItems?: OrderLineWebhookPayload[]; // Full line item data for n8n to create Stock_Order records
   items: Array<{
     deviceType: string;
     quantityOrdered: number;
@@ -169,7 +170,7 @@ export const n8nService = {
     await postWebhook(url, payload, 'order line submission');
   },
 
-  async notifyOrderPlaced(payload: OrderPlacedWebhookPayload & { items: Array<Pick<OrderLineWebhookPayload, 'deviceType' | 'quantityOrdered' | 'itemUrl'>> }) {
+  async notifyOrderPlaced(payload: OrderPlacedWebhookPayload) {
     const url = assertWebhookConfigured(orderPlacedWebhookUrl, 'VITE_N8N_ORDER_PLACED_WEBHOOK_URL');
     await postWebhook(url, payload, 'order placed notification');
   },
