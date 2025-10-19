@@ -176,47 +176,39 @@ const PickingCartNew = () => {
     setIsSubmitting(true);
 
     try {
-      // Group picked items by stock order ID
-      const itemsGrouped = pickedItems.reduce((acc, item) => {
-        const existing = acc.find(i => i.stockOrderId === item.stockOrderId);
-        if (existing) {
-          existing.items.push(item);
-        } else {
-          acc.push({
-            stockOrderId: item.stockOrderId,
-            deviceType: item.deviceType,
-            items: [item],
-          });
-        }
-        return acc;
-      }, [] as Array<{ stockOrderId: string; deviceType: string; items: PickedItemData[] }>);
-
-      // Prepare payload for n8n webhook
+      // Prepare comprehensive payload for n8n webhook
       const payload = {
         orderId: orderNumber ?? 'unknown',
         uniqueOrderRecordId: recordId!,
         totalQuantity: totalQuantity,
         pickedQuantity: pickedQuantity,
-        items: itemsGrouped.map((group) => ({
-          stockOrderId: group.stockOrderId,
-          deviceType: group.deviceType,
-          quantityOrdered: group.items.reduce((sum, i) => sum + i.quantity, 0),
-          pickedItems: group.items.map((item) => ({
-            quantity: item.quantity,
-            stockAvailability: item.stockAvailability,
-            pickStatus: item.pickStatus,
-            packer: item.packer,
-            terminalSerialNumber: item.terminalSerialNumber,
-            cradleSerialNumber: item.cradleSerialNumber,
-            chargerSerialNumber: item.chargerSerialNumber,
-            cashConnectSerialNumber: item.cashConnectSerialNumber,
-            chargerPacked: item.chargerPacked,
-            cables: item.cables,
-            itemCode: item.itemCode,
-            itemDescription: item.itemDescription,
-          })),
+        dateOrdered: uniqueOrder?.fields['Date Ordered'],
+        orderedBy: uniqueOrder?.fields['Ordered by'],
+        deliveryParty: uniqueOrder?.fields['Deliver to Part'],
+        // Send ALL picked items in an array for n8n to loop through
+        pickedItems: pickedItems.map((item) => ({
+          stockOrderId: item.stockOrderId,
+          deviceType: item.deviceType,
+          quantity: item.quantity,
+          stockAvailability: item.stockAvailability,
+          pickStatus: item.pickStatus,
+          packer: item.packer,
+          terminalSerialNumber: item.terminalSerialNumber || null,
+          cradleSerialNumber: item.cradleSerialNumber || null,
+          chargerSerialNumber: item.chargerSerialNumber || null,
+          cashConnectSerialNumber: item.cashConnectSerialNumber || null,
+          chargerPacked: item.chargerPacked || null,
+          cables: item.cables || null,
+          itemCode: item.itemCode || null,
+          itemDescription: item.itemDescription || null,
         })),
+        metadata: {
+          pickedAt: new Date().toISOString(),
+          pickerEmail: pickedItems[0]?.packer || 'unknown',
+        }
       };
+
+      console.log('[Picking Cart] Submitting payload:', payload);
 
       // Send to n8n webhook
       await n8nService.notifyOrderPicked(payload);
@@ -236,11 +228,28 @@ const PickingCartNew = () => {
 
       navigate('/picking-queue');
     } catch (error) {
-      console.error('Error submitting pick:', error);
+      console.error('[Picking Cart] Submission error:', error);
+      
+      let errorMessage = 'An error occurred while submitting the order';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Provide more specific error messages
+        if (error.message.includes('fetch')) {
+          errorMessage = 'Unable to connect to webhook. Please check your network connection and webhook URL configuration.';
+        } else if (error.message.includes('webhook')) {
+          errorMessage = 'Webhook error: ' + error.message;
+        } else if (error.message.includes('Airtable')) {
+          errorMessage = 'Database error: ' + error.message;
+        }
+      }
+      
       toast({
         title: 'Failed to submit',
-        description: error instanceof Error ? error.message : 'An error occurred',
+        description: errorMessage,
         variant: 'destructive',
+        duration: 10000, // Show error longer
       });
     } finally {
       setIsSubmitting(false);
@@ -307,7 +316,10 @@ const PickingCartNew = () => {
                 {pickedQuantity} / {totalQuantity} items ({Math.round(progressPercent)}%)
               </span>
             </div>
-            <Progress value={progressPercent} className="h-3" />
+            <Progress 
+              value={progressPercent} 
+              className="h-3 [&>div]:bg-green-600 [&>div]:transition-all [&>div]:duration-500 [&>div]:ease-out" 
+            />
           </div>
         </div>
       </div>

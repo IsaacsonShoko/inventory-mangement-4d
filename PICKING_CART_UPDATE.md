@@ -143,6 +143,29 @@ Make sure these are set in your `.env` file:
 VITE_N8N_ORDER_PICKED_WEBHOOK_URL=https://your-n8n-host/webhook/order-picked
 ```
 
+### **Troubleshooting "Failed to Fetch" Error:**
+
+If you see "Failed to submit: Failed to fetch", check:
+
+1. **Webhook URL is accessible:**
+   - ❌ `http://localhost:5678/...` won't work if deployed
+   - ✅ Use your actual n8n domain: `https://n8n.yourdomain.com/webhook/...`
+
+2. **n8n workflow is active:**
+   - Open your n8n workflow
+   - Check it's activated (toggle in top-right)
+   - Copy the Production webhook URL (not test URL)
+
+3. **CORS is configured:**
+   - In n8n workflow settings
+   - Enable "Respond to Webhook" 
+   - Set CORS headers if needed
+
+4. **Test with console:**
+   - Open browser DevTools (F12)
+   - Look for detailed error messages in Console tab
+   - Check Network tab for failed requests
+
 ## 🎯 Next Steps
 
 Once tested and working:

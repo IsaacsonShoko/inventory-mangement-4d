@@ -13,6 +13,9 @@ const assertWebhookConfigured = (url: string | undefined, name: string) => {
 };
 
 const postWebhook = async (url: string, payload: Record<string, unknown>, context: string) => {
+  console.log(`[n8n] Calling ${context} webhook at:`, url);
+  console.log(`[n8n] Payload:`, payload);
+  
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -20,14 +23,30 @@ const postWebhook = async (url: string, payload: Record<string, unknown>, contex
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      // Add timeout to prevent hanging
+      signal: AbortSignal.timeout(30000), // 30 second timeout
     });
+
+    console.log(`[n8n] Response status:`, response.status);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
+      console.error(`[n8n] Webhook error response:`, errorText);
       throw new Error(`n8n ${context} webhook failed with status ${response.status} ${response.statusText}${errorText ? `: ${errorText}` : ''}`);
     }
+    
+    const responseData = await response.json().catch(() => null);
+    console.log(`[n8n] Success response:`, responseData);
+    
+    return responseData;
   } catch (error) {
+    console.error(`[n8n] Webhook call failed:`, error);
+    
     if (error instanceof Error) {
+      // Enhance error message for common issues
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error(`Failed to connect to n8n webhook at ${url}. Please check:\n1. The webhook URL is correct\n2. n8n is running and accessible\n3. CORS is configured if needed`);
+      }
       throw error;
     }
 
