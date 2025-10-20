@@ -158,7 +158,6 @@ export interface StockOrderLineItem {
     'Item Nature'?: string;
     'Order Location'?: string;
     'Pick Status'?: string;
-    'Stock Availability'?: string;
     'Package Reference'?: string;
     'Item Code'?: string;
     'Terminal Serial Number'?: string;
