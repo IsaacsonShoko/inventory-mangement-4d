@@ -177,6 +177,7 @@ export interface StockOrderLineItem {
     'Item image'?: string;
     'Item Thumbnail'?: AirtableAttachment[];
     'Thumbnail'?: AirtableAttachment[];
+    'Stock availability'?: string;
   };
 }
 
