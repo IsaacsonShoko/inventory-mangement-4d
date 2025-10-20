@@ -188,7 +188,7 @@ export interface DispatchLogEntry {
     'Item Category'?: string;
     'Item Nature'?: string;
     'Item Description'?: string;
-    'Device Type'?: string;
+    'Device type'?: string;
     'Quantity'?: number;
     'Contractor Company'?: string;
     'Region'?: string;
@@ -201,6 +201,14 @@ export interface DispatchLogEntry {
     'TimePicked'?: string;
     'TimeDispatched'?: string;
     'Warehouse Fulfilling'?: string;
+    'Terminal Serial Number'?: string;
+    'Cradle Serial Number'?: string;
+    'Charger Serial Number'?: string;
+    'CashConnect Serial Number'?: string;
+    'Charger Packed'?: string;
+    'Cables'?: string;
+    'Packer'?: string;
+    'Item Code'?: string;
+    'StockOrderID'?: string;
   };
 }
-
