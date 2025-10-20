@@ -642,7 +642,7 @@ const mapPickedItemToStockOrderUpdate = (pickedItem: StockOrderPickedUpdate) => 
 
   const stockAvailability = normalizeStockAvailability(pickedItem.stockAvailability);
   if (stockAvailability !== undefined) {
-    fields['Stock availability'] = stockAvailability;
+    fields['Stock Availability'] = stockAvailability;
   }
 
   const pickStatus = mapPickStatusForAirtable(pickedItem.pickStatus);
