@@ -1122,15 +1122,9 @@ export const orderService = {
 
   async getDispatchQueue(): Promise<DispatchQueueOrder[]> {
     try {
-      const filterByFormula = `AND(
-        NOT({Pick Status} = ''),
-        NOT(IS_BLANK({Pick Status})),
-        OR({Dispatch Status} = '', IS_BLANK({Dispatch Status}))
-      )`;
-
       const records = await tables.uniqueOrders
         .select({
-          filterByFormula,
+          filterByFormula: 'NOT(IS_BLANK({Pick Status}))',
           sort: [
             { field: 'Date Ordered', direction: 'asc' },
             { field: 'Item Category', direction: 'asc' },
@@ -1142,10 +1136,21 @@ export const orderService = {
         return [];
       }
 
-      const orders: UniqueOrder[] = records.map((record) => ({
-        id: record.id,
-        fields: castRecordFields<UniqueOrder['fields']>(record.fields),
-      }));
+      const orders: UniqueOrder[] = records
+        .map((record) => ({
+          id: record.id,
+          fields: castRecordFields<UniqueOrder['fields']>(record.fields),
+        }))
+        .filter((order) => {
+          const pickStatus = coerceToString(order.fields['Pick Status']);
+          const dispatchStatus = coerceToString(order.fields['Dispatch Status']);
+
+          return pickStatus && (!dispatchStatus || dispatchStatus.length === 0);
+        });
+
+      if (!orders.length) {
+        return [];
+      }
 
       const orderComparisonForms = new Map<string, Set<string>>();
       const dispatchLogClauses = new Set<string>();
