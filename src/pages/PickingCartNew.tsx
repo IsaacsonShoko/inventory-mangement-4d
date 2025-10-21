@@ -27,8 +27,8 @@ import {
   useUniqueOrderRecord,
   useUpdateUniqueOrder,
   useUpdateStockOrderLines,
-  useCreateDispatchLogEntriesFromPicking,
 } from '@/hooks/useAirtable';
+
 import { formatOrderNumber, getLineItemImageUrl } from '@/lib/orders';
 import { n8nService } from '@/integrations/n8n';
 import ThemeToggle from '@/components/theme-toggle';
@@ -73,7 +73,6 @@ const PickingCartNew = () => {
 
   const updateMutation = useUpdateUniqueOrder();
   const stockOrderUpdateMutation = useUpdateStockOrderLines();
-  const dispatchLogMutation = useCreateDispatchLogEntriesFromPicking();
 
   const [pickedItems, setPickedItems] = useState<PickedItemData[]>([]);
   const [selectedLineItem, setSelectedLineItem] = useState<StockOrderLineItem | null>(null);
@@ -198,15 +197,18 @@ const PickingCartNew = () => {
         orderNumber: orderNumber ?? undefined,
       });
 
-      await dispatchLogMutation.mutateAsync({
-        entries: stockOrderUpdates,
-        uniqueOrderId: recordId ?? undefined,
-      });
-
       // Prepare comprehensive payload for n8n webhook
+      const uniqueOrderFields = uniqueOrder?.fields ?? null;
+      const stockOrderItemsPayload = lineItems.map((item) => ({
+        id: item.id,
+        fields: item.fields,
+      }));
+
       const payload = {
         orderId: orderNumber ?? 'unknown',
         uniqueOrderRecordId: recordId!,
+        uniqueOrderFields,
+        stockOrderItems: stockOrderItemsPayload,
         totalQuantity: totalQuantity,
         pickedQuantity: pickedQuantity,
         dateOrdered: uniqueOrder?.fields['Date Ordered'],
@@ -232,6 +234,18 @@ const PickingCartNew = () => {
         metadata: {
           pickedAt: new Date().toISOString(),
           pickerEmail: pickedItems[0]?.packer || 'unknown',
+          contractorCompany: uniqueOrder?.fields['Contractor Company'] ?? null,
+          region: uniqueOrder?.fields['Region'] ?? null,
+          technician: uniqueOrder?.fields['Technician'] ?? null,
+          dispatchMethod: uniqueOrder?.fields['Dispatch Method'] ?? null,
+          warehouseFulfilling: uniqueOrder?.fields['Warehouse Fulfilling'] ?? null,
+          waybillNumber: uniqueOrder?.fields['WayBill Number'] ?? null,
+          packageReference: uniqueOrder?.fields['Package Reference'] ?? null,
+          dispatchStatus: uniqueOrder?.fields['Dispatch Status'] ?? null,
+          recordLinks: {
+            stockOrder: uniqueOrder?.fields['Stock Order'] ?? null,
+            dispatchLog: uniqueOrder?.fields['Dispatch Log'] ?? null,
+          },
         }
       };
 
@@ -534,10 +548,10 @@ const PickingCartNew = () => {
           </DialogHeader>
           <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
             <Button variant="outline" onClick={() => handleSuccessNavigation('/')}>Home</Button>
-            <Button variant="outline" onClick={() => handleSuccessNavigation('/dispatch-queue')}>
+            <Button variant="outline" onClick={() => handleSuccessNavigation('/dispatching')}>
               Go to Dispatch Queue
             </Button>
-            <Button onClick={() => handleSuccessNavigation('/picking-queue')}>Back to Picking Queue</Button>
+            <Button onClick={() => handleSuccessNavigation('/picking')}>Back to Picking Queue</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

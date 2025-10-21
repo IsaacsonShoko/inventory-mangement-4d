@@ -192,24 +192,3 @@ export const useUpdateStockOrderLines = () => {
   });
 };
 
-export const useCreateDispatchLogEntriesFromPicking = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      entries,
-      uniqueOrderId,
-    }: {
-      entries: StockOrderPickedUpdateInput[];
-      uniqueOrderId?: string;
-    }) => orderService.createDispatchLogEntriesFromPicking(entries, { uniqueOrderId }),
-    onSuccess: (_result, variables) => {
-      if (variables.uniqueOrderId) {
-        queryClient.invalidateQueries({ queryKey: ['dispatchLog', variables.uniqueOrderId] });
-        queryClient.invalidateQueries({ queryKey: ['uniqueOrders', 'dispatchQueue'] });
-        queryClient.invalidateQueries({ queryKey: ['uniqueOrder', variables.uniqueOrderId] });
-      }
-    },
-  });
-};
-
