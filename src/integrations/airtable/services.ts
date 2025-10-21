@@ -1124,7 +1124,6 @@ export const orderService = {
     try {
       const records = await tables.uniqueOrders
         .select({
-          filterByFormula: 'NOT(IS_BLANK({Pick Status}))',
           sort: [
             { field: 'Date Ordered', direction: 'asc' },
             { field: 'Item Category', direction: 'asc' },
