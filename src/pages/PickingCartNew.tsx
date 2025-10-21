@@ -194,10 +194,36 @@ const PickingCartNew = () => {
 
       // Prepare comprehensive payload for n8n webhook
       const uniqueOrderFields = uniqueOrder?.fields ?? null;
+      const lineItemLookup = new Map(lineItems.map((item) => [item.id, item]));
+
       const stockOrderItemsPayload = lineItems.map((item) => ({
         id: item.id,
         fields: item.fields,
       }));
+
+      const itemsPayload = pickedItems.map((item) => {
+        const sourceFields = lineItemLookup.get(item.stockOrderId)?.fields as
+          | StockOrderLineItem['fields']
+          | undefined;
+
+        const serialNumbers = [
+          item.terminalSerialNumber,
+          item.cradleSerialNumber,
+          item.chargerSerialNumber,
+          item.cashConnectSerialNumber,
+        ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+        return {
+          deviceType: item.deviceType,
+          quantityOrdered: item.quantity,
+          itemDescription: item.itemDescription ?? sourceFields?.['Item Description'],
+          itemCategory: sourceFields?.['Item Category'],
+          itemNature: sourceFields?.['Item Nature'],
+          itemId: item.stockOrderId,
+          itemCode: item.itemCode ?? sourceFields?.['Item Code'],
+          serialNumbers: serialNumbers.length > 0 ? serialNumbers : undefined,
+        };
+      });
 
       const payload = {
         orderId: orderNumber ?? 'unknown',
@@ -209,6 +235,7 @@ const PickingCartNew = () => {
         dateOrdered: uniqueOrder?.fields['Date Ordered'],
         orderedBy: uniqueOrder?.fields['Ordered by'],
         deliveryParty: uniqueOrder?.fields['Deliver to Part'],
+        items: itemsPayload,
         // Send ALL picked items in an array for n8n to loop through
         pickedItems: pickedItems.map((item) => ({
           stockOrderId: item.stockOrderId,
@@ -556,7 +583,7 @@ const PickingCartNew = () => {
       </div>
 
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[min(90vw,36rem)] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />

@@ -1137,7 +1137,12 @@ export const orderService = {
 
       dispatchRecords.forEach((record) => {
         const fields = castRecordFields<DispatchLogEntry['fields']>(record.fields);
-        const linkedOrders = fields['Order Id'] ?? [];
+        const rawLinkedOrders = fields['Order Id'];
+        const linkedOrders = Array.isArray(rawLinkedOrders)
+          ? rawLinkedOrders
+          : rawLinkedOrders === null || rawLinkedOrders === undefined
+            ? []
+            : [rawLinkedOrders];
         const dispatchedDate = fields['Date Dispatched'];
 
         linkedOrders.forEach((orderIdValue) => {
