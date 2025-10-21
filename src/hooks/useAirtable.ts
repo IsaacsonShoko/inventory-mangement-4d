@@ -2,10 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   inventoryService,
   popService,
-  orderService
+  orderService,
+  type StockOrderPickedUpdateInput,
 } from '@/integrations/airtable';
 import type { OrderFormData, CartItem, UniqueOrder } from '@/types/airtable';
-import type { StockOrderPickedUpdateInput } from '@/integrations/airtable';
 
 // Inventory Hooks
 export const useInventoryItems = (filters?: { category?: string; serialized?: string }) => {
@@ -187,6 +187,27 @@ export const useUpdateStockOrderLines = () => {
     onSuccess: (_result, variables) => {
       if (variables.orderNumber) {
         queryClient.invalidateQueries({ queryKey: ['stockOrderItems', variables.orderNumber] });
+      }
+    },
+  });
+};
+
+export const useCreateDispatchLogEntriesFromPicking = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      entries,
+      uniqueOrderId,
+    }: {
+      entries: StockOrderPickedUpdateInput[];
+      uniqueOrderId?: string;
+    }) => orderService.createDispatchLogEntriesFromPicking(entries, { uniqueOrderId }),
+    onSuccess: (_result, variables) => {
+      if (variables.uniqueOrderId) {
+        queryClient.invalidateQueries({ queryKey: ['dispatchLog', variables.uniqueOrderId] });
+        queryClient.invalidateQueries({ queryKey: ['uniqueOrders', 'dispatchQueue'] });
+        queryClient.invalidateQueries({ queryKey: ['uniqueOrder', variables.uniqueOrderId] });
       }
     },
   });

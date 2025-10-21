@@ -15,14 +15,20 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { useStockOrderItems, useUniqueOrderRecord, useUpdateUniqueOrder, useUpdateStockOrderLines } from '@/hooks/useAirtable';
+import {
+  useStockOrderItems,
+  useUniqueOrderRecord,
+  useUpdateUniqueOrder,
+  useUpdateStockOrderLines,
+  useCreateDispatchLogEntriesFromPicking,
+} from '@/hooks/useAirtable';
 import { formatOrderNumber, getLineItemImageUrl } from '@/lib/orders';
 import { n8nService } from '@/integrations/n8n';
 import ThemeToggle from '@/components/theme-toggle';
@@ -67,11 +73,13 @@ const PickingCartNew = () => {
 
   const updateMutation = useUpdateUniqueOrder();
   const stockOrderUpdateMutation = useUpdateStockOrderLines();
+  const dispatchLogMutation = useCreateDispatchLogEntriesFromPicking();
 
   const [pickedItems, setPickedItems] = useState<PickedItemData[]>([]);
   const [selectedLineItem, setSelectedLineItem] = useState<StockOrderLineItem | null>(null);
   const [showPickDialog, setShowPickDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<PickedItemData>>({
@@ -190,6 +198,11 @@ const PickingCartNew = () => {
         orderNumber: orderNumber ?? undefined,
       });
 
+      await dispatchLogMutation.mutateAsync({
+        entries: stockOrderUpdates,
+        uniqueOrderId: recordId ?? undefined,
+      });
+
       // Prepare comprehensive payload for n8n webhook
       const payload = {
         orderId: orderNumber ?? 'unknown',
@@ -239,8 +252,8 @@ const PickingCartNew = () => {
         title: 'Order picked successfully',
         description: `${pickedQuantity} items have been picked`,
       });
-
-      navigate('/picking-queue');
+      setPickedItems([]);
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('[Picking Cart] Submission error:', error);
       
@@ -268,6 +281,11 @@ const PickingCartNew = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSuccessNavigation = (path: string) => {
+    setShowSuccessModal(false);
+    navigate(path);
   };
 
   const getOrderDate = (value?: string) => {
@@ -502,6 +520,27 @@ const PickingCartNew = () => {
           </Card>
         </div>
       </div>
+
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              Order marked as picked
+            </DialogTitle>
+            <DialogDescription>
+              Choose where to go next. You can return to the picking queue, jump to the dispatch queue, or head back home.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
+            <Button variant="outline" onClick={() => handleSuccessNavigation('/')}>Home</Button>
+            <Button variant="outline" onClick={() => handleSuccessNavigation('/dispatch-queue')}>
+              Go to Dispatch Queue
+            </Button>
+            <Button onClick={() => handleSuccessNavigation('/picking-queue')}>Back to Picking Queue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Pick Item Dialog */}
       <Dialog open={showPickDialog} onOpenChange={setShowPickDialog}>

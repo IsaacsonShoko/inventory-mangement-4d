@@ -215,6 +215,94 @@ const chunkArray = <T,>(items: T[], size: number) => {
   return chunks;
 };
 
+const normalizeBooleanChoice = (value?: string | null) => {
+  const normalized = normalizeOptionalField(value);
+  if (!normalized) return undefined;
+
+  const lower = normalized.toLowerCase();
+  if (lower === 'yes' || lower === 'y') return 'Yes';
+  if (lower === 'no' || lower === 'n') return 'No';
+  return normalized;
+};
+
+const mapPickedItemToDispatchLogFields = (
+  pickedItem: StockOrderPickedUpdate,
+  context: {
+    uniqueOrder?: UniqueOrder | null;
+    stockOrderItem?: StockOrderLineItem;
+  }
+) => {
+  const fields: Partial<DispatchLogEntry['fields']> = {
+    'Stock Availability': normalizeStockAvailability(pickedItem.stockAvailability),
+    'Pick Status': mapPickStatusForAirtable(pickedItem.pickStatus),
+    'Quantity': Number.isFinite(pickedItem.quantity) ? pickedItem.quantity : undefined,
+  };
+
+  if (context.uniqueOrder) {
+    const uniqueFields = context.uniqueOrder.fields;
+    fields['Order Id'] = [context.uniqueOrder.id];
+    fields['Contractor Company'] = normalizeOptionalField(uniqueFields['Contractor Company']);
+    fields['Region'] = normalizeOptionalField(uniqueFields['Region']);
+    fields['Technician'] = normalizeOptionalField(uniqueFields['Technician']);
+    fields['Item Category'] = normalizeOptionalField(uniqueFields['Item Category']);
+    fields['Item Nature'] = normalizeOptionalField(uniqueFields['Item Nature']);
+  }
+
+  if (context.stockOrderItem) {
+    const stockFields = context.stockOrderItem.fields;
+    fields['Item Description'] = normalizeOptionalField(stockFields['Item Description']);
+    fields['Device type'] = normalizeOptionalField(stockFields['Device Type']);
+    fields['Item Code'] = normalizeOptionalField(stockFields['Item Code']);
+    fields['Terminal Serial Number'] = normalizeOptionalField(stockFields['Terminal Serial Number']);
+    fields['Cradle Serial Number'] = normalizeOptionalField(stockFields['Cradle Serial Number']);
+    fields['Charger Serial Number'] = normalizeOptionalField(stockFields['Charger Serial Number']);
+    fields['CashConnect Serial Number'] = normalizeOptionalField(stockFields['CashConnect Serial Number']);
+    fields['Charger Packed'] = normalizeBooleanChoice(stockFields['Charger Packed']);
+    fields['Cables'] = normalizeBooleanChoice(stockFields['Cables']);
+    fields['Packer'] = normalizeOptionalField(stockFields['Packer']);
+    fields['StockOrderID'] = stockFields['Stock Order']?.[0];
+  }
+
+  return fields;
+};
+
+const createDispatchLogEntries = async (
+  pickedItems: StockOrderPickedUpdate[],
+  options: {
+    uniqueOrder?: UniqueOrder | null;
+    stockOrderItems?: StockOrderLineItem[];
+  }
+) => {
+  if (!pickedItems.length) {
+    return;
+  }
+
+  const entries = aggregatePickedItemsByRecord(pickedItems);
+
+  const stockOrderLookup = new Map<string, StockOrderLineItem>();
+  options.stockOrderItems?.forEach((item) => {
+    stockOrderLookup.set(item.id, item);
+  });
+
+  const records = entries.map((entry) => {
+    const stockOrderItem = stockOrderLookup.get(entry.stockOrderId);
+    const fields = mapPickedItemToDispatchLogFields(entry, {
+      uniqueOrder: options.uniqueOrder,
+      stockOrderItem,
+    });
+
+    return {
+      fields,
+    };
+  });
+
+  const batches = chunkArray(records, 10);
+
+  for (const batch of batches) {
+    await tables.dispatchLog.create(batch as any);
+  }
+};
+
 const normalizePointOfPresenceFields = (fields: Record<string, unknown>): PointOfPresence['fields'] => {
   const getField = (...aliases: string[]): string | undefined => {
     for (const alias of aliases) {
@@ -1094,6 +1182,34 @@ export const orderService = {
     } catch (error) {
       console.error('Error updating stock order line items:', error);
       throw formatAirtableError(error, 'stock order line items update');
+    }
+  },
+
+  async createDispatchLogEntriesFromPicking(
+    entries: StockOrderPickedUpdateInput[],
+    options?: { uniqueOrderId?: string }
+  ) {
+    try {
+      let uniqueOrder: UniqueOrder | null = null;
+      if (options?.uniqueOrderId) {
+        uniqueOrder = await this.getUniqueOrder(options.uniqueOrderId);
+      }
+
+      let stockOrderItems: StockOrderLineItem[] | undefined;
+      if (uniqueOrder?.fields['Order ID']) {
+        const orderNumber = formatOrderNumber(uniqueOrder);
+        if (orderNumber) {
+          stockOrderItems = await this.getStockOrderItems(orderNumber);
+        }
+      }
+
+      await createDispatchLogEntries(entries, {
+        uniqueOrder,
+        stockOrderItems,
+      });
+    } catch (error) {
+      console.error('Error creating dispatch log entries:', error);
+      throw formatAirtableError(error, 'dispatch log creation');
     }
   },
 
