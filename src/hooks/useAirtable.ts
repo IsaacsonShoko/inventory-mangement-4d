@@ -4,6 +4,7 @@ import {
   popService,
   orderService,
   type StockOrderPickedUpdateInput,
+  type DispatchLogUpdateInput,
 } from '@/integrations/airtable';
 import type { OrderFormData, CartItem, UniqueOrder } from '@/types/airtable';
 
@@ -103,6 +104,42 @@ export const useCreateOrder = () => {
     onSuccess: () => {
       // Invalidate orders query to refetch
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+};
+
+export const useUpdateDispatchLogEntries = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ updates }: { updates: DispatchLogUpdateInput[] }) =>
+      orderService.updateDispatchLogEntries(updates),
+    onSuccess: (_data, variables) => {
+      if (!variables?.updates?.length) {
+        return;
+      }
+
+      const uniqueOrderIds = new Set<string>();
+
+      variables.updates.forEach((update) => {
+        if (update.fields?.['Order Id']) {
+          const orderIds = Array.isArray(update.fields['Order Id'])
+            ? update.fields['Order Id']
+            : [update.fields['Order Id']];
+
+          orderIds.forEach((value) => {
+            if (typeof value === 'string') {
+              uniqueOrderIds.add(value);
+            }
+          });
+        }
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['dispatchLog'] });
+
+      uniqueOrderIds.forEach((orderId) => {
+        queryClient.invalidateQueries({ queryKey: ['dispatchLog', orderId] });
+      });
     },
   });
 };

@@ -1,0 +1,1496 @@
+Screens:
+  Dispatching Cart:
+    Properties:
+      OnVisible: =Set(varMenu, false);
+    Children:
+      - stackRoot_8:
+          Control: GroupContainer@1.3.0
+          Variant: AutoLayout
+          Properties:
+            Fill: =varTheme.palette.themeLighter
+            Height: =720
+            LayoutAlignItems: =LayoutAlignItems.Stretch
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =2*varTheme.U
+            PaddingLeft: =4*varTheme.U
+            PaddingRight: =4*varTheme.U
+            PaddingTop: =2*varTheme.U
+            Width: =Parent.Width-Self.X
+            X: =
+            Y: =Header_5.Height - 20
+          Children:
+            - conSamplesAutoWidthLabel_4:
+                Control: GroupContainer@1.3.0
+                Variant: ManualLayout
+                Properties:
+                  Height: |+
+                    =stackRoot_8.Height
+                  Width: =stackRoot_8.Width
+                  X: =stackRoot_8.X
+                  Y: =stackRoot_8.Y
+                Children:
+                  - Elevation1_135:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =673
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =323
+                        X: =1001
+                        Y: =20
+                  - Elevation1_134:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        Height: =673
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =958
+                        X: =21
+                        Y: =20
+                  - Elevation1_112:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =50
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =323
+                        X: =1001
+                        Y: =20
+                  - Label1_240:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =16
+                        FontWeight: =FontWeight.Semibold
+                        Height: =50
+                        PaddingTop: =0.00
+                        Text: ="Fulfill Dispatch"
+                        Width: =323
+                        X: =1001
+                        Y: =20
+                  - Label1_241:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.themePrimary
+                        FontSize: =14
+                        FontWeight: =FontWeight.Semibold
+                        Height: =50
+                        PaddingTop: =0.00
+                        Text: |-
+                          =If(DataCardValue18_4.Selected.Value = "Collection" || DataCardValue18_4.Selected.Value = "Delivery" && Toggle1.Checked = false,"Please reference 1 item and submit",
+
+                          "You have referenced "&
+                          CountRows(colCourier) &" of "
+                          &CountRows(Filter('Dispatch Log','Order Id' = AbsaQueGal_4.Selected.ID))&" items")
+                        Width: =299
+                        X: =1014
+                        Y: =590
+                  - PanelContentForm_9:
+                      Control: Form@2.4.4
+                      Variant: Classic
+                      Layout: Vertical
+                      Properties:
+                        DataSource: ='Dispatch Log'
+                        Height: =480
+                        Item: =DataTable1_2.Selected
+                        NumberOfColumns: =1
+                        Width: =297
+                        X: =1016
+                        Y: =89
+                      Children:
+                        - Device type _DataCard2_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="field_5"
+                              Default: =ThisItem.'Device type '
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Device type ')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Device type ')
+                              Required: =false
+                              Update: =DataCardValue36_1.Text
+                              Visible: =false
+                              Width: =297
+                              X: =0
+                              Y: =0
+                            Children:
+                              - DataCardKey38_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =202.06
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue36_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =DataTable1_2.Selected.'Device type '
+                                    DelayOutput: =true
+                                    DisplayMode: =DisplayMode.Disabled
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardKey38_1.Y + DataCardKey38_1.Height + 5
+                              - ErrorMessage37_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardValue36_1.Y + DataCardValue36_1.Height
+                              - StarVisible37_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey38_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey38_1.Y
+                        - Dispatch Method_DataCard2_2:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicAllowedValuesStringEdit
+                            Properties:
+                              AllowedValues: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.AllowedValues, 'Dispatch Method')
+                              DataField: ="DispatchMethod"
+                              Default: =ThisItem.'Dispatch Method'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Dispatch Method')
+                              Required: =false
+                              Update: =DataCardValue18_4.Selected.Value
+                              Width: =297
+                              X: =0
+                              Y: =1
+                            Children:
+                              - DataCardKey19_4:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =202.06
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue18_4:
+                                  Control: Classic/DropDown@2.3.1
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    ChevronFill: =RGBA(255, 255, 255, 1)
+                                    ChevronHoverFill: =RGBA(255, 255, 255, 1)
+                                    Default: =Parent.Default
+                                    DisplayMode: =Parent.DisplayMode
+                                    Items: =["","Collection","Delivery"]
+                                    Items.Value: =Value
+                                    PaddingRight: =7.11
+                                    PaddingTop: =7.11
+                                    PressedColor: =RGBA(255, 255, 255, 1)
+                                    SelectionColor: =RGBA(255, 255, 255, 1)
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardKey19_4.Y + DataCardKey19_4.Height + 5
+                              - ErrorMessage19_4:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardValue18_4.Y + DataCardValue18_4.Height
+                              - StarVisible19_4:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey19_4.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey19_4.Y
+                        - DataCard4:
+                            Control: TypedDataCard@1.0.7
+                            Variant: BlankCard
+                            Properties:
+                              Height: =76
+                              Visible: =If(DataCardValue18_4.Selected.Value = "Delivery",true,false)
+                              Width: =297
+                              X: =0
+                              Y: =2
+                            Children:
+                              - TextCanvas6:
+                                  Control: Text@0.0.51
+                                  Properties:
+                                    FontColor: =varTheme.palette.themeDark
+                                    Height: =53
+                                    Text: ="Does the Order Manifest have multiple packages?"
+                                    Width: =209
+                                    X: =4
+                                    Y: =12
+                              - Toggle1:
+                                  Control: Toggle@1.1.5
+                                  Properties:
+                                    Height: =59
+                                    Label: =
+                                    Width: =80
+                                    X: =213
+                                    Y: =6
+                        - Waybill number _DataCard3_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="field_10"
+                              Default: =ThisItem.'Waybill number '
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Waybill number ')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Waybill number ')
+                              Required: =If(DataCardValue18_4.Selected.Value = "Delivery",true,false)
+                              Update: =DataCardValue26_1.Text
+                              Visible: =If(DataCardValue18_4.Selected.Value = "Delivery",true,false)
+                              Width: =297
+                              X: =0
+                              Y: =3
+                            Children:
+                              - DataCardKey28_3:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =202.06
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue26_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =Parent.Default
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardKey28_3.Y + DataCardKey28_3.Height + 5
+                              - ErrorMessage28_3:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardValue26_1.Y + DataCardValue26_1.Height
+                              - StarVisible28_3:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey28_3.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey28_3.Y
+                        - Package Reference_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="PackageReference"
+                              Default: =ThisItem.'Package Reference'
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,'Package Reference')
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, 'Package Reference')
+                              Required: =If(DataCardValue18_4.Selected.Value = "Delivery",true,false)
+                              Update: =DataCardValue35_1.Text
+                              Visible: =If(DataCardValue18_4.Selected.Value = "Delivery",true,false)
+                              Width: =297
+                              X: =0
+                              Y: =4
+                            Children:
+                              - DataCardKey37_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =202.06
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue35_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =If(Toggle1.Checked = false,1)
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardKey37_1.Y + DataCardKey37_1.Height + 5
+                              - ErrorMessage36_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardValue35_1.Y + DataCardValue35_1.Height
+                              - StarVisible36_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey37_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey37_1.Y
+                        - Shipped_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="Shipped"
+                              Default: =ThisItem.Shipped
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,Shipped)
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, Shipped)
+                              Required: =false
+                              Update: =DataCardValue27_1.Text
+                              Width: =297
+                              X: =0
+                              Y: =5
+                            Children:
+                              - DataCardKey33_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =202.06
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue27_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: ="Yes"
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardKey33_1.Y + DataCardKey33_1.Height + 5
+                              - ErrorMessage32_3:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardValue27_1.Y + DataCardValue27_1.Height
+                              - StarVisible32_3:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey33_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey33_1.Y
+                        - Dispatcher_DataCard1_1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="Dispatcher"
+                              Default: =ThisItem.Dispatcher
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,Dispatcher)
+                              MaxLength: =DataSourceInfo([@'Dispatch Log'], DataSourceInfo.MaxLength, Dispatcher)
+                              Required: =false
+                              Update: =DataCardValue32_1.Text
+                              Width: =297
+                              X: =0
+                              Y: =6
+                            Children:
+                              - DataCardKey34_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =202.06
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue32_1:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =User().Email
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardKey34_1.Y + DataCardKey34_1.Height + 5
+                              - ErrorMessage33_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =202.06
+                                    X: =21.34
+                                    Y: =DataCardValue32_1.Y + DataCardValue32_1.Height
+                              - StarVisible33_1:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey34_1.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey34_1.Y
+                        - TimeDispatched_DataCard1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicDateEdit
+                            Properties:
+                              DataField: ="TimeDispatched"
+                              Default: =ThisItem.TimeDispatched
+                              DisplayName: =DataSourceInfo([@'Dispatch Log'],DataSourceInfo.DisplayName,TimeDispatched)
+                              Required: =false
+                              Update: =DataCardValue49.SelectedDate
+                              Visible: =false
+                              Width: =297
+                              X: =0
+                              Y: =7
+                            Children:
+                              - DataCardKey74:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    Text: =Parent.DisplayName
+                                    Width: =Parent.Width - 60
+                                    Wrap: =false
+                                    X: =30
+                                    Y: =10
+                              - DataCardValue49:
+                                  Control: Classic/DatePicker@2.6.0
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    DefaultDate: =Now()
+                                    DisplayMode: =Parent.DisplayMode
+                                    EndYear: =Year(Today())+100
+                                    IconFill: =RGBA(255, 255, 255, 1)
+                                    IsEditable: =true
+                                    PaddingBottom: =0
+                                    PaddingLeft: =If(Self.DisplayMode = DisplayMode.Edit, 5, 0)
+                                    StartYear: =1899
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =Parent.Width - 60
+                                    X: =30
+                                    Y: =DataCardKey74.Y + DataCardKey74.Height + 5
+                              - ErrorMessage74:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0
+                                    PaddingTop: =0
+                                    Size: =14
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =Parent.Width - 60
+                                    X: =30
+                                    Y: =DataCardValue49.Y + DataCardValue49.Height
+                              - StarVisible74:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey74.Height
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =30
+                                    Wrap: =false
+                                    Y: =DataCardKey74.Y
+                  - Button1_14:
+                      Control: FluentV8/Button@1.5.13
+                      Properties:
+                        ButtonType: ='Button.ButtonType'.Standard
+                        DisplayMode: |+
+                          =If(
+                              CountRows(colCourier) > 0 ,
+                              DisplayMode.Edit,
+                              DisplayMode.Disabled
+                          )
+                        FillColor: =varTheme.palette.themePrimary
+                        FontSize: =8
+                        Height: =24
+                        OnSelect: |-
+                          =Set(
+                              varShowSpinner,
+                              true
+                          );
+                          ClearCollect(colCollectionOrder,ShowColumns( Filter('Dispatch Log','Order Id' = AbsaQueGal_4.Selected.ID),ID,'Order Id'));
+                          OrderManifest.Run(
+                              AbsaQueGal_4.Selected.ID,
+                              "Xlink Communications Pty Ltd",
+                              "3 Sandown Valley Crescent",
+                              User().FullName,
+                              Coalesce(
+                                  First(colCourier).'Waybill number ',
+                                  "-"
+                              )
+                          );
+
+
+                          OrderDispatched.Run(AbsaQueGal_4.Selected.ID);
+
+                          SubmitForm(Form1_1);
+                          //Updating the dispatch log braching logic for Delivery and Collection
+                          Switch(
+                              true,
+                              //Logic for A delivery with single package where current form updates will be looped through all items
+                              DataCardValue18_4.Selected.Value = "Delivery" && Toggle1.Checked = false,
+                              ForAll(
+                                  colCollectionOrder,
+                                  Patch(
+                                      'Dispatch Log',
+                                      ThisRecord,
+                                      {
+                                          'Dispatch Method': LookUp(colCourier, ID = ThisRecord.'Order Id').'Dispatch Method',
+                                           Dispatcher: LookUp(colCourier, ID = ThisRecord.'Order Id').Dispatcher,
+                                           Shipped: LookUp(colCourier, ID = ThisRecord.'Order Id').Shipped,
+                                          'Package Reference': LookUp(colCourier, ID = ThisRecord.'Order Id').'Package Reference',
+                                          'Waybill number ': LookUp(colCourier, ID = ThisRecord.'Order Id').'Waybill number ',
+                                          Dispatch_To_Location: Left(Trim(AbsaQueGal_4.Selected.'Item Category'), 1)
+                                          & 
+                                          LookUp('Point of Presence',ID = LookUp('Unique Orders', ID = AbsaQueGal_4.Selected.ID).PoPID).'Location Code'
+                                          &LookUp('Point of Presence',ID = LookUp('Unique Orders', ID = AbsaQueGal_4.Selected.ID).PoPID).RegionCode,
+                                          TimeDispatched:Now()
+                                      }
+                                  )
+                              ),
+                              //Logic for order with multiple packages
+                              DataCardValue18_4.Selected.Value = "Delivery",
+                              Collect('Dispatch Log', colCourier),
+
+                              true, // logic for collection
+                              ForAll(
+                                  colCollectionOrder,
+                                  Patch(
+                                      'Dispatch Log',
+                                      ThisRecord,
+                                      {
+                                          'Dispatch Method': LookUp(colCourier, ID = ThisRecord.'Order Id').'Dispatch Method',
+                                          Dispatcher: LookUp(colCourier, ID = ThisRecord.'Order Id').Dispatcher,
+                                          Shipped: LookUp(colCourier, ID = ThisRecord.'Order Id').Shipped,
+                                          Dispatch_To_Location:Left(Trim(AbsaQueGal_4.Selected.'Item Category'), 1)
+                                          & 
+                                          LookUp('Point of Presence',ID = LookUp('Unique Orders', ID = AbsaQueGal_4.Selected.ID).PoPID).'Location Code'
+                                          &LookUp('Point of Presence',ID = LookUp('Unique Orders', ID = AbsaQueGal_4.Selected.ID).PoPID).RegionCode,
+                                          TimeDispatched:Now()
+                                      }
+                                  )
+                              )
+                          );
+                          //update and close xlink stock order items
+                          ClearCollect(
+                              colRecordsToUpdatedispatch,
+                              Filter(
+                                  'Xlink Stock Order',
+                                  'Order Id' = AbsaQueGal_4.Selected.ID
+                              )
+                          );
+                          ForAll(
+                              colRecordsToUpdatedispatch,
+                              Patch(
+                                  'Xlink Stock Order',
+                                  ThisRecord,
+                                  {
+                                      'Dispatch Status': LookUp(
+                                          colCourier,
+                                          'Order Id' = ThisRecord.'Order Id'
+                                      ).Shipped
+                                  }
+                              )
+                          );
+
+
+                          ResetForm(Form1_1);
+                          Clear(colCourier);
+                          Refresh('Unique Orders');
+                          Refresh('Xlink Stock Order');
+                          Refresh('Dispatch Log');
+                          Set(
+                              varShowSpinner,
+                              false
+                          );
+                          Navigate('Dispatching Queue');
+                          Notify("Manifest generated and will be delivered via email",NotificationType.Success);
+                        PaddingTop: =0.00
+                        Text: ="Submit"
+                        TextColor: =varTheme.palette.white
+                        Width: =76
+                        X: =1222
+                        Y: =652
+                  - ABSAadd_4:
+                      Control: FluentV8/Button@1.5.13
+                      Properties:
+                        ButtonType: ='Button.ButtonType'.Standard
+                        DisplayMode: =//If(CountRows(colCourier) < CountRows(Filter('Dispatch Log','Order Id' = AbsaQueGal_1.Selected.ID)),DisplayMode.Disabled, DisplayMode.Edit)
+                        FillColor: =varTheme.palette.themePrimary
+                        FontSize: =8
+                        Height: =24
+                        OnSelect: |-
+                          =Set(varShowSpinner,true);
+                          OrderManifest.Run(
+                              AbsaQueGal_4.Selected.ID,
+                              "Xlink Communications",
+                              "3 Sandown Valley Crescent",
+                              User().FullName,
+                              Coalesce(
+                                  First(colCourier).'Waybill number ',
+                                  "-"
+                              )
+                          );
+                          Set(varShowSpinner,false);
+                          Notify("Manifest generated and will be delivered via email",NotificationType.Success)
+                        PaddingTop: =0.00
+                        Text: ="Print Manifest"
+                        TextColor: =varTheme.palette.white
+                        Visible: =false
+                        Width: =76
+                        X: =731
+                        Y: =652
+                  - ABSAadd_5:
+                      Control: FluentV8/Button@1.5.13
+                      Properties:
+                        ButtonType: ='Button.ButtonType'.Standard
+                        DisplayMode: = If(IsEmpty(Filter('Dispatch Log','Order Id' = AbsaQueGal_4.Selected.ID && IsBlank('Package Reference'))),DisplayMode.Disabled,DisplayMode.Edit)
+                        FillColor: =varTheme.palette.themePrimary
+                        FontSize: =8
+                        Height: =24
+                        OnSelect: "=Set(varShowSpinner,true);\r\nCollect(colCourier, PanelContentForm_9.Updates);\r\nIf(DataCardValue18_4.Selected.Value = \"Delivery\",\r\nPatch('Dispatch Log',DataTable1_2.Selected,{'Package Reference':DataCardValue35_1.Text}) );\r\nResetForm(PanelContentForm_6);\r\nSet(varShowSpinner,false);\r\n "
+                        PaddingTop: =0.00
+                        Text: ="Add Reference"
+                        TextColor: =varTheme.palette.white
+                        Width: =85
+                        X: =1018
+                        Y: =652
+                  - Elevation1_133:
+                      Control: CodeComponent
+                      ComponentName: cat_PowerCAT.Elevation
+                      Properties:
+                        Depth: ='PowerCAT.Elevation.Depth'.Depth8
+                        FillColor: ="#9c0dd9"
+                        Height: =50
+                        PaddingRight: =0.00
+                        PaddingTop: =0.00
+                        Width: =958
+                        X: =21
+                        Y: =20
+                  - Label1_280:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =Color.White
+                        FontSize: =16
+                        FontWeight: =FontWeight.Semibold
+                        Height: =50
+                        PaddingTop: =0.00
+                        Text: ="Order Manifest"
+                        Width: =619
+                        X: =163
+                        Y: =20
+                  - Form1_1:
+                      Control: Form@2.4.4
+                      Layout: Vertical
+                      Properties:
+                        DataSource: ='Unique Orders'
+                        Height: =361
+                        Item: =LookUp('Unique Orders',ID = Value( AbsaQueGal_4.Selected.ID))
+                        NumberOfColumns: =1
+                        Visible: =false
+                        Width: =311.62
+                        X: =588
+                        Y: =276
+                      Children:
+                        - Dispatch Status_DataCard4:
+                            Control: TypedDataCard@1.0.7
+                            Variant: ClassicTextualEdit
+                            Properties:
+                              DataField: ="DispatchStatus"
+                              Default: =ThisItem.'Dispatch Status'
+                              DisplayName: =DataSourceInfo([@'Unique Orders'],DataSourceInfo.DisplayName,'Dispatch Status')
+                              MaxLength: =DataSourceInfo([@'Unique Orders'], DataSourceInfo.MaxLength, 'Dispatch Status')
+                              Required: =false
+                              Update: =DataCardValue42.Text
+                              Width: =311
+                              X: =0
+                              Y: =0
+                            Children:
+                              - DataCardKey44:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =34
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: =Parent.DisplayName
+                                    Width: =268.93
+                                    Wrap: =false
+                                    X: =21.34
+                                    Y: =10
+                              - DataCardValue42:
+                                  Control: Classic/TextInput@2.3.2
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    BorderColor: =If(IsBlank(Parent.Error), Parent.BorderColor, Color.Red)
+                                    Default: =DataCardValue27_1.Text
+                                    DelayOutput: =true
+                                    DisplayMode: =Parent.DisplayMode
+                                    MaxLength: =Parent.MaxLength
+                                    PaddingLeft: =5
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    RadiusBottomLeft: =0
+                                    RadiusBottomRight: =0
+                                    RadiusTopLeft: =0
+                                    RadiusTopRight: =0
+                                    Size: =9.24
+                                    Tooltip: =Parent.DisplayName
+                                    Width: =268.93
+                                    X: =21.34
+                                    Y: =DataCardKey44.Y + DataCardKey44.Height + 5
+                              - ErrorMessage44:
+                                  Control: Label@2.5.1
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    AutoHeight: =true
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =RGBA(168, 0, 0, 1)
+                                    FontWeight: =FontWeight.Semibold
+                                    Height: =10
+                                    Live: =Live.Assertive
+                                    PaddingBottom: =0
+                                    PaddingLeft: =0
+                                    PaddingRight: =0.00
+                                    PaddingTop: =0.00
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =Parent.DisplayMode=DisplayMode.Edit
+                                    Width: =268.93
+                                    X: =21.34
+                                    Y: =DataCardValue42.Y + DataCardValue42.Height
+                              - StarVisible44:
+                                  Control: Label@2.5.1
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: =Align.Center
+                                    BorderColor: =RGBA(0, 0, 0, 1)
+                                    Color: =App.Theme.Colors.Darker30
+                                    Height: =DataCardKey44.Height
+                                    PaddingRight: =3.56
+                                    PaddingTop: =3.56
+                                    Size: =9.24
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    Wrap: =false
+                                    X: =0.00
+                                    Y: =DataCardKey44.Y
+                        - Dispatch Method_DataCard1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: TextualEdit
+                            Properties:
+                              DataField: ="DispatchMethod"
+                              Default: =ThisItem.'Dispatch Method'
+                              DisplayName: =DataSourceInfo([@'Unique Orders'],DataSourceInfo.DisplayName,'Dispatch Method')
+                              MaxLength: =DataSourceInfo([@'Unique Orders'], DataSourceInfo.MaxLength, 'Dispatch Method')
+                              Required: =false
+                              Update: =DataCardValue6_1.Value
+                              Width: =311
+                              X: =0
+                              Y: =1
+                            Children:
+                              - DataCardKey7_1:
+                                  Control: Text@0.0.51
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    Height: =22
+                                    Size: =9.96
+                                    Text: =Parent.DisplayName
+                                    Weight: ='TextCanvas.Weight'.Semibold
+                                    Width: =277.47
+                                    Wrap: =false
+                                    X: =17.07
+                                    Y: =10
+                              - DataCardValue6_1:
+                                  Control: TextInput@0.0.54
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    AccessibleLabel: =Parent.DisplayName
+                                    DisplayMode: =Parent.DisplayMode
+                                    Mode: ="'TextInputCanvas.Mode'.TextInputModeSingleLine"
+                                    Required: =Parent.Required
+                                    ValidationState: =If(IsBlank(Parent.Error), "None", "Error")
+                                    Value: =DataCardValue18_4.Selected.Value
+                                    Width: =277.47
+                                    X: =17.07
+                                    Y: =DataCardKey7_1.Y + DataCardKey7_1.Height + 4
+                              - ErrorMessage7_1:
+                                  Control: Text@0.0.51
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    Height: =30
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =And(!IsBlank(Parent.Error), Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =277.47
+                                    X: =17.07
+                                    Y: =DataCardValue6_1.Y + DataCardValue6_1.Height
+                              - StarVisible7_1:
+                                  Control: Text@0.0.51
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: ='TextCanvas.Align'.Center
+                                    Height: =30
+                                    Size: =9.96
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    X: =0.00
+                                    Y: =DataCardKey7_1.Y
+                        - WayBill Number_DataCard1:
+                            Control: TypedDataCard@1.0.7
+                            Variant: TextualEdit
+                            Properties:
+                              DataField: ="WayBillNumber"
+                              Default: =ThisItem.'WayBill Number'
+                              DisplayName: =DataSourceInfo([@'Unique Orders'],DataSourceInfo.DisplayName,'WayBill Number')
+                              MaxLength: =DataSourceInfo([@'Unique Orders'], DataSourceInfo.MaxLength, 'WayBill Number')
+                              Required: =false
+                              Update: =DataCardValue13_1.Value
+                              Width: =311
+                              X: =0
+                              Y: =2
+                            Children:
+                              - DataCardKey15_3:
+                                  Control: Text@0.0.51
+                                  MetadataKey: FieldName
+                                  Properties:
+                                    Height: =22
+                                    Size: =9.96
+                                    Text: =Parent.DisplayName
+                                    Weight: ='TextCanvas.Weight'.Semibold
+                                    Width: =277.47
+                                    Wrap: =false
+                                    X: =17.07
+                                    Y: =10
+                              - DataCardValue13_1:
+                                  Control: TextInput@0.0.54
+                                  MetadataKey: FieldValue
+                                  Properties:
+                                    AccessibleLabel: =Parent.DisplayName
+                                    DisplayMode: =Parent.DisplayMode
+                                    Mode: ="'TextInputCanvas.Mode'.TextInputModeSingleLine"
+                                    Required: =Parent.Required
+                                    ValidationState: =If(IsBlank(Parent.Error), "None", "Error")
+                                    Value: =DataCardValue26_1.Text
+                                    Width: =277.47
+                                    X: =17.07
+                                    Y: =DataCardKey15_3.Y + DataCardKey15_3.Height + 4
+                              - ErrorMessage15_3:
+                                  Control: Text@0.0.51
+                                  MetadataKey: ErrorMessage
+                                  Properties:
+                                    Height: =30
+                                    Size: =9.96
+                                    Text: =Parent.Error
+                                    Visible: =And(!IsBlank(Parent.Error), Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =277.47
+                                    X: =17.07
+                                    Y: =DataCardValue13_1.Y + DataCardValue13_1.Height
+                              - StarVisible15_3:
+                                  Control: Text@0.0.51
+                                  MetadataKey: FieldRequired
+                                  Properties:
+                                    Align: ='TextCanvas.Align'.Center
+                                    Height: =30
+                                    Size: =9.96
+                                    Text: ="*"
+                                    Visible: =And(Parent.Required, Parent.DisplayMode=DisplayMode.Edit)
+                                    Width: =21.34
+                                    X: =0.00
+                                    Y: =DataCardKey15_3.Y
+                  - Label1_286:
+                      Control: FluentV8/Label@1.8.6
+                      Properties:
+                        Alignment: =Align.Center
+                        Color: =varTheme.palette.black
+                        FontSize: =14
+                        FontWeight: =FontWeight.Lighter
+                        Height: =39
+                        PaddingTop: =0.00
+                        Text: ="Select and Package Reference all order items in the manifest"
+                        VerticalAlignment: =VerticalAlign.Top
+                        Width: =938
+                        X: =21
+                        Y: =70
+                  - TextCanvas4:
+                      Control: Text@0.0.51
+                      Properties:
+                        FontColor: =RGBA(184, 0, 0, 1)
+                        FontItalic: =true
+                        Height: =98
+                        Text: ="Please hit the submit button to fulfill the dispatch"
+                        Visible: =//If(IsEmpty(Filter('Dispatch Log','Order Id' = AbsaQueGal_4.Selected.ID && IsBlank('Package Reference'))),true,false)
+                        Weight: ='TextCanvas.Weight'.Semibold
+                        Width: =219
+                        X: =1040
+                        Y: =392
+      - Header_5:
+          Control: CanvasComponent
+          ComponentName: Header
+          ComponentLibraryUniqueName: cat_powercatcomponentlibrary_0be3a
+          Properties:
+            BackButtonVisible: =false
+            Color: =
+            ContentWidth: =App.Width
+            Fill: =Color.Transparent
+            HeaderFill: =varTheme.palette.themeDarkAlt
+            Height: =68
+            LeftButtonImage: |+
+              ="data:image/svg+xml," & 
+               EncodeUrl(
+                  "<svg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg' fill='none' stroke='#ffffff'><g id='SVGRepo_bgCarrier' stroke-width='0'></g><g id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'></g><g id='SVGRepo_iconCarrier'><path fill='#ffffff' fill-rule='evenodd' d='M19 4a1 1 0 01-1 1H2a1 1 0 010-2h16a1 1 0 011 1zm0 6a1 1 0 01-1 1H2a1 1 0 110-2h16a1 1 0 011 1zm-1 7a1 1 0 100-2H2a1 1 0 100 2h16z'></path></g></svg>"
+              )
+            LeftButtonVisible: =true
+            OnBackSelect: =true
+            OnLeftButtonSelect: =Set(varMenu, true )
+            OnRightButtonSelect: =true
+            RightButtonImage: |-
+              ="data:image/svg+xml," & 
+               EncodeUrl(
+                  "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' version='1.1' viewBox='-10 0 2068 2048'>
+                <g transform='matrix(1 0 0 -1 0 2048),rotate(0,1034,1024)'>
+                 <path fill='#ffffff'
+              d='M1783 1060q0 -9 0.5 -18t0.5 -18t-0.5 -18t-0.5 -18l259 -161l-159 -383l-297 68q-24 -26 -50 -50l68 -297l-383 -159l-161 259q-9 0 -18 -0.5t-18 -0.5t-18 0.5t-18 0.5l-161 -259l-383 159l68 297q-26 24 -50 50l-297 -68l-159 383l259 161q0 9 -0.5 18t-0.5 18t0.5 18t0.5 18l-259 161l159 383l297 -68q24 26 50 50l-68 297l383 159l161 -259q9 0 18 0.5t18 0.5t18 -0.5t18 -0.5l161 259l383 -159l-68 -297q26 -24 50 -50l297 68l159 -383zM1666 930q2 24 4 47.5t2 47.5q0 23 -2 47t-4 47l236 147l-86 208l-271 -63q-31 38 -63.5 70t-70.5 64l63 271l-208 86l-148 -236q-23 2 -47 4t-47 2q-24 0 -47.5 -2t-47.5 -4l-147 236l-208 -86l63 -271q-38 -31 -70 -63.5t-64 -70.5l-271 63l-86 -208l236 -148q-2 -24 -4 -47.5t-2 -47.5q0 -23 2 -47t4 -47l-236 -147l86 -208l271 63q31 -38 63.5 -70t70.5 -64l-63 -271l208 -86l148 236q23 -2 47 -4t47 -2q24 0 47.5 2t47.5 4l147 -236l208 86l-63 271q38 31 70 63.5t64 70.5l271 -63l86 208zM1024 1400q78 0 146.5 -29.5t119.5 -80.5t80.5 -119.5t29.5 -146.5t-29.5 -146.5t-80.5 -119.5t-119.5 -80.5t-146.5 -29.5t-146.5 29.5t-119.5 80.5t-80.5 119.5t-29.5 146.5t29.5 146.5t80.5 119.5t119.5 80.5t146.5 29.5zM1024 760q55 0 103 20.5t84 56.5t56.5 84t20.5 103t-20.5 103t-56.5 84t-84 56.5t-103 20.5t-103 -20.5t-84 -56.5t-56.5 -84t-20.5 -103t20.5 -103t56.5 -84t84 -56.5t103 -20.5z' />
+                </g>
+
+              </svg>"
+              )
+            RightButtonVisible: =false
+            Text: =
+            Theme: |-
+              ={
+              	palette: {
+              		themePrimary: "#0078d4",
+              		themeLighterAlt: "#eff6fc",
+              		themeLighter: "#deecf9",
+              		themeLight: "#c7e0f4",
+              		themeTertiary: "#71afe5",
+              		themeSecondary: "#2b88d8",
+              		themeDarkAlt: "#106ebe",
+              		themeDark: "#005a9e",
+              		themeDarker: "#004578",
+              		neutralLighterAlt: "#faf9f8",
+              		neutralLighter: "#f3f2f1",
+              		neutralLight: "#edebe9",
+              		neutralQuaternaryAlt: "#e1dfdd",
+              		neutralQuaternary: "#d0d0d0",
+              		neutralTertiaryAlt: "#c8c6c4",
+              		neutralTertiary: "#a19f9d",
+              		neutralSecondary: "#605e5c",
+              		neutralPrimaryAlt: "#3b3a39",
+              		neutralPrimary: "#323130",
+              		neutralDark: "#201f1e",
+              		black: "#000000",
+              		white: "#ffffff"
+              	}
+              }
+            Width: =App.Width
+      - DataTable1_2:
+          Control: DataTable@1.0.3
+          Properties:
+            HeadingColor: =RGBA(255, 255, 255, 1)
+            HeadingSize: =10
+            Height: =572
+            Items: =Filter('Dispatch Log','Order Id' = AbsaQueGal_4.Selected.ID )
+            Size: =9.24
+            Width: =941
+            X: =47
+            Y: =166
+          Children:
+            - Item Category_Column1_2:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Item Category"
+                  FieldName: ="field_1"
+                  Order: =3
+                  Text: =ThisItem.'Item Category'
+                  Width: =91.78
+            - Item Nature_Column1_2:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Item Nature"
+                  FieldName: ="field_2"
+                  Order: =6
+                  Text: =ThisItem.'Item Nature'
+                  Width: =91.06
+            - Order Id_Column1_2:
+                Control: DataTableColumn@1.0.1
+                Variant: Number
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Order Id"
+                  FieldName: ="OrderId"
+                  Order: =1
+                  Text: =ThisItem.'Order Id'
+                  Width: =57.63
+            - Device type _Column1_2:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Device type "
+                  FieldName: ="field_5"
+                  Order: =7
+                  Text: =ThisItem.'Device type '
+                  Width: =159.36
+            - Terminal Serial Number_Column1_2:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Terminal Serial Number"
+                  FieldName: ="Terminal_x0020_Serial_x0020_Numb"
+                  Order: =8
+                  Text: =ThisItem.'Terminal Serial Number'
+                  Visible: =true//If(AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",true,false)
+                  Width: =145.84
+            - Cradle Serial Number_Column1_2:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Cradle Serial Number"
+                  FieldName: ="Title"
+                  Order: =9
+                  Text: =ThisItem.'Cradle Serial Number'
+                  Visible: =true//If(AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",true,false)
+                  Width: =140.16
+            - Charger Serial Number_Column1_2:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  AutoWidth: =false
+                  FieldDisplayName: ="Charger Serial Number"
+                  FieldName: ="Charger_x0020_Serial_x0020_Numbe"
+                  Order: =10
+                  Text: =ThisItem.'Charger Serial Number'
+                  Visible: =true//If(AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",true,false)
+                  Width: =149.42
+            - Pick Status_Column1:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  FieldDisplayName: ="Pick Status"
+                  FieldName: ="PickStatus"
+                  Order: =13
+                  Text: =ThisItem.'Pick Status'
+            - CashConnect SerialNumber_Column1:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  FieldDisplayName: ="CashConnect SerialNumber"
+                  FieldName: ="CashConnectSerialNumber"
+                  Order: =11
+                  Text: =ThisItem.'CashConnect SerialNumber'
+                  Visible: =true//If(AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",true,false)
+            - Item Code_Column1:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  FieldDisplayName: ="Item Code"
+                  FieldName: ="ItemCode"
+                  Order: =12
+                  Text: =ThisItem.'Item Code'
+                  Visible: =true//If(AbsaQueGal_3.Selected.'Item Category' = "Cash Connect",true,false)
+            - Package Reference_Column1:
+                Control: DataTableColumn@1.0.1
+                Variant: Textual
+                IsLocked: true
+                Properties:
+                  FieldDisplayName: ="Package Reference"
+                  FieldName: ="PackageReference"
+                  Order: =2
+                  Text: =ThisItem.'Package Reference'
+      - Label1_284:
+          Control: FluentV8/Label@1.8.6
+          Properties:
+            Alignment: =Align.Center
+            Color: =Color.White
+            FontSize: =19
+            FontWeight: =FontWeight.Semibold
+            Height: =40
+            PaddingTop: =0.00
+            Text: ="Dispatching Cart"
+            Width: =302.36
+            X: =524
+            Y: =3
+      - Rectangle4_5:
+          Control: Rectangle@2.3.0
+          Group: Spinner_2
+          Properties:
+            Fill: =RGBA(169,169,169,.75)
+            Height: =768
+            Visible: =varShowSpinner
+            Width: =1366
+            X: =0.00
+      - Elevation1_28:
+          Control: CodeComponent
+          ComponentName: cat_PowerCAT.Elevation
+          Group: Spinner_2
+          Properties:
+            Depth: ='PowerCAT.Elevation.Depth'.Depth64
+            Height: =251
+            HoverDepth: ='PowerCAT.Elevation.HoverDepth'.Depth64
+            PaddingRight: =0.00
+            PaddingTop: =0.00
+            Visible: =varShowSpinner
+            Width: =663
+            X: =287
+            Y: =229
+      - Spinner1_4:
+          Control: CodeComponent
+          ComponentName: cat_PowerCAT.Spinner
+          Group: Spinner_2
+          Properties:
+            BackgroundColor: ="#FFFFFF"
+            Height: =251
+            Label: ="Submitting Order..."
+            LabelPosition: ='PowerCAT.Spinner.LabelPosition'.Bottom
+            SpinnerAlignment: ='PowerCAT.Spinner.SpinnerAlignment'.Center
+            SpinnerSize: ='PowerCAT.Spinner.SpinnerSize'.Large
+            Theme: =
+            Visible: =varShowSpinner
+            Width: =663
+            X: =287
+            Y: =229
+      - ExpandMenu_6:
+          Control: CanvasComponent
+          ComponentName: ExpandMenu
+          ComponentLibraryUniqueName: cat_powercatcomponentlibrary_0be3a
+          Group: Menu_4
+          Properties:
+            DefaultExpandValue: =false
+            Fill: =varTheme.palette.neutralLight
+            Height: =763
+            IsNavigationEnabled: =true
+            Items: |-
+              =Table(
+              {Icon: "Home", Label: "Home", Screen:'Landing Page', Tooltip:"Go to Home Page"}, 
+              {Icon: "PowerBILogo", Label: "Picking Queue", Screen:'Picking Queue', Tooltip:"Go to Picking Queue"}, 
+              {Icon: "ShoppingCart", Label: "Picking Cart", Screen:'Picking Cart', Tooltip:"Go to Picking Cart"}, 
+              {Icon: "PowerBILogo", Label: "Dispatch Queue", Screen:'Dispatching Queue', Tooltip:"Go to Dispatching Queue"}, 
+              {Icon: "ShoppingCart", Label: "Dispatch Cart", Screen:'Dispatching Cart', Tooltip:"Go to Picking Queue"}
+              )
+            OnButtonSelect: =true
+            OnExpandSelect: =true
+            Theme: |-
+              ={
+              	palette: {
+              		themePrimary: "#0078d4",
+              		themeLighterAlt: "#eff6fc",
+              		themeLighter: "#deecf9",
+              		themeLight: "#c7e0f4",
+              		themeTertiary: "#71afe5",
+              		themeSecondary: "#2b88d8",
+              		themeDarkAlt: "#106ebe",
+              		themeDark: "#005a9e",
+              		themeDarker: "#004578",
+              		neutralLighterAlt: "#faf9f8",
+              		neutralLighter: "#f3f2f1",
+              		neutralLight: "#edebe9",
+              		neutralQuaternaryAlt: "#e1dfdd",
+              		neutralQuaternary: "#d0d0d0",
+              		neutralTertiaryAlt: "#c8c6c4",
+              		neutralTertiary: "#a19f9d",
+              		neutralSecondary: "#605e5c",
+              		neutralPrimaryAlt: "#3b3a39",
+              		neutralPrimary: "#323130",
+              		neutralDark: "#201f1e",
+              		black: "#000000",
+              		white: "#ffffff"
+              	}
+              }
+            Visible: '=varMenu '
+            Width: =233
+      - Icon11_4:
+          Control: Classic/Icon@2.5.0
+          Group: Menu_4
+          Properties:
+            Height: =32
+            Icon: =Icon.CancelBadge
+            OnSelect: =Set(varMenu, false)
+            Visible: '=varMenu '
+            Width: =32
+            X: =189
+            Y: =8
+      - TextCanvas5:
+          Control: Text@0.0.51
+          Properties:
+            Height: =227
+            Text: ="Press submit to continue"
+            Visible: =If( IsBlank( DataTable1_2) ,true,false)
+            Width: =237
+            X: =1048
+            Y: =212

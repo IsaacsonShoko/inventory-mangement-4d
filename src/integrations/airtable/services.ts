@@ -669,6 +669,29 @@ const updateStockOrderLineItems = async (pickedItems: StockOrderPickedUpdate[]) 
 
 export type StockOrderPickedUpdateInput = StockOrderPickedUpdate;
 
+export type DispatchLogUpdateInput = {
+  recordId: string;
+  fields: Partial<DispatchLogEntry['fields']>;
+};
+
+const updateDispatchLogEntries = async (updates: DispatchLogUpdateInput[]) => {
+  if (!updates.length) {
+    return;
+  }
+
+  const batches = chunkArray(
+    updates.map((update) => ({
+      id: update.recordId,
+      fields: update.fields,
+    })),
+    10,
+  );
+
+  for (const batch of batches) {
+    await tables.dispatchLog.update(batch as any);
+  }
+};
+
 // Order Services
 export const orderService = {
   /**
@@ -894,7 +917,7 @@ export const orderService = {
       }
 
       if (filters?.dispatchStatuses?.length) {
-        const formula = buildOrFormula('Dispatch Status', filters.dispatchStatuses, true);
+        const formula = buildOrFormula('Dispatch Status', filters.dispatchStatuses);
         if (formula) formulas.push(formula);
       }
 
@@ -1095,6 +1118,15 @@ export const orderService = {
     } catch (error) {
       console.error('Error updating stock order line items:', error);
       throw formatAirtableError(error, 'stock order line items update');
+    }
+  },
+
+  async updateDispatchLogEntries(updates: DispatchLogUpdateInput[]) {
+    try {
+      await updateDispatchLogEntries(updates);
+    } catch (error) {
+      console.error('Error updating dispatch log entries:', error);
+      throw formatAirtableError(error, 'dispatch log update');
     }
   },
 
