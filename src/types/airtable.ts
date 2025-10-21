@@ -211,3 +211,8 @@ export interface DispatchLogEntry {
     'StockOrderID'?: string;
   };
 }
+
+export interface DispatchQueueOrder extends UniqueOrder {
+  dispatchLogEntries: DispatchLogEntry[];
+}
+

@@ -8,7 +8,8 @@ import type {
   CartItem,
   UniqueOrder,
   StockOrderLineItem,
-  DispatchLogEntry
+  DispatchLogEntry,
+  DispatchQueueOrder,
 } from '@/types/airtable';
 import {
   n8nService,
@@ -1119,77 +1120,158 @@ export const orderService = {
     }
   },
 
-  async getDispatchQueue(): Promise<UniqueOrder[]> {
+  async getDispatchQueue(): Promise<DispatchQueueOrder[]> {
     try {
-      const dispatchRecords = await tables.dispatchLog
+      const filterByFormula = `AND(
+        NOT({Pick Status} = ''),
+        NOT(IS_BLANK({Pick Status})),
+        OR({Dispatch Status} = '', IS_BLANK({Dispatch Status}))
+      )`;
+
+      const records = await tables.uniqueOrders
         .select({
-          filterByFormula: "OR({Shipped} = '', {Shipped} = BLANK(), {Shipped} = 'No')",
-          sort: [{ field: 'Date Dispatched', direction: 'desc' }],
+          filterByFormula,
+          sort: [
+            { field: 'Date Ordered', direction: 'asc' },
+            { field: 'Item Category', direction: 'asc' },
+          ],
         })
         .all();
 
-      if (!dispatchRecords.length) {
+      if (!records.length) {
         return [];
       }
 
-      const uniqueOrderIds = new Set<string>();
-      const dispatchDates = new Map<string, string | undefined>();
+      const orders: UniqueOrder[] = records.map((record) => ({
+        id: record.id,
+        fields: castRecordFields<UniqueOrder['fields']>(record.fields),
+      }));
 
-      dispatchRecords.forEach((record) => {
-        const fields = castRecordFields<DispatchLogEntry['fields']>(record.fields);
-        const rawLinkedOrders = fields['Order Id'];
-        const linkedOrders = Array.isArray(rawLinkedOrders)
-          ? rawLinkedOrders
-          : rawLinkedOrders === null || rawLinkedOrders === undefined
-            ? []
-            : [rawLinkedOrders];
-        const dispatchedDate = fields['Date Dispatched'];
+      const orderComparisonForms = new Map<string, Set<string>>();
+      const dispatchLogClauses = new Set<string>();
+      const dispatchLogRecordIdToOrderId = new Map<string, string>();
 
-        linkedOrders.forEach((orderIdValue) => {
-          const orderId = String(orderIdValue);
-          uniqueOrderIds.add(orderId);
+      orders.forEach((order) => {
+        const { stringValues, numericValues, comparisonForms } = buildOrderIdForms(order.fields['Order ID']);
+        orderComparisonForms.set(order.id, comparisonForms);
 
-          if (!dispatchDates.has(orderId)) {
-            dispatchDates.set(orderId, dispatchedDate);
+        const dispatchLogLinks = Array.isArray(order.fields['Dispatch Log'])
+          ? order.fields['Dispatch Log']
+          : [];
+
+        dispatchLogLinks.forEach((logId) => {
+          const normalizedLogId = coerceToString(logId);
+          if (!normalizedLogId) {
             return;
           }
 
-          const existingDate = dispatchDates.get(orderId);
-          if (dispatchedDate && (!existingDate || dispatchedDate > existingDate)) {
-            dispatchDates.set(orderId, dispatchedDate);
-          }
+          dispatchLogClauses.add(`RECORD_ID()='${escapeAirtableValue(normalizedLogId)}'`);
+          dispatchLogRecordIdToOrderId.set(normalizedLogId, order.id);
+        });
+
+        stringValues.forEach((value) => {
+          dispatchLogClauses.add(`{Order Id} = '${escapeAirtableValue(value)}'`);
+        });
+
+        numericValues.forEach((value) => {
+          dispatchLogClauses.add(`{Order Id} = ${value}`);
         });
       });
 
-      if (!uniqueOrderIds.size) {
-        return [];
-      }
+      const dispatchLogMatches = new Map<string, DispatchLogEntry[]>();
 
-      const orders: UniqueOrder[] = [];
-      const batches = chunkArray(Array.from(uniqueOrderIds), 25);
+      if (dispatchLogClauses.size > 0) {
+        const clauses = Array.from(dispatchLogClauses);
+        const batches = chunkArray(clauses, 25);
 
-      for (const batch of batches) {
-        const clauses = batch.map((orderId) => `RECORD_ID()='${escapeAirtableValue(orderId)}'`);
-        const filterByFormula = clauses.length === 1 ? clauses[0] : `OR(${clauses.join(', ')})`;
+        for (const batch of batches) {
+          const dispatchRecords = await tables.dispatchLog
+            .select({
+              filterByFormula: batch.length === 1 ? batch[0] : `OR(${batch.join(', ')})`,
+              sort: [{ field: 'Date Dispatched', direction: 'desc' }],
+            })
+            .all();
 
-        const records = await tables.uniqueOrders
-          .select({
-            filterByFormula,
-            sort: [{ field: 'Date Ordered', direction: 'asc' }],
-          })
-          .all();
+          dispatchRecords.forEach((record) => {
+            const entry: DispatchLogEntry = {
+              id: record.id,
+              fields: castRecordFields<DispatchLogEntry['fields']>(record.fields),
+            };
 
-        records.forEach((record) => {
-          orders.push({
-            id: record.id,
-            fields: castRecordFields<UniqueOrder['fields']>(record.fields),
+            const entryForms = buildOrderIdForms(entry.fields['Order Id']).comparisonForms;
+            if (entryForms.size === 0) {
+              const mappedOrderId = dispatchLogRecordIdToOrderId.get(entry.id);
+              if (!mappedOrderId) {
+                return;
+              }
+
+              const existingById = dispatchLogMatches.get(mappedOrderId) ?? [];
+              if (!existingById.some((log) => log.id === entry.id)) {
+                existingById.push(entry);
+                dispatchLogMatches.set(mappedOrderId, existingById);
+              }
+              return;
+            }
+
+            for (const [orderId, orderForms] of orderComparisonForms.entries()) {
+              let matched = false;
+
+              if (dispatchLogRecordIdToOrderId.get(entry.id) === orderId) {
+                const existing = dispatchLogMatches.get(orderId) ?? [];
+                if (!existing.some((log) => log.id === entry.id)) {
+                  existing.push(entry);
+                  dispatchLogMatches.set(orderId, existing);
+                }
+                break;
+              }
+
+              for (const form of entryForms) {
+                if (orderForms.has(form)) {
+                  const existing = dispatchLogMatches.get(orderId) ?? [];
+                  if (!existing.some((log) => log.id === entry.id)) {
+                    existing.push(entry);
+                    dispatchLogMatches.set(orderId, existing);
+                  }
+                  matched = true;
+                  break;
+                }
+              }
+
+              if (matched) {
+                break;
+              }
+            }
           });
-        });
+        }
       }
 
-      orders.sort((a, b) => {
-        const aDate = dispatchDates.get(a.id);
-        const bDate = dispatchDates.get(b.id);
+      const ordersWithDispatchLogs: DispatchQueueOrder[] = orders.map((order) => {
+        const logs = (dispatchLogMatches.get(order.id) ?? []).slice();
+        logs.sort((a, b) => {
+          const aDate = a.fields['Date Dispatched'] ?? '';
+          const bDate = b.fields['Date Dispatched'] ?? '';
+
+          if (aDate && bDate) {
+            if (aDate > bDate) return -1;
+            if (aDate < bDate) return 1;
+          } else if (aDate) {
+            return -1;
+          } else if (bDate) {
+            return 1;
+          }
+
+          return a.id.localeCompare(b.id);
+        });
+
+        return {
+          ...order,
+          dispatchLogEntries: logs,
+        };
+      });
+
+      ordersWithDispatchLogs.sort((a, b) => {
+        const aDate = a.fields['Date Ordered'] ?? '';
+        const bDate = b.fields['Date Ordered'] ?? '';
 
         if (aDate && bDate) {
           if (aDate > bDate) return -1;
@@ -1200,14 +1282,12 @@ export const orderService = {
           return 1;
         }
 
-        const aOrdered = a.fields['Date Ordered'] ?? '';
-        const bOrdered = b.fields['Date Ordered'] ?? '';
-        if (aOrdered > bOrdered) return -1;
-        if (aOrdered < bOrdered) return 1;
-        return 0;
+        const aBusinessLine = a.fields['Item Category'] ?? '';
+        const bBusinessLine = b.fields['Item Category'] ?? '';
+        return aBusinessLine.localeCompare(bBusinessLine);
       });
 
-      return orders;
+      return ordersWithDispatchLogs;
     } catch (error) {
       console.error('Error fetching dispatch queue:', error);
       throw formatAirtableError(error, 'dispatch queue fetch');
