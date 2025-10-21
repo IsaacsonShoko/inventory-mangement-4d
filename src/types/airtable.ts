@@ -141,7 +141,7 @@ export interface UniqueOrder {
 export interface StockOrderLineItem {
   id: string;
   fields: {
-    'Order Id': number;
+    'Order Id': number | string;
     'Device Type': string;
     'Date Ordered'?: string;
     'Quantity ordered'?: number;
@@ -182,7 +182,7 @@ export interface StockOrderLineItem {
 export interface DispatchLogEntry {
   id: string;
   fields: {
-    'Order Id'?: string[];
+    'Order Id'?: Array<string | number>;
     'Date Dispatched'?: string;
     'Item Category'?: string;
     'Item Nature'?: string;

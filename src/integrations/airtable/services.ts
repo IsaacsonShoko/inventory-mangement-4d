@@ -1140,7 +1140,8 @@ export const orderService = {
         const linkedOrders = fields['Order Id'] ?? [];
         const dispatchedDate = fields['Date Dispatched'];
 
-        linkedOrders.forEach((orderId) => {
+        linkedOrders.forEach((orderIdValue) => {
+          const orderId = String(orderIdValue);
           uniqueOrderIds.add(orderId);
 
           if (!dispatchDates.has(orderId)) {

@@ -192,11 +192,6 @@ const PickingCartNew = () => {
         pickStatus: item.pickStatus,
       }));
 
-      await stockOrderUpdateMutation.mutateAsync({
-        pickedItems: stockOrderUpdates,
-        orderNumber: orderNumber ?? undefined,
-      });
-
       // Prepare comprehensive payload for n8n webhook
       const uniqueOrderFields = uniqueOrder?.fields ?? null;
       const stockOrderItemsPayload = lineItems.map((item) => ({
@@ -254,6 +249,20 @@ const PickingCartNew = () => {
       // Send to n8n webhook
       await n8nService.notifyOrderPicked(payload);
 
+      let stockOrderUpdateError: Error | null = null;
+
+      try {
+        await stockOrderUpdateMutation.mutateAsync({
+          pickedItems: stockOrderUpdates,
+          orderNumber: orderNumber ?? undefined,
+        });
+      } catch (updateError) {
+        console.error('[Picking Cart] Stock order update failed:', updateError);
+        stockOrderUpdateError = updateError instanceof Error
+          ? updateError
+          : new Error('Unknown stock order update error');
+      }
+
       // Update unique order status
       await updateMutation.mutateAsync({
         recordId: recordId!,
@@ -266,6 +275,17 @@ const PickingCartNew = () => {
         title: 'Order picked successfully',
         description: `${pickedQuantity} items have been picked`,
       });
+
+      if (stockOrderUpdateError) {
+        toast({
+          title: 'Stock order update failed',
+          description:
+            stockOrderUpdateError.message ||
+            'Stock order lines could not be updated in Airtable. Please review the record manually.',
+          variant: 'destructive',
+          duration: 10000,
+        });
+      }
       setPickedItems([]);
       setShowSuccessModal(true);
     } catch (error) {
