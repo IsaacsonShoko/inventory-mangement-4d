@@ -209,6 +209,9 @@ export interface DispatchLogEntry {
     'Packer'?: string;
     'Item Code'?: string;
     'StockOrderID'?: string;
+    'Dispatcher'?: string;
+    'Dispatch_To_Location'?: string;
+    'Shipped'?: string | boolean;
   };
 }
 
