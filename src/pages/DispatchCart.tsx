@@ -43,6 +43,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useDispatchLog, useStockOrderItems, useUniqueOrderRecord, useUpdateUniqueOrder } from '@/hooks/useAirtable';
 import { useToast } from '@/hooks/use-toast';
 import { formatOrderNumber, getLineItemImageUrl } from '@/lib/orders';
+import { downloadOrderManifestPdf, type ManifestItemRow, type ManifestPayload } from '@/lib/order-manifest';
 import { n8nService } from '@/integrations/n8n';
 import ThemeToggle from '@/components/theme-toggle';
 
@@ -101,6 +102,37 @@ const DispatchCart = () => {
   const dispatchStatus = uniqueOrder?.fields['Dispatch Status'] ?? 'Pending';
   const dateOrdered = safeFormatDate(uniqueOrder?.fields['Date Ordered']);
 
+  const buildManifestPayload = (): ManifestPayload | null => {
+    if (!uniqueOrder) {
+      return null;
+    }
+
+    const manifestItems: ManifestItemRow[] = lineItems.map((item) => ({
+      deviceType: item.fields['Device Type'] ?? 'Unknown device',
+      serialNumber: item.fields['Terminal Serial Number'] ?? item.fields['Item Code'] ?? null,
+      packageReference: item.fields['Package Reference'] ?? item.fields['Waybill number'] ?? null,
+      chargerIncluded: (item.fields['Charger Packed'] ?? '').toString().toLowerCase() === 'y',
+      cablesIncluded: (item.fields['Cables'] ?? '').toString().toLowerCase() === 'y',
+    }));
+
+    const manifestPayload: ManifestPayload = {
+      orderNumber: orderNumber ?? uniqueOrder.fields['Order ID']?.toString() ?? recordId ?? 'Unknown',
+      orderDate: dateOrdered,
+      manifestDate: new Date(),
+      totalItems: manifestItems.length,
+      waybillNumber: waybillNumber || uniqueOrder.fields['WayBill Number'] || null,
+      customerName: uniqueOrder.fields['Recipient Name'] ?? null,
+      addressLine1: uniqueOrder.fields['Recipient Address'] ?? uniqueOrder.fields['Order Location'] ?? null,
+      addressLine2: uniqueOrder.fields['Region'] ?? null,
+      contactNumber: uniqueOrder.fields['Recipient Contact Number'] ?? uniqueOrder.fields['CellPhone Number'] ?? null,
+      deliveryInstructions:
+        additionalNotes || uniqueOrder.fields['Order Notes'] || uniqueOrder.fields['Order Summary (AI Generated)'] || null,
+      items: manifestItems,
+    };
+
+    return manifestPayload;
+  };
+
   const handleCompleteDispatch = () => {
     if (!recordId) return;
 
@@ -129,7 +161,7 @@ const DispatchCart = () => {
         fields,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
           toast({
             title: 'Dispatch completed',
             description: `${orderNumber ?? 'Order'} has been marked as dispatched.`,
@@ -158,6 +190,21 @@ const DispatchCart = () => {
             .catch((error) => {
               console.error('Failed to send order dispatched webhook', error);
             });
+
+          const manifestPayload = buildManifestPayload();
+
+          if (manifestPayload) {
+            try {
+              await downloadOrderManifestPdf(manifestPayload);
+            } catch (error) {
+              console.error('Failed to generate order manifest PDF', error);
+              toast({
+                title: 'Manifest generation failed',
+                description: 'Dispatch completed but the manifest could not be downloaded. Please try again.',
+                variant: 'destructive',
+              });
+            }
+          }
 
           setDialogOpen(false);
         },
