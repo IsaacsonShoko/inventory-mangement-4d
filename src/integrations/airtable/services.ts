@@ -1093,11 +1093,31 @@ export const orderService = {
     return results;
   },
 
-  async getDispatchLog(uniqueOrderRecordId: string): Promise<DispatchLogEntry[]> {
+  async getDispatchLog(orderNumber: string): Promise<DispatchLogEntry[]> {
     try {
+      const { stringValues, numericValues } = buildOrderIdForms(orderNumber);
+      
+      const clauses: string[] = [];
+      
+      // Add string-based clauses
+      stringValues.forEach((value) => {
+        clauses.push(`{Order Id} = '${escapeAirtableValue(value)}'`);
+      });
+      
+      // Add numeric-based clauses
+      numericValues.forEach((value) => {
+        clauses.push(`{Order Id} = ${value}`);
+      });
+      
+      if (clauses.length === 0) {
+        return [];
+      }
+      
+      const filterByFormula = clauses.length === 1 ? clauses[0] : `OR(${clauses.join(', ')})`;
+      
       const records = await tables.dispatchLog
         .select({
-          filterByFormula: `FIND('${escapeAirtableValue(uniqueOrderRecordId)}', ARRAYJOIN({Order Id}))`,
+          filterByFormula,
           sort: [{ field: 'Date Dispatched', direction: 'desc' }]
         })
         .all();

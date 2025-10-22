@@ -108,7 +108,7 @@ const DispatchCart = () => {
     error: itemsError,
   } = useStockOrderItems(orderNumber);
 
-  const { data: dispatchLog = [], isLoading: dispatchLogLoading } = useDispatchLog(recordId);
+  const { data: dispatchLog = [], isLoading: dispatchLogLoading } = useDispatchLog(orderNumber);
 
   const updateMutation = useUpdateUniqueOrder();
   const updateDispatchLogMutation = useUpdateDispatchLogEntries();

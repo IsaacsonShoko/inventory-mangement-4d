@@ -191,11 +191,11 @@ export const useStockOrderItemsByOrders = (orderNumbers: string[]) => {
   });
 };
 
-export const useDispatchLog = (uniqueOrderRecordId?: string) => {
+export const useDispatchLog = (orderNumber?: string) => {
   return useQuery({
-    queryKey: ['dispatchLog', uniqueOrderRecordId],
-    queryFn: () => orderService.getDispatchLog(uniqueOrderRecordId as string),
-    enabled: Boolean(uniqueOrderRecordId),
+    queryKey: ['dispatchLog', orderNumber],
+    queryFn: () => orderService.getDispatchLog(orderNumber as string),
+    enabled: Boolean(orderNumber),
     staleTime: 60 * 1000,
   });
 };
