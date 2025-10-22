@@ -1196,7 +1196,11 @@ export const orderService = {
           const pickStatus = coerceToString(order.fields['Pick Status']);
           const dispatchStatus = coerceToString(order.fields['Dispatch Status']);
 
-          return pickStatus && (!dispatchStatus || dispatchStatus.length === 0);
+          // Show orders that have been picked but not fully dispatched
+          const isPicked = pickStatus && (pickStatus.toLowerCase().includes('picked') || pickStatus === 'Picked');
+          const isNotDispatched = !dispatchStatus || dispatchStatus.length === 0 || dispatchStatus.toLowerCase() === 'pending';
+
+          return isPicked && isNotDispatched;
         });
 
       if (!orders.length) {
