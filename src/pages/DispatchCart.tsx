@@ -212,8 +212,14 @@ const DispatchCart = () => {
           return true;
         }
 
-        const orderIds = log.fields['Order Id'];
-        if (!orderIds) {
+        const orderIdField = log.fields['Order Id'];
+        const orderIds = Array.isArray(orderIdField)
+          ? orderIdField
+          : orderIdField !== undefined && orderIdField !== null
+            ? [orderIdField]
+            : [];
+
+        if (orderIds.length === 0) {
           return false;
         }
 
