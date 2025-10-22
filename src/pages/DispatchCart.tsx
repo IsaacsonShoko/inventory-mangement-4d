@@ -639,25 +639,38 @@ const DispatchCart = () => {
     );
   }, [additionalNotes, buildDispatchLogUpdates, dispatchItemForms, dispatchMethod, getDispatchLogIdForLineItem, lineItems, orderNumber, recordId, stockItemsById, toast, uniqueOrder?.fields, updateDispatchLogMutation, updateMutation, validateItemForm, waybillNumber]);
 
-  const buildManifestPayload = (): ManifestPayload | null => {
+  const buildManifestPayload = useCallback((): ManifestPayload | null => {
     if (!uniqueOrder) {
       return null;
     }
 
-    const manifestItems: ManifestItemRow[] = lineItems.map((item) => ({
-      deviceType: item.fields['Device Type'] ?? 'Unknown device',
-      serialNumber: item.fields['Terminal Serial Number'] ?? item.fields['Item Code'] ?? null,
-      packageReference: item.fields['Package Reference'] ?? item.fields['Waybill number'] ?? null,
-      chargerIncluded: (item.fields['Charger Packed'] ?? '').toString().toLowerCase() === 'y',
-      cablesIncluded: (item.fields['Cables'] ?? '').toString().toLowerCase() === 'y',
-    }));
+    const manifestItems: ManifestItemRow[] = lineItems.map((item) => {
+      // Get the dispatch log entry for this line item
+      const dispatchLogId = getDispatchLogIdForLineItem(item.id);
+      const dispatchLogEntry = dispatchLogId ? dispatchLogById[dispatchLogId] : null;
+
+      // Use dispatch log data if available, fallback to line item data
+      const packageReference = dispatchLogEntry?.fields['Package Reference'] ?? item.fields['Package Reference'] ?? null;
+      const waybillNumber = dispatchLogEntry?.fields['Waybill number'] ?? item.fields['Waybill number'] ?? null;
+
+      return {
+        deviceType: item.fields['Device Type'] ?? 'Unknown device',
+        serialNumber: item.fields['Terminal Serial Number'] ?? item.fields['Item Code'] ?? null,
+        packageReference: packageReference || waybillNumber,
+        chargerIncluded: (dispatchLogEntry?.fields['Charger Packed'] ?? item.fields['Charger Packed'] ?? '').toString().toLowerCase() === 'y',
+        cablesIncluded: (dispatchLogEntry?.fields['Cables'] ?? item.fields['Cables'] ?? '').toString().toLowerCase() === 'y',
+      };
+    });
+
+    // Use dispatch log waybill if available, fallback to global waybill
+    const primaryWaybill = dispatchLog.find(entry => entry.fields['Waybill number'])?.fields['Waybill number'] || waybillNumber;
 
     const manifestPayload: ManifestPayload = {
       orderNumber: orderNumber ?? uniqueOrder.fields['Order ID']?.toString() ?? recordId ?? 'Unknown',
       orderDate: dateOrdered,
       manifestDate: new Date(),
       totalItems: manifestItems.length,
-      waybillNumber: waybillNumber || uniqueOrder.fields['WayBill Number'] || null,
+      waybillNumber: primaryWaybill || uniqueOrder.fields['WayBill Number'] || null,
       customerName: uniqueOrder.fields['Recipient Name'] ?? null,
       addressLine1: uniqueOrder.fields['Recipient Address'] ?? uniqueOrder.fields['Order Location'] ?? null,
       addressLine2: uniqueOrder.fields['Region'] ?? null,
@@ -668,7 +681,7 @@ const DispatchCart = () => {
     };
 
     return manifestPayload;
-  };
+  }, [uniqueOrder, lineItems, getDispatchLogIdForLineItem, dispatchLogById, dispatchLog, waybillNumber, orderNumber, recordId, dateOrdered, additionalNotes]);
 
   return (
     <div className="min-h-screen bg-background">
