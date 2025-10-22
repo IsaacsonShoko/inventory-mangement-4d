@@ -349,16 +349,16 @@ const DispatchCart = () => {
         return 'Unable to determine dispatch details for this item. Please reopen and try again.';
       }
 
-      const method = formState.dispatchMethod ?? dispatchMethod;
+      const method = formState.dispatchMethod;
       const requiresWaybill = method ? methodsRequiringWaybill.has(method) : false;
 
       if (requiresWaybill && !formState.waybillNumber?.trim()) {
-        return 'Waybill number is required for delivery dispatches.';
+        return `Waybill number is required for ${method} dispatches.`;
       }
 
       return undefined;
     },
-    [dispatchMethod],
+    [],
   );
 
   const buildDispatchLogUpdates = useCallback((): DispatchLogUpdateInput[] => {
@@ -455,6 +455,17 @@ const DispatchCart = () => {
     }
 
     setIsSavingItem(true);
+
+    // Auto-populate time dispatched if not already set
+    const formWithTimestamp = {
+      ...currentForm,
+      timeDispatched: currentForm?.timeDispatched || new Date().toISOString(),
+    };
+
+    setDispatchItemForms((previous) => ({
+      ...previous,
+      [selectedDispatchLogId]: formWithTimestamp,
+    }));
 
     const updatePayload: DispatchLogUpdateInput[] = buildDispatchLogUpdates().filter(
       (update) => update.recordId === selectedDispatchLogId,
@@ -970,17 +981,6 @@ const DispatchCart = () => {
                     value={selectedFormState?.dispatchToLocation ?? ''}
                     onChange={(event) => handleFormChange('dispatchToLocation', event.target.value)}
                     placeholder="Destination or branch"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="dispatch-time">Time dispatched</Label>
-                  <Input
-                    id="dispatch-time"
-                    type="time"
-                    value={selectedFormState?.timeDispatched ?? ''}
-                    onChange={(event) => handleFormChange('timeDispatched', event.target.value)}
-                    placeholder="HH:MM"
                   />
                 </div>
 
