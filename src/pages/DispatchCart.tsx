@@ -422,11 +422,11 @@ const DispatchCart = () => {
       }
 
       if (form.chargerPacked !== undefined) {
-        fields['Charger Packed'] = form.chargerPacked;
+        fields['Charger Packed'] = form.chargerPacked === 'Y';
       }
 
       if (form.cables !== undefined) {
-        fields['Cables'] = form.cables;
+        fields['Cables'] = form.cables === 'Y';
       }
 
       if (Object.keys(fields).length > 0) {
@@ -717,8 +717,8 @@ const DispatchCart = () => {
         deviceType: item.fields['Device Type'] ?? 'Unknown device',
         serialNumber: item.fields['Terminal Serial Number'] ?? item.fields['Item Code'] ?? null,
         packageReference: packageReference || waybillNumber,
-        chargerIncluded: (dispatchLogEntry?.fields['Charger Packed'] ?? item.fields['Charger Packed'] ?? '').toString().toLowerCase() === 'y',
-        cablesIncluded: (dispatchLogEntry?.fields['Cables'] ?? item.fields['Cables'] ?? '').toString().toLowerCase() === 'y',
+        chargerIncluded: (dispatchLogEntry?.fields['Charger Packed'] ?? item.fields['Charger Packed'] ?? false) === true || (dispatchLogEntry?.fields['Charger Packed'] ?? item.fields['Charger Packed'] ?? '').toString().toLowerCase() === 'y',
+        cablesIncluded: (dispatchLogEntry?.fields['Cables'] ?? item.fields['Cables'] ?? false) === true || (dispatchLogEntry?.fields['Cables'] ?? item.fields['Cables'] ?? '').toString().toLowerCase() === 'y',
       };
     });
 
