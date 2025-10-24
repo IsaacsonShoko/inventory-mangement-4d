@@ -164,6 +164,20 @@ const DispatchCart = () => {
   const referencedCount = referencedItemIds.size;
   const totalLineItems = lineItems.length;
 
+  // Determine if this order uses multiple packages (if any item has multiplePackages = true)
+  const isMultiplePackagesMode = useMemo(() => {
+    return Object.values(dispatchItemForms).some(form => form.multiplePackages === true);
+  }, [dispatchItemForms]);
+
+  // In single package mode, all items are considered referenced if any one item is referenced
+  // In multiple packages mode, each item must be individually referenced
+  const effectiveReferencedCount = useMemo(() => {
+    if (!isMultiplePackagesMode && referencedCount > 0) {
+      return totalLineItems; // All items are effectively referenced in single package mode
+    }
+    return referencedCount;
+  }, [isMultiplePackagesMode, referencedCount, totalLineItems]);
+
   useEffect(() => {
     if (!dispatchLog.length) {
       return;
@@ -267,8 +281,15 @@ const DispatchCart = () => {
       }
     });
 
-    setReferencedItemIds(referenced);
-  }, [dispatchLogById, getDispatchLogIdForLineItem, lineItems]);
+    // In single package mode, if any item is referenced, mark all items as referenced
+    if (!isMultiplePackagesMode && referenced.size > 0) {
+      const allReferenced = new Set<string>();
+      lineItems.forEach((item) => allReferenced.add(item.id));
+      setReferencedItemIds(allReferenced);
+    } else {
+      setReferencedItemIds(referenced);
+    }
+  }, [dispatchLogById, getDispatchLogIdForLineItem, lineItems, isMultiplePackagesMode]);
 
   const openLineItemSheet = useCallback(
     (lineItemId: string) => {
@@ -425,12 +446,21 @@ const DispatchCart = () => {
         if (previous.has(lineItemId)) {
           return previous;
         }
+
         const next = new Set(previous);
-        next.add(lineItemId);
+
+        if (isMultiplePackagesMode) {
+          // In multiple packages mode, only mark the specific item
+          next.add(lineItemId);
+        } else {
+          // In single package mode, mark all items as referenced when any one is referenced
+          lineItems.forEach((item) => next.add(item.id));
+        }
+
         return next;
       });
     },
-    [],
+    [isMultiplePackagesMode, lineItems],
   );
 
   const handleSaveItem = useCallback(async () => {
@@ -517,6 +547,18 @@ const DispatchCart = () => {
       toast({
         title: 'Missing information',
         description: validationError,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if required items are referenced based on package mode
+    const requiredReferencedCount = isMultiplePackagesMode ? totalLineItems : 1;
+    if (effectiveReferencedCount < requiredReferencedCount) {
+      const modeText = isMultiplePackagesMode ? 'multiple packages' : 'single package';
+      toast({
+        title: 'Items not fully referenced',
+        description: `In ${modeText} mode, ${isMultiplePackagesMode ? 'all items must be' : 'at least one item must be'} referenced before dispatch.`,
         variant: 'destructive',
       });
       return;
@@ -637,7 +679,7 @@ const DispatchCart = () => {
         },
       },
     );
-  }, [additionalNotes, buildDispatchLogUpdates, dispatchItemForms, dispatchMethod, getDispatchLogIdForLineItem, lineItems, orderNumber, recordId, stockItemsById, toast, uniqueOrder?.fields, updateDispatchLogMutation, updateMutation, validateItemForm, waybillNumber]);
+  }, [additionalNotes, buildDispatchLogUpdates, dispatchItemForms, dispatchMethod, effectiveReferencedCount, getDispatchLogIdForLineItem, isMultiplePackagesMode, lineItems, orderNumber, recordId, stockItemsById, toast, totalLineItems, uniqueOrder?.fields, updateDispatchLogMutation, updateMutation, validateItemForm, waybillNumber]);
 
   const buildManifestPayload = useCallback((): ManifestPayload | null => {
     if (!uniqueOrder) {
@@ -781,9 +823,14 @@ const DispatchCart = () => {
               {totalLineItems > 0 && (
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline" className="font-medium">
-                    {referencedCount} of {totalLineItems} items referenced
+                    {effectiveReferencedCount} of {totalLineItems} items referenced
                   </Badge>
-                  <span>Tap a row to capture dispatch details.</span>
+                  <span>
+                    {isMultiplePackagesMode
+                      ? 'Each item must be referenced individually.'
+                      : 'Reference any one item to enable dispatch completion.'
+                    }
+                  </span>
                 </div>
               )}
             </div>
@@ -860,13 +907,28 @@ const DispatchCart = () => {
                           {item.fields['Waybill number'] ?? item.fields['Package Reference'] ?? '—'}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
-                          {referenced ? (
-                            <Badge variant="secondary" className="text-xs">
-                              Referenced
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Not referenced</span>
-                          )}
+                          {(() => {
+                            if (isMultiplePackagesMode) {
+                              // In multiple packages mode, show individual status
+                              return referenced ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  Referenced
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not referenced</span>
+                              );
+                            } else {
+                              // In single package mode, show based on effective status
+                              const isEffectivelyReferenced = effectiveReferencedCount === totalLineItems;
+                              return isEffectivelyReferenced ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  Referenced
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Not referenced</span>
+                              );
+                            }
+                          })()}
                         </TableCell>
                       </TableRow>
                     );
