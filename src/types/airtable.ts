@@ -164,8 +164,8 @@ export interface StockOrderLineItem {
     'Cradle Serial Number'?: string;
     'Charger Serial Number'?: string;
     'CashConnect Serial Number'?: string;
-    'Charger Packed'?: string | boolean;
-    'Cables'?: string | boolean;
+    'Charger Packed'?: string;
+    'Cables'?: string;
     'Packer'?: string;
     'Dispatch Method'?: string;
     'Warehouse Fulfilling'?: string;
@@ -204,8 +204,8 @@ export interface DispatchLogEntry {
     'Cradle Serial Number'?: string;
     'Charger Serial Number'?: string;
     'CashConnect Serial Number'?: string;
-    'Charger Packed'?: string | boolean;
-    'Cables'?: string | boolean;
+    'Charger Packed'?: string;
+    'Cables'?: string;
     'Packer'?: string;
     'Item Code'?: string;
     'StockOrderID'?: string;
