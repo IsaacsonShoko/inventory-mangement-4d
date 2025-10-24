@@ -61,7 +61,7 @@ import { formatOrderNumber, getLineItemImageUrl } from '@/lib/orders';
 import { downloadOrderManifestPdf, type ManifestItemRow, type ManifestPayload } from '@/lib/order-manifest';
 import { n8nService } from '@/integrations/n8n';
 import ThemeToggle from '@/components/theme-toggle';
-import { cn } from '@/lib/utils';
+import { cn, coerceToString } from '@/lib/utils';
 import type { DispatchLogEntry, StockOrderLineItem } from '@/types/airtable';
 import type { DispatchLogUpdateInput } from '@/integrations/airtable';
 
@@ -666,17 +666,17 @@ const DispatchCart = () => {
     const primaryWaybill = dispatchLog.find(entry => entry.fields['Waybill number'])?.fields['Waybill number'] || waybillNumber;
 
     const manifestPayload: ManifestPayload = {
-      orderNumber: orderNumber ?? uniqueOrder.fields['Order ID']?.toString() ?? recordId ?? 'Unknown',
+      orderNumber: orderNumber ?? coerceToString(uniqueOrder.fields['Order ID']) ?? recordId ?? 'Unknown',
       orderDate: dateOrdered,
       manifestDate: new Date(),
       totalItems: manifestItems.length,
-      waybillNumber: primaryWaybill || uniqueOrder.fields['WayBill Number'] || null,
-      customerName: uniqueOrder.fields['Recipient Name'] ?? null,
-      addressLine1: uniqueOrder.fields['Recipient Address'] ?? uniqueOrder.fields['Order Location'] ?? null,
-      addressLine2: uniqueOrder.fields['Region'] ?? null,
-      contactNumber: uniqueOrder.fields['Recipient Contact Number'] ?? uniqueOrder.fields['CellPhone Number'] ?? null,
+      waybillNumber: primaryWaybill || coerceToString(uniqueOrder.fields['WayBill Number']) || null,
+      customerName: coerceToString(uniqueOrder.fields['Recipient Name']) || null,
+      addressLine1: coerceToString(uniqueOrder.fields['Recipient Address']) || coerceToString(uniqueOrder.fields['Order Location']) || null,
+      addressLine2: coerceToString(uniqueOrder.fields['Region']) || null,
+      contactNumber: coerceToString(uniqueOrder.fields['Recipient Contact Number']) || coerceToString(uniqueOrder.fields['CellPhone Number']) || null,
       deliveryInstructions:
-        additionalNotes || uniqueOrder.fields['Order Notes'] || uniqueOrder.fields['Order Summary (AI Generated)'] || null,
+        additionalNotes || coerceToString(uniqueOrder.fields['Order Notes']) || coerceToString(uniqueOrder.fields['Order Summary (AI Generated)']) || null,
       items: manifestItems,
     };
 
