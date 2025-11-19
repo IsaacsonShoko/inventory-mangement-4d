@@ -1,8 +1,8 @@
 const submitOrderWebhookUrl = import.meta.env.VITE_N8N_SUBMIT_ORDER_WEBHOOK_URL;
 const orderPlacedWebhookUrl = import.meta.env.VITE_N8N_ORDER_PLACED_WEBHOOK_URL;
-const orderPickedWebhookUrl = import.meta.env.VITE_N8N_ORDER_PICKED_WEBHOOK_URL ?? 'http://localhost:5678/webhook-test/a02fb1f6-4a82-45cf-95ba-c834c7f33772';
-const orderDispatchedWebhookUrl = import.meta.env.VITE_N8N_ORDER_DISPATCHED_WEBHOOK_URL ?? 'http://localhost:5678/webhook-test/2bd2d581-51d5-4f97-9a3d-cdf2c764a768';
-const orderManifestWebhookUrl = import.meta.env.VITE_N8N_ORDER_MANIFEST_WEBHOOK_URL ?? 'http://localhost:5678/webhook-test/63abdb10-c749-4046-ac8d-4686dd813b17';
+const orderPickedWebhookUrl = import.meta.env.VITE_N8N_ORDER_PICKED_WEBHOOK_URL ?? 'http://84.8.132.23:5678/webhook/a02fb1f6-4a82-45cf-95ba-c834c7f33772';
+const orderDispatchedWebhookUrl = import.meta.env.VITE_N8N_ORDER_DISPATCHED_WEBHOOK_URL ?? 'http://84.8.132.23:5678/webhook/2bd2d581-51d5-4f97-9a3d-cdf2c764a768';
+const orderManifestWebhookUrl = import.meta.env.VITE_N8N_ORDER_MANIFEST_WEBHOOK_URL ?? 'http://84.8.132.23:5678/webhook/63abdb10-c749-4046-ac8d-4686dd813b17';
 
 const assertWebhookConfigured = (url: string | undefined, name: string) => {
   if (!url || url.trim().length === 0) {
