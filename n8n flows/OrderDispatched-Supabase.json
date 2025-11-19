@@ -1,0 +1,173 @@
+{
+  "name": "OrderDispatched-Supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-dispatched",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-544, -112],
+      "id": "webhook",
+      "name": "Webhook",
+      "webhookId": "order-dispatched"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the first incoming item\nconst input = items[0].json;\n\n// Flatten each item in the items array\nconst flattened = input.items.map(item => ({\n  orderId: input.orderId,\n  uniqueOrderRecordId: input.uniqueOrderRecordId,\n  dateOrdered: input.dateOrdered,\n  totalItems: input.totalItems,\n  totalQuantity: input.totalQuantity,\n  orderedBy: input.orderedBy,\n  deliveryParty: input.deliveryParty,\n  contractorCompany: input.contractorCompany,\n  region: input.region,\n  technician: input.technician,\n  onBehalfOf: input.onBehalfOf,\n  orderLocation: input.orderLocation,\n  recipientName: input.recipientName,\n  recipientCompanyName: input.recipientCompanyName,\n  recipientAddress: input.recipientAddress,\n  recipientContactNumber: input.recipientContactNumber,\n  recipientEmail: input.recipientEmail,\n  cellPhoneNumber: input.cellPhoneNumber,\n  warehouseFulfilling: input.warehouseFulfilling,\n  deliverToParty: input.deliverToParty,\n\n  // Item-level fields\n  deviceType: item.deviceType,\n  quantityOrdered: item.quantityOrdered,\n  itemUrl: item.itemUrl,\n  itemCode: item.itemCode,\n\n  // Metadata fields\n  dispatchMethod: input.metadata?.dispatchMethod,\n  waybillNumber: input.metadata?.waybillNumber,\n  dispatchStatus: input.metadata?.dispatchStatus,\n  pickStatus: input.metadata?.pickStatus,\n  additionalNotes: input.metadata?.additionalNotes\n}));\n\n// Return multiple items\nreturn flattened.map(f => ({ json: f }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-304, -112],
+      "id": "flatten-array",
+      "name": "Flatten array"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE unique_orders SET\n  dispatch_status = '{{ $json.dispatchStatus || \"Dispatched\" }}',\n  dispatch_method = '{{ $json.dispatchMethod }}',\n  waybill_number = {{ $json.waybillNumber ? \"'\" + $json.waybillNumber + \"'\" : \"NULL\" }}\nWHERE order_id = {{ parseInt($json.orderId.replace(/\\\\D/g, '')) }};",
+        "options": {}
+      },
+      "id": "update-order-status",
+      "name": "Update Order Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [-50, -112],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_SUPABASE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [200, -112],
+      "id": "aggregate",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all items from input\nconst items = $input.all();\nconst firstItem = items[0].json.data ? items[0].json.data[0] : items[0].json;\n\n// Determine dispatch type\nconst isCollection = firstItem.dispatchMethod === 'Collection' || firstItem.dispatchMethod === 'Pickup';\n\n// Build items HTML\nlet itemsHtml = '';\nconst allData = items[0].json.data || [firstItem];\nfor (const data of allData) {\n  itemsHtml += `\n    <tr>\n      <td style=\"padding: 15px 0; border-bottom: 1px solid #eeeeee;\">\n        <h3 style=\"margin: 0 0 5px 0; color: #333333; font-size: 16px;\">${data.deviceType}</h3>\n        <p style=\"margin: 0; color: #666666; font-size: 13px;\">Qty: ${data.quantityOrdered}</p>\n      </td>\n    </tr>\n  `;\n}\n\nconst headerTitle = isCollection ? 'Order Ready for Collection' : 'Order Dispatched';\nconst alertMessage = isCollection \n  ? `Please collect your order from: ${firstItem.warehouseFulfilling}`\n  : `Your order will be dispatched via ${firstItem.deliveryParty}`;\n\nreturn [{\n  json: {\n    headerTitle: headerTitle,\n    recipientName: firstItem.recipientName,\n    recipientEmail: firstItem.recipientEmail,\n    orderId: firstItem.orderId,\n    alertMessage: alertMessage,\n    dateOrdered: firstItem.dateOrdered,\n    totalItems: firstItem.totalItems,\n    totalQuantity: firstItem.totalQuantity,\n    orderedBy: firstItem.orderedBy,\n    warehouseFulfilling: firstItem.warehouseFulfilling,\n    region: firstItem.region,\n    recipientAddress: firstItem.recipientAddress,\n    recipientContactNumber: firstItem.recipientContactNumber,\n    waybillNumber: firstItem.waybillNumber,\n    itemsHtml: itemsHtml\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, -112],
+      "id": "build-email",
+      "name": "Build Email Content"
+    },
+    {
+      "parameters": {
+        "fromEmail": "admin@4danalytics.co.za",
+        "toEmail": "={{ $json.recipientEmail }}",
+        "subject": "={{ $json.headerTitle }} - {{ $json.orderId }}",
+        "html": "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"/></head><body style=\"font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;\"><table width=\"600\" style=\"background-color: #ffffff; border-radius: 8px; margin: 0 auto;\"><tr><td style=\"background: linear-gradient(135deg, #9C0DD9 0%, #7209B7 100%); padding: 40px 30px; text-align: center;\"><h1 style=\"margin: 0; color: #ffffff;\">{{ $json.headerTitle }}</h1></td></tr><tr><td style=\"padding: 30px;\"><p>Hi <strong>{{ $json.recipientName }}</strong>,</p><p>{{ $json.alertMessage }}</p><table width=\"100%\" style=\"background-color: #f8f9fa; border-radius: 6px; margin: 20px 0;\"><tr><td style=\"padding: 20px;\"><p><strong>Order:</strong> {{ $json.orderId }}</p><p><strong>Date:</strong> {{ $json.dateOrdered }}</p><p><strong>Warehouse:</strong> {{ $json.warehouseFulfilling }}</p>{{ $json.waybillNumber ? '<p><strong>Waybill:</strong> ' + $json.waybillNumber + '</p>' : '' }}</td></tr></table><h3>Items:</h3><table width=\"100%\">{{ $json.itemsHtml }}</table></td></tr><tr><td style=\"background-color: #f8f9fa; padding: 25px; text-align: center;\"><p style=\"color: #999999; font-size: 13px;\">4D Logistics Inventory Management System</p></td></tr></table></body></html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [700, -112],
+      "id": "send-email",
+      "name": "Send Email",
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Order dispatched notification sent\" } }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [950, -112]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Flatten array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten array": {
+      "main": [
+        [
+          {
+            "node": "Update Order Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order Status": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Build Email Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email Content": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "notes": "Supabase version - Updates unique_orders dispatch status and sends email notification."
+  }
+}
