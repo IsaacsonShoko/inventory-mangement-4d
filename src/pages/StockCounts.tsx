@@ -1,656 +1,828 @@
-import { useState, useEffect, useRef } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  Search, Filter, Plus, RefreshCw, Check, X, ClipboardList, Loader2, Barcode, Camera
-} from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Search, Plus, Package, Trash2, CheckCircle2, Loader2, ArrowLeft, ClipboardList } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import {
+  useInventoryItems,
+  useItemCategories,
+  useContractors,
+  useRegions,
+  useTechnicians,
+} from "@/hooks/useAirtable";
+import { Skeleton } from "@/components/ui/skeleton";
+import ThemeToggle from "@/components/theme-toggle";
+import { stockCountService, type StockCountSubmission } from "@/services/stockCountService";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from '@/components/ui/form';
-import { useToast } from '@/components/ui/use-toast';
-import { ScrollArea } from '@/components/ui/scroll-area';
+type CountType = 'Monthly' | 'Mid-Month' | 'Daily';
+type StockHolderType = 'Technician' | 'Warehouse' | 'OEM' | '';
 
-import { stockCountService } from '@/services/stockCountService';
-import { StockItem, StockCountFormData } from '@/types/stock';
-import { BarcodeScanner } from '@/components/BarcodeScanner';
+interface CartItem {
+  id: string;
+  deviceType: string;
+  itemDescription: string;
+  itemCategory: string;
+  itemNature: string;
+  quantity: number;
+  itemUrl?: string;
+  thumbnail?: string;
+}
 
-// Form validation schema
-const formSchema = z.object({
-  countType: z.enum(['Monthly', 'Mid-Month', 'Daily']),
-  stockHolder: z.string().min(1, 'Stock holder is required'),
-  nameOrLocation: z.string().min(1, 'Name or location is required'),
-  itemCategory: z.string().min(1, 'Item category is required'),
-  binLocation: z.string().optional(),
-  deviceType: z.string().min(1, 'Device type is required'),
-  itemNature: z.enum(['Serialised', 'Non-serialised']),
-  itemCode: z.string().min(1, 'Item code is required'),
-  itemDescription: z.string().min(1, 'Item description is required'),
-  quantity: z.number().min(0, 'Quantity must be 0 or greater'),
-  manufactureSerialNumber: z.string().optional(),
-  qrCodeSerialNumber: z.string().optional(),
-  xlinkSerialNumber: z.string().optional(),
-  cradleSerialNumber: z.string().optional(),
-  chargerSerialNumber: z.string().optional(),
-  itemStatus: z.string().min(1, 'Item status is required'),
-  faultReason: z.string().optional(),
-  overallCondition: z.string().optional(),
-  xliCaseRef: z.string().optional(),
-  contractorCompany: z.string().min(1, 'Contractor company is required'),
-  contractorRegion: z.string().min(1, 'Contractor region is required'),
-  technicianName: z.string().min(1, 'Technician name is required'),
-  techId: z.string().min(1, 'Tech ID is required'),
-});
+// Stock holder options (simulating Profiles table from PowerApp)
+const STOCK_HOLDERS = ['Warehouse', 'OEM', 'Technician'];
 
-type FormValues = z.infer<typeof formSchema>;
+// Name/Location options per stock holder (simulating Profiles table)
+const LOCATION_OPTIONS: Record<string, string[]> = {
+  'Warehouse': ['Johannesburg Main', 'Cape Town', 'Durban', 'Pretoria'],
+  'OEM': ['Manufacturer A', 'Manufacturer B', 'Manufacturer C'],
+  'Technician': [] // Will be populated from contractor/technician selection
+};
+
+const createFormSchema = (stockHolder: StockHolderType, itemNature: string) => {
+  const baseSchema = {
+    countType: z.enum(['Monthly', 'Mid-Month', 'Daily']),
+    stockHolder: z.string().min(1, "Stock holder is required"),
+    itemCategory: z.string().min(1, "Item category is required").refine(val => val !== "select", "Please select a category"),
+    itemNature: z.string().min(1, "Item nature is required").refine(val => val !== "select", "Please select item nature"),
+    binLocation: z.string().optional(),
+  };
+
+  if (stockHolder === 'Technician') {
+    return z.object({
+      ...baseSchema,
+      contractorCompany: z.string().min(1, "Contractor company is required").refine(val => val !== "select", "Please select a contractor"),
+      contractorRegion: z.string().min(1, "Region is required").refine(val => val !== "select", "Please select a region"),
+      technicianName: z.string().min(1, "Technician is required").refine(val => val !== "select", "Please select a technician"),
+      techId: z.string().min(1, "Tech ID is required"),
+    });
+  } else {
+    return z.object({
+      ...baseSchema,
+      nameOrLocation: z.string().min(1, "Name or location is required"),
+    });
+  }
+};
 
 const StockCounts = () => {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [itemCategory, setItemCategory] = useState('');
-  const [isSerialized, setIsSerialized] = useState<boolean | undefined>(undefined);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [showScanner, setShowScanner] = useState(false);
-  const [currentScanField, setCurrentScanField] = useState<string | null>(null);
-  const scannerRef = useRef<{ closeScanner: () => void }>(null);
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formVisible, setFormVisible] = useState(false);
 
-  // Initialize form
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<any>({
+    resolver: zodResolver(createFormSchema('', '')),
     defaultValues: {
-      countType: 'Monthly',
-      itemNature: 'Non-serialised',
-      quantity: 1,
+      countType: "Monthly",
+      stockHolder: "",
+      nameOrLocation: "",
+      itemCategory: "select",
+      itemNature: "select",
+      binLocation: "",
+      contractorCompany: "select",
+      contractorRegion: "select",
+      technicianName: "select",
+      techId: "",
     },
   });
 
-  // Fetch stock items
-  const { data: stockItems = [], isLoading, refetch } = useQuery({
-    queryKey: ['stockItems', { searchTerm, itemCategory, isSerialized }],
-    queryFn: () => 
-      stockCountService.getStockItems({
-        searchTerm,
-        itemCategory: itemCategory || undefined,
-        isSerialized,
-      }),
-  });
+  const stockHolder = form.watch("stockHolder") as StockHolderType;
+  const selectedCategory = form.watch("itemCategory");
+  const selectedNature = form.watch("itemNature");
+  const selectedContractor = form.watch("contractorCompany");
+  const selectedRegion = form.watch("contractorRegion");
+  const selectedTechnician = form.watch("technicianName");
+  const countType = form.watch("countType");
 
-  // Create or update stock count
-  const mutation = useMutation({
-    mutationFn: async (data: StockCountFormData) => {
-      if (editingId) {
-        return stockCountService.updateStockCount(editingId, data);
+  // Update form schema when stockHolder or itemNature changes
+  useEffect(() => {
+    const newSchema = createFormSchema(stockHolder, selectedNature);
+    form.clearErrors();
+  }, [stockHolder, selectedNature]);
+
+  // Normalize values for API calls
+  const normalizedCategory = selectedCategory && selectedCategory !== "select" ? selectedCategory : undefined;
+  const normalizedNature = selectedNature && selectedNature !== "select" ? selectedNature : undefined;
+  const normalizedContractor = selectedContractor && selectedContractor !== "select" ? selectedContractor : undefined;
+  const normalizedRegion = selectedRegion && selectedRegion !== "select" ? selectedRegion : undefined;
+
+  // Handle special case for Xlink -> MODEM category
+  const categoryForFilter = normalizedCategory === "Xlink" ? "MODEM" : normalizedCategory;
+
+  const inventoryFilters = categoryForFilter
+    ? {
+        category: categoryForFilter,
+        ...(normalizedNature ? { serialized: normalizedNature } : {}),
       }
-      return stockCountService.createStockCount(data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['stockItems'] });
-      toast({
-        title: 'Success',
-        description: editingId ? 'Stock count updated successfully' : 'Stock count created successfully',
-      });
-      resetForm();
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'An error occurred',
-        variant: 'destructive',
-      });
-    },
-  });
+    : undefined;
 
-  // Handle form submission
-  const onSubmit = (data: FormValues) => {
-    mutation.mutate(data as StockCountFormData);
-  };
+  const shouldRefetchInventory = Boolean(inventoryFilters);
 
-  // Handle barcode scan result
-  const handleBarcodeScanned = (result: string) => {
-    if (currentScanField) {
-      form.setValue(currentScanField as any, result, { shouldValidate: true });
-      setCurrentScanField(null);
+  // Data fetching
+  const { data: categories, isLoading: categoriesLoading } = useItemCategories();
+  const { data: contractors, isLoading: contractorsLoading } = useContractors();
+  const { data: regions, isLoading: regionsLoading } = useRegions(normalizedContractor, undefined);
+  const { data: technicians, isLoading: techniciansLoading } = useTechnicians(normalizedContractor, normalizedRegion);
+  const {
+    data: inventory,
+    isLoading: inventoryLoading,
+    isFetching: inventoryFetching,
+  } = useInventoryItems(inventoryFilters);
+
+  const isInventoryLoading = inventoryLoading || inventoryFetching;
+
+  // Handle count type selection
+  useEffect(() => {
+    if (countType) {
+      setFormVisible(true);
     }
-    setShowScanner(false);
-  };
+  }, [countType]);
 
-  // Open scanner for a specific field
-  const openScanner = (fieldName: string) => {
-    setCurrentScanField(fieldName);
-    setShowScanner(true);
-  };
+  // Auto-populate Tech ID when technician is selected
+  useEffect(() => {
+    if (selectedTechnician && selectedTechnician !== "select" && technicians) {
+      const tech = technicians.find(t => t.fields['Name & Surname'] === selectedTechnician);
+      if (tech) {
+        form.setValue("techId", tech.id || "");
+      }
+    }
+  }, [selectedTechnician, technicians, form]);
 
-  // Reset form
-  const resetForm = () => {
-    form.reset();
-    setEditingId(null);
-    setIsFormOpen(false);
-    setShowScanner(false);
-    setCurrentScanField(null);
-  };
-
-  // Edit stock count
-  const handleEdit = (item: StockItem) => {
-    form.reset({
-      countType: item.countType,
-      stockHolder: item.stockHolder,
-      nameOrLocation: item.nameOrLocation,
-      itemCategory: item.itemCategory,
-      binLocation: item.binLocation,
-      deviceType: item.deviceType,
-      itemNature: item.itemNature,
-      itemCode: item.itemCode,
-      itemDescription: item.itemDescription,
-      quantity: item.quantity,
-      manufactureSerialNumber: item.manufactureSerialNumber,
-      qrCodeSerialNumber: item.qrCodeSerialNumber,
-      xlinkSerialNumber: item.xlinkSerialNumber,
-      cradleSerialNumber: item.cradleSerialNumber,
-      chargerSerialNumber: item.chargerSerialNumber,
-      itemStatus: item.itemStatus,
-      faultReason: item.faultReason,
-      overallCondition: item.overallCondition,
-      xliCaseRef: item.xliCaseRef,
-      contractorCompany: item.contractorCompany,
-      contractorRegion: item.contractorRegion,
-      technicianName: item.technicianName,
-      techId: item.techId,
-    });
-    setEditingId(item.id);
-    setIsFormOpen(true);
-  };
-
-  // Get unique categories for filter
-  const categories = [...new Set(stockItems.map(item => item.itemCategory))];
-
-  if (isLoading) {
+  // Filter inventory by search
+  const filteredInventory = inventory?.filter((item) => {
+    if (!searchQuery) return true;
+    const search = searchQuery.toLowerCase();
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading stock items...</span>
-      </div>
+      item.fields['Device Type']?.toLowerCase().includes(search) ||
+      item.fields['Item_Description']?.toLowerCase().includes(search)
     );
-  }
+  }) || [];
+
+  const addToCart = (item: any) => {
+    const quantity = quantities[item.id] || 0;
+    if (quantity <= 0) return;
+
+    // For Cash Connect, use Item Description as Device Type
+    const deviceType = selectedCategory === "Cash Connect"
+      ? item.fields['Item_Description']
+      : item.fields['Device Type'];
+
+    const cartItem: CartItem = {
+      id: item.id,
+      deviceType: deviceType,
+      itemDescription: item.fields['Item_Description'],
+      itemCategory: item.fields['Item_Category'],
+      itemNature: item.fields['Item_Nature'],
+      quantity: quantity,
+      itemUrl: item.fields['Item_Url'] || item.fields['Item Url'] || item.fields['Item_Url'],
+      thumbnail: item.fields.Thumbnail?.[0]?.url,
+    };
+
+    setCart([...cart, cartItem]);
+    setQuantities({ ...quantities, [item.id]: 0 });
+    setShowSuccessModal(true);
+
+    toast({
+      title: "Item added",
+      description: `${deviceType} has been added to your cart.`,
+    });
+  };
+
+  const removeFromCart = (itemId: string) => {
+    setCart(cart.filter(item => item.id !== itemId));
+    toast({
+      title: "Item removed",
+      description: "Item has been removed from your cart.",
+    });
+  };
+
+  const submitStockCount = async () => {
+    // Validate form
+    const isValid = await form.trigger();
+    if (!isValid) {
+      toast({
+        title: "Form incomplete",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (cart.length === 0) {
+      toast({
+        title: "Cart is empty",
+        description: "Please add items to your cart before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const formValues = form.getValues();
+
+      // Prepare batch submission (similar to PowerApp's ForAll)
+      const submissions: StockCountSubmission[] = cart.map(item => ({
+        'Count Type': formValues.countType,
+        'Stock Holder': formValues.stockHolder,
+        'Name or Location': stockHolder === 'Technician'
+          ? formValues.technicianName
+          : formValues.nameOrLocation,
+        'Item Category': item.itemCategory,
+        'BIN LOCATION': formValues.binLocation || '',
+        'Device Type': item.deviceType,
+        'Item Nature': item.itemNature,
+        'Item Code': item.deviceType,
+        'Item Description': item.itemDescription,
+        'Quantity': item.quantity,
+        'Contractor Company': stockHolder === 'Technician' ? formValues.contractorCompany : '',
+        'Contractor Region': stockHolder === 'Technician' ? formValues.contractorRegion : '',
+        'Technician Name': stockHolder === 'Technician' ? formValues.technicianName : '',
+        'Tech ID': stockHolder === 'Technician' ? formValues.techId : '',
+      }));
+
+      // Submit to Airtable 'Rolledup Stock Counts' table
+      await stockCountService.submitStockCounts(submissions);
+
+      toast({
+        title: "Stock count submitted",
+        description: `Successfully submitted ${cart.length} item(s).`,
+      });
+
+      // Clear collections
+      setCart([]);
+      setQuantities({});
+      form.reset({
+        countType: "Monthly",
+        stockHolder: "",
+        nameOrLocation: "",
+        itemCategory: "select",
+        itemNature: "select",
+        binLocation: "",
+        contractorCompany: "select",
+        contractorRegion: "select",
+        technicianName: "select",
+        techId: "",
+      });
+      setFormVisible(false);
+
+    } catch (error) {
+      console.error("Stock count submission error:", error);
+      toast({
+        title: "Submission failed",
+        description: error instanceof Error ? error.message : "There was an error submitting your stock count.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isSearchEnabled = Boolean(
+    normalizedCategory &&
+    normalizedNature &&
+    formVisible
+  );
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <ClipboardList className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Stock Counts</h1>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="bg-primary text-primary-foreground py-4 shadow-sm">
+        <div className="container mx-auto px-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-primary-foreground hover:bg-primary-foreground/20"
+              onClick={() => navigate('/')}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-semibold">Xlink Stock Count</h1>
+          </div>
+          <ThemeToggle variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/20" />
         </div>
-        <Button onClick={() => {
-          resetForm();
-          setIsFormOpen(true);
-        }}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Count
-        </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="search">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Search items..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="itemCategory">Category</Label>
-              <Select
-                value={itemCategory}
-                onValueChange={(value) => setItemCategory(value === 'all' ? '' : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Item Nature</Label>
-              <Select
-                value={isSerialized === undefined ? 'all' : isSerialized ? 'serialized' : 'non-serialized'}
-                onValueChange={(value) => {
-                  if (value === 'all') setIsSerialized(undefined);
-                  else setIsSerialized(value === 'serialized');
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="serialized">Serialized</SelectItem>
-                  <SelectItem value="non-serialized">Non-serialized</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-end">
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => {
-                  setSearchTerm('');
-                  setItemCategory('');
-                  setIsSerialized(undefined);
-                }}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Reset Filters
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stock Items Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle>Stock Items</CardTitle>
-            <div className="text-sm text-muted-foreground">
-              {stockItems.length} {stockItems.length === 1 ? 'item' : 'items'} found
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[500px] rounded-md border">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead>Device Type</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Bin Location</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stockItems.length > 0 ? (
-                  stockItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.deviceType}</TableCell>
-                      <TableCell>{item.itemDescription}</TableCell>
-                      <TableCell>{item.itemCategory}</TableCell>
-                      <TableCell>{item.binLocation || '-'}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          item.itemStatus === 'In Stock' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {item.itemStatus}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleEdit(item)}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No stock items found. Try adjusting your filters.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </CardContent>
-      </Card>
-
-      {/* Add/Edit Stock Count Form */}
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-3xl">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>
-                  {editingId ? 'Edit Stock Count' : 'New Stock Count'}
-                </CardTitle>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={resetForm}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+          {/* Left Panel: Form */}
+          <Card className="h-fit bg-card border border-border/50 shadow-sm sticky top-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Enter Stock Details</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4 space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto">
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="countType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Count Type</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
+                <form className="space-y-4">
+                  {/* Count Type */}
+                  <FormField
+                    control={form.control}
+                    name="countType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-semibold">
+                          Select the Cycle you want to perform <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            className="flex gap-4"
                           >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select count type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Monthly">Monthly</SelectItem>
-                              <SelectItem value="Mid-Month">Mid-Month</SelectItem>
-                              <SelectItem value="Daily">Daily</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="Monthly" id="monthly" />
+                              <Label htmlFor="monthly" className="text-sm cursor-pointer">Monthly</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="Mid-Month" id="mid-month" />
+                              <Label htmlFor="mid-month" className="text-sm cursor-pointer">Mid-Month</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="Daily" id="daily" />
+                              <Label htmlFor="daily" className="text-sm cursor-pointer">Daily</Label>
+                            </div>
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={form.control}
-                      name="stockHolder"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Stock Holder</FormLabel>
+                  {/* Stock Holder */}
+                  <FormField
+                    control={form.control}
+                    name="stockHolder"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Stock Holder</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <Input {...field} />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select stock holder" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                          <SelectContent>
+                            {STOCK_HOLDERS.map((holder) => (
+                              <SelectItem key={holder} value={holder}>
+                                {holder}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
+                  {/* Name or Location (Hidden if Technician) */}
+                  {stockHolder && stockHolder !== 'Technician' && (
                     <FormField
                       control={form.control}
                       name="nameOrLocation"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Name or Location</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="itemCategory"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Item Category</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="deviceType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Device Type</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="itemNature"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Item Nature</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
+                          <FormLabel>OEM Name or Warehouse Location</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select item nature" />
+                                <SelectValue placeholder="Select location" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="Serialised">Serialised</SelectItem>
-                              <SelectItem value="Non-serialised">Non-serialised</SelectItem>
+                              {LOCATION_OPTIONS[stockHolder]?.map((location) => (
+                                <SelectItem key={location} value={location}>
+                                  {location}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+                  )}
 
-                    <FormField
-                      control={form.control}
-                      name="quantity"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Quantity</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min="0" 
-                              {...field} 
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  {/* Technician-specific fields */}
+                  {stockHolder === 'Technician' && (
+                    <>
+                      <div className="bg-primary/10 p-3 rounded-lg">
+                        <h3 className="font-semibold text-primary text-center">Technician Details</h3>
+                      </div>
 
-                    <FormField
-                      control={form.control}
-                      name="itemStatus"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Item Status</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {form.watch('itemNature') === 'Serialised' && (
-                      <>
-                        <FormField
-                          control={form.control}
-                          name="manufactureSerialNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <div className="flex items-center justify-between">
-                                <FormLabel>Manufacture S/N</FormLabel>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 px-2 text-xs"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    openScanner('manufactureSerialNumber');
-                                  }}
-                                >
-                                  <Camera className="h-3 w-3 mr-1" />
-                                  Scan
-                                </Button>
-                              </div>
+                      <FormField
+                        control={form.control}
+                        name="contractorCompany"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contractor Company</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              disabled={contractorsLoading}
+                            >
                               <FormControl>
-                                <div className="relative">
-                                  <Input {...field} />
-                                  {field.value && (
-                                    <button
-                                      type="button"
-                                      onClick={() => form.setValue('manufactureSerialNumber', '')}
-                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </button>
-                                  )}
-                                </div>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select contractor" />
+                                </SelectTrigger>
                               </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                              <SelectContent>
+                                <SelectItem value="select">Select...</SelectItem>
+                                {contractorsLoading && (
+                                  <SelectItem value="loading" disabled>
+                                    Loading...
+                                  </SelectItem>
+                                )}
+                                {!contractorsLoading && contractors?.length ? (
+                                  contractors.map((contractor) => (
+                                    <SelectItem key={contractor} value={contractor}>
+                                      {contractor}
+                                    </SelectItem>
+                                  ))
+                                ) : null}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name="qrCodeSerialNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <div className="flex items-center justify-between">
-                                <FormLabel>QR Code S/N</FormLabel>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 px-2 text-xs"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    openScanner('qrCodeSerialNumber');
-                                  }}
-                                >
-                                  <Camera className="h-3 w-3 mr-1" />
-                                  Scan
-                                </Button>
-                              </div>
+                      <FormField
+                        control={form.control}
+                        name="contractorRegion"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Region</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              disabled={!normalizedContractor || regionsLoading}
+                            >
                               <FormControl>
-                                <div className="relative">
-                                  <Input {...field} />
-                                  {field.value && (
-                                    <button
-                                      type="button"
-                                      onClick={() => form.setValue('qrCodeSerialNumber', '')}
-                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </button>
-                                  )}
-                                </div>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select region" />
+                                </SelectTrigger>
                               </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </>
+                              <SelectContent>
+                                <SelectItem value="select">Select...</SelectItem>
+                                {regionsLoading && (
+                                  <SelectItem value="loading" disabled>
+                                    Loading...
+                                  </SelectItem>
+                                )}
+                                {!regionsLoading && normalizedContractor && regions?.length ? (
+                                  regions.map((region) => (
+                                    <SelectItem key={region} value={region}>
+                                      {region}
+                                    </SelectItem>
+                                  ))
+                                ) : null}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="technicianName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Technician</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              disabled={!normalizedRegion || techniciansLoading}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select technician" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="select">Select...</SelectItem>
+                                {techniciansLoading && (
+                                  <SelectItem value="loading" disabled>
+                                    Loading...
+                                  </SelectItem>
+                                )}
+                                {!techniciansLoading && normalizedRegion && technicians?.length ? (
+                                  technicians.map((tech) => (
+                                    <SelectItem key={tech.id} value={tech.fields['Name & Surname']}>
+                                      {tech.fields['Name & Surname']}
+                                    </SelectItem>
+                                  ))
+                                ) : null}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
+
+                  {/* Item Category */}
+                  <FormField
+                    control={form.control}
+                    name="itemCategory"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Item Category</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="select">Select...</SelectItem>
+                            {categoriesLoading ? (
+                              <SelectItem value="loading" disabled>Loading...</SelectItem>
+                            ) : (
+                              categories?.map((category) => (
+                                <SelectItem key={category} value={category}>
+                                  {category}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                  </div>
+                  />
 
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={resetForm}
-                      disabled={mutation.isPending}
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      disabled={mutation.isPending}
-                    >
-                      {mutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {editingId ? 'Updating...' : 'Creating...'}
-                        </>
-                      ) : editingId ? (
-                        'Update Count'
-                      ) : (
-                        'Create Count'
-                      )}
-                    </Button>
-                  </div>
+                  {/* Item Nature */}
+                  <FormField
+                    control={form.control}
+                    name="itemNature"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Is this product serialised?</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select nature" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="select">Select...</SelectItem>
+                            <SelectItem value="Serialised">Serialised</SelectItem>
+                            <SelectItem value="Non-serialised">Non - serialised</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Bin Location (Optional) */}
+                  <FormField
+                    control={form.control}
+                    name="binLocation"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bin Location (Optional)</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter bin location" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </form>
               </Form>
             </CardContent>
           </Card>
-        </div>
-      )}
 
-      {/* Barcode Scanner Modal */}
-      {showScanner && (
-        <BarcodeScanner
-          onScan={handleBarcodeScanned}
-          onClose={() => {
-            setShowScanner(false);
-            setCurrentScanField(null);
-          }}
-          ref={scannerRef}
-        />
-      )}
+          {/* Right Panel: Gallery */}
+          <div className="space-y-4">
+            <Card className="bg-card border border-border/50 shadow-sm">
+              <CardContent className="p-4">
+                <h2 className="text-xl font-semibold text-center mb-4 text-primary">
+                  Add Items to Order
+                </h2>
+                <div className="flex items-center gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search Devices using Item Code or Item Description"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                      disabled={!isSearchEnabled}
+                    />
+                  </div>
+                  <Button
+                    onClick={submitStockCount}
+                    disabled={cart.length === 0 || isSubmitting}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardList className="mr-2 h-4 w-4" />
+                        Submit ({cart.length})
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {!isSearchEnabled && (
+                  <p className="mt-2 text-sm text-muted-foreground text-center">
+                    Please enter Order Details to activate device gallery
+                  </p>
+                )}
+
+                {cart.length > 0 && (
+                  <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <h3 className="font-semibold text-green-800 dark:text-green-300 mb-2 flex items-center gap-2">
+                      <ClipboardList className="h-4 w-4" />
+                      Cart Items ({cart.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {cart.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between text-sm bg-background p-2 rounded border border-border/60">
+                          <div className="flex-1">
+                            <p className="font-medium">{item.deviceType}</p>
+                            <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Device Gallery */}
+            {isInventoryLoading ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <Card key={i} className="bg-card border border-border/50">
+                    <CardContent className="p-4">
+                      <div className="flex gap-4">
+                        <Skeleton className="h-24 w-24 rounded-lg" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {filteredInventory.map((item) => {
+                  const thumbnailUrl = item.fields.Thumbnail?.[0]?.url;
+                  const imageUrl = thumbnailUrl ?? item.fields['Item_Url'];
+
+                  return (
+                    <Card
+                      key={item.id}
+                      className="bg-card border border-primary/40 hover:border-primary/60 transition-colors shadow-sm"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
+                          <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-primary/10 overflow-hidden">
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt={item.fields['Device Type']}
+                                className="h-full w-full object-cover rounded-lg"
+                              />
+                            ) : (
+                              <Package className="h-12 w-12 text-primary" />
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold">
+                                Item code: {item.fields['Device Type']}
+                              </p>
+                              <p className="text-sm font-semibold">
+                                Item category: {item.fields['Item_Category']}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs font-semibold">Quantity:</label>
+                              <Input
+                                type="number"
+                                min="0"
+                                max="999"
+                                value={quantities[item.id] || 0}
+                                onChange={(e) => setQuantities({
+                                  ...quantities,
+                                  [item.id]: parseInt(e.target.value) || 0
+                                })}
+                                className="w-20 h-8 text-sm"
+                                disabled={!isSearchEnabled}
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => addToCart(item)}
+                                disabled={!isSearchEnabled || (quantities[item.id] || 0) <= 0}
+                                className="bg-green-600 hover:bg-green-700 h-8"
+                                title="Add item to Cart"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+                {filteredInventory.length === 0 && isSearchEnabled && (
+                  <div className="col-span-full text-center text-muted-foreground py-8">
+                    No inventory items match your selection.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary text-xl">
+              <CheckCircle2 className="h-6 w-6" />
+              Action successful!
+            </DialogTitle>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowSuccessModal(false)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Add more items
+            </Button>
+            <Button
+              onClick={() => {
+                setShowSuccessModal(false);
+                navigate('/stock-pick-cart');
+              }}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Next
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
