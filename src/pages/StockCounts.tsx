@@ -101,7 +101,6 @@ const StockCounts = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formVisible, setFormVisible] = useState(false);
 
   const form = useForm<any>({
@@ -230,7 +229,7 @@ const StockCounts = () => {
     });
   };
 
-  const submitStockCount = async () => {
+  const proceedToCart = async () => {
     // Validate form
     const isValid = await form.trigger();
     if (!isValid) {
@@ -245,72 +244,20 @@ const StockCounts = () => {
     if (cart.length === 0) {
       toast({
         title: "Cart is empty",
-        description: "Please add items to your cart before submitting.",
+        description: "Please add items to your cart before proceeding.",
         variant: "destructive",
       });
       return;
     }
 
-    setIsSubmitting(true);
-
-    try {
-      const formValues = form.getValues();
-
-      // Prepare batch submission (similar to PowerApp's ForAll)
-      const submissions: StockCountSubmission[] = cart.map(item => ({
-        'Count Type': formValues.countType,
-        'Stock Holder': formValues.stockHolder,
-        'Name or Location': stockHolder === 'Technician'
-          ? formValues.technicianName
-          : formValues.nameOrLocation,
-        'Item Category': item.itemCategory,
-        'BIN LOCATION': formValues.binLocation || '',
-        'Device Type': item.deviceType,
-        'Item Nature': item.itemNature,
-        'Item Code': item.deviceType,
-        'Item Description': item.itemDescription,
-        'Quantity': item.quantity,
-        'Contractor Company': stockHolder === 'Technician' ? formValues.contractorCompany : '',
-        'Contractor Region': stockHolder === 'Technician' ? formValues.contractorRegion : '',
-        'Technician Name': stockHolder === 'Technician' ? formValues.technicianName : '',
-        'Tech ID': stockHolder === 'Technician' ? formValues.techId : '',
-      }));
-
-      // Submit to Airtable 'Rolledup Stock Counts' table
-      await stockCountService.submitStockCounts(submissions);
-
-      toast({
-        title: "Stock count submitted",
-        description: `Successfully submitted ${cart.length} item(s).`,
-      });
-
-      // Clear collections
-      setCart([]);
-      setQuantities({});
-      form.reset({
-        countType: "Monthly",
-        stockHolder: "",
-        nameOrLocation: "",
-        itemCategory: "select",
-        itemNature: "select",
-        binLocation: "",
-        contractorCompany: "select",
-        contractorRegion: "select",
-        technicianName: "select",
-        techId: "",
-      });
-      setFormVisible(false);
-
-    } catch (error) {
-      console.error("Stock count submission error:", error);
-      toast({
-        title: "Submission failed",
-        description: error instanceof Error ? error.message : "There was an error submitting your stock count.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Navigate to cart with all data
+    const formValues = form.getValues();
+    navigate('/stock-counts-cart', {
+      state: {
+        cart,
+        formData: formValues,
+      }
+    });
   };
 
   const isSearchEnabled = Boolean(
@@ -650,21 +597,12 @@ const StockCounts = () => {
                     />
                   </div>
                   <Button
-                    onClick={submitStockCount}
-                    disabled={cart.length === 0 || isSubmitting}
+                    onClick={proceedToCart}
+                    disabled={cart.length === 0}
                     className="bg-primary hover:bg-primary/90"
                   >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <ClipboardList className="mr-2 h-4 w-4" />
-                        Submit ({cart.length})
-                      </>
-                    )}
+                    <ClipboardList className="mr-2 h-4 w-4" />
+                    Review Cart ({cart.length})
                   </Button>
                 </div>
                 {!isSearchEnabled && (
@@ -814,11 +752,11 @@ const StockCounts = () => {
             <Button
               onClick={() => {
                 setShowSuccessModal(false);
-                navigate('/stock-pick-cart');
+                proceedToCart();
               }}
               className="bg-primary hover:bg-primary/90"
             >
-              Next
+              Review Cart
             </Button>
           </DialogFooter>
         </DialogContent>

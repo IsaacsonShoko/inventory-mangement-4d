@@ -22,6 +22,15 @@ export interface StockCountSubmission {
   'Contractor Region': string;
   'Technician Name': string;
   'Tech ID': string;
+  'Item Status': string;
+  'Overall Condition': string;
+  'Fault Reason': string;
+  'XLI Case Ref': string;
+  'Manufacture Serial Number': string;
+  'QR Code Serial Number': string;
+  'Xlink Serial Number': string;
+  'Cradle Serial Number': string;
+  'Charger Serial Number': string;
 }
 
 export const stockCountService = {
