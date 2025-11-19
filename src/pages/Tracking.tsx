@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search,
@@ -14,6 +14,11 @@ import {
   X,
   RefreshCw,
   ChevronRight,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +44,12 @@ import {
   type OrderTrackingRecord,
   type OrderStage,
 } from '@/services/orderTrackingService';
+import {
+  colliveryService,
+  type ColliveryTrackingResponse,
+  mapColliveryStatus,
+  getStatusColor,
+} from '@/services/colliveryService';
 
 // Stage badge colors
 const stageBadgeColors: Record<OrderStage, string> = {
@@ -68,6 +79,9 @@ const Tracking = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<OrderTrackingRecord | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [courierTracking, setCourierTracking] = useState<ColliveryTrackingResponse | null>(null);
+  const [courierTrackingLoading, setCourierTrackingLoading] = useState(false);
+  const [courierTrackingError, setCourierTrackingError] = useState<string | null>(null);
 
   // Fetch all orders
   const {
@@ -79,6 +93,34 @@ const Tracking = () => {
     queryKey: ['orderTracking'],
     queryFn: () => orderTrackingService.getAllOrders(),
   });
+
+  // Fetch courier tracking when order with waybill is selected
+  useEffect(() => {
+    const fetchCourierTracking = async () => {
+      if (!selectedOrder?.waybillNumber || !colliveryService.isConfigured()) {
+        setCourierTracking(null);
+        setCourierTrackingError(null);
+        return;
+      }
+
+      setCourierTrackingLoading(true);
+      setCourierTrackingError(null);
+
+      try {
+        const tracking = await colliveryService.trackWaybill(selectedOrder.waybillNumber);
+        setCourierTracking(tracking);
+      } catch (error) {
+        setCourierTrackingError(error instanceof Error ? error.message : 'Failed to fetch tracking');
+        setCourierTracking(null);
+      } finally {
+        setCourierTrackingLoading(false);
+      }
+    };
+
+    if (sheetOpen && selectedOrder?.waybillNumber) {
+      fetchCourierTracking();
+    }
+  }, [selectedOrder, sheetOpen]);
 
   // Filter orders based on search and status
   const filteredOrders = orders.filter((order) => {
@@ -406,20 +448,214 @@ const Tracking = () => {
                   </>
                 )}
 
-                {/* Action buttons for courier orders */}
+                {/* Courier Tracking Section */}
                 {selectedOrder.waybillNumber &&
                   selectedOrder.dispatchMethod?.toLowerCase().includes('courier') && (
                     <>
                       <Separator />
-                      <div className="pt-2">
-                        <Button className="w-full gap-2" variant="outline">
+                      <div>
+                        <h4 className="mb-3 text-sm font-semibold text-gray-900 flex items-center gap-2">
                           <Truck className="h-4 w-4" />
-                          Track with Courier (Coming Soon)
-                        </Button>
-                        <p className="mt-2 text-center text-xs text-gray-500">
-                          Live courier tracking will be available once MDS/Collivery API is
-                          integrated
-                        </p>
+                          Courier Tracking (MDS/Collivery)
+                        </h4>
+
+                        {/* Loading state */}
+                        {courierTrackingLoading && (
+                          <div className="flex items-center justify-center py-6">
+                            <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+                            <span className="ml-2 text-sm text-gray-600">
+                              Fetching live tracking...
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Error state */}
+                        {courierTrackingError && !courierTrackingLoading && (
+                          <div className="rounded-lg bg-red-50 p-4">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-medium text-red-800">
+                                  Tracking Error
+                                </p>
+                                <p className="text-xs text-red-600 mt-1">
+                                  {courierTrackingError}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* API not configured */}
+                        {!colliveryService.isConfigured() && !courierTrackingLoading && (
+                          <div className="rounded-lg bg-amber-50 p-4">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-medium text-amber-800">
+                                  API Key Required
+                                </p>
+                                <p className="text-xs text-amber-600 mt-1">
+                                  Set VITE_COLLIVERY_API_TOKEN in your environment to enable live courier tracking.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Tracking data */}
+                        {courierTracking && !courierTrackingLoading && (
+                          <div className="space-y-4">
+                            {/* Current Status */}
+                            <div className="rounded-lg bg-gradient-to-r from-indigo-50 to-blue-50 p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs text-gray-500">Current Status</span>
+                                <Badge className={getStatusColor(courierTracking.status)}>
+                                  {courierTracking.status}
+                                </Badge>
+                              </div>
+                              <p className="text-lg font-semibold text-gray-900">
+                                {mapColliveryStatus(courierTracking.status)}
+                              </p>
+                              {courierTracking.estimated_delivery &&
+                                courierTracking.status !== 'Delivered' && (
+                                <p className="text-sm text-indigo-600 mt-1 flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  Est. delivery: {new Date(courierTracking.estimated_delivery).toLocaleDateString('en-ZA', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Driver Info */}
+                            {(courierTracking.driver_name || courierTracking.vehicle_registration) && (
+                              <div className="rounded-lg bg-gray-50 p-3 space-y-2 text-sm">
+                                {courierTracking.driver_name && (
+                                  <div className="flex items-center gap-2">
+                                    <User className="h-4 w-4 text-gray-400" />
+                                    <span>Driver: {courierTracking.driver_name}</span>
+                                  </div>
+                                )}
+                                {courierTracking.driver_phone && (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="h-4 w-4 text-gray-400" />
+                                    <span>{courierTracking.driver_phone}</span>
+                                  </div>
+                                )}
+                                {courierTracking.vehicle_registration && (
+                                  <div className="flex items-center gap-2">
+                                    <Truck className="h-4 w-4 text-gray-400" />
+                                    <span>Vehicle: {courierTracking.vehicle_registration}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Shipment Details */}
+                            <div className="space-y-2 text-sm">
+                              {courierTracking.parcels && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Parcels</span>
+                                  <span className="font-medium">{courierTracking.parcels}</span>
+                                </div>
+                              )}
+                              {courierTracking.service_type && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Service Type</span>
+                                  <span className="font-medium">{courierTracking.service_type}</span>
+                                </div>
+                              )}
+                              {courierTracking.total_weight && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Total Weight</span>
+                                  <span className="font-medium">{courierTracking.total_weight} kg</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Tracking Events Timeline */}
+                            {courierTracking.tracking_events.length > 0 && (
+                              <div>
+                                <h5 className="text-xs font-semibold text-gray-700 mb-3">
+                                  Tracking History
+                                </h5>
+                                <div className="space-y-3">
+                                  {courierTracking.tracking_events.map((event, index) => (
+                                    <div
+                                      key={index}
+                                      className="flex items-start gap-3"
+                                    >
+                                      <div className={`mt-1 h-2 w-2 rounded-full ${
+                                        index === 0 ? 'bg-indigo-500' : 'bg-gray-300'
+                                      }`} />
+                                      <div className="flex-1">
+                                        <p className="text-sm font-medium text-gray-900">
+                                          {event.description || mapColliveryStatus(event.status)}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                          <span className="text-xs text-gray-500">
+                                            {new Date(event.timestamp).toLocaleString('en-ZA', {
+                                              day: 'numeric',
+                                              month: 'short',
+                                              hour: '2-digit',
+                                              minute: '2-digit',
+                                            })}
+                                          </span>
+                                          {event.location && (
+                                            <span className="text-xs text-gray-500">
+                                              • {event.location}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* POD Image */}
+                            {courierTracking.pod_image_url && (
+                              <div>
+                                <h5 className="text-xs font-semibold text-gray-700 mb-2">
+                                  Proof of Delivery
+                                </h5>
+                                <a
+                                  href={courierTracking.pod_image_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  View POD Image
+                                </a>
+                              </div>
+                            )}
+
+                            {/* Refresh button */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full gap-2"
+                              onClick={() => {
+                                colliveryService.clearCache(selectedOrder.waybillNumber);
+                                setCourierTracking(null);
+                                setCourierTrackingLoading(true);
+                                colliveryService.trackWaybill(selectedOrder.waybillNumber)
+                                  .then(setCourierTracking)
+                                  .catch((err) => setCourierTrackingError(err.message))
+                                  .finally(() => setCourierTrackingLoading(false));
+                              }}
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              Refresh Tracking
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}
