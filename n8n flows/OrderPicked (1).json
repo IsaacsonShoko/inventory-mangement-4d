@@ -1,0 +1,874 @@
+{
+  "name": "OrderPicked",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-picked",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "fd3dbfe5-ee6d-432b-93ad-3436fe325ca6",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1024,
+        48
+      ],
+      "webhookId": "order-picked"
+    },
+    {
+      "parameters": {
+        "fromEmail": "admin@4danalytics.co.za",
+        "toEmail": "={{ $('Variable OrderedBy').item.json.orderId }}",
+        "subject": "Your Order has been picked",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "19417328-ce74-4f93-bb81-d05e00ea40d2",
+      "name": "Email - Ready (Technician)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        400,
+        48
+      ],
+      "webhookId": "647f66cb-3ac9-4386-8405-a93404ac81c7",
+      "credentials": {
+        "smtp": {
+          "id": "88oRhr3cAgRIueAU",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Order picked notification sent\" } }}",
+        "options": {}
+      },
+      "id": "51283dd1-7748-4ac6-834b-4af98d31c231",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        608,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the first input item (from webhook)\nconst input = items[0].json.body;\n\n// Extract order-level data\nconst orderId = input.orderId;\nconst orderNumber = parseInt(orderId.replace(/\\D/g, ''), 10); // extract number only\n\nconst uniqueOrderRecordId = input.uniqueOrderRecordId;\nconst orderedBy = input.orderedBy;\nconst deliveryParty = input.deliveryParty;\nconst dateOrdered = input.dateOrdered;\nconst pickedAt = input.metadata?.pickedAt;\nconst pickerEmail = input.metadata?.pickerEmail;\n\n// Map pickedItems to separate line items\nconst output = input.pickedItems.map((line, index) => {\n  return {\n    json: {\n      lineNumber: index + 1,\n      orderId: orderId,\n      orderNumber: orderNumber, // 👈 added this\n      uniqueOrderRecordId: uniqueOrderRecordId,\n      orderedBy: orderedBy,\n      deliveryParty: deliveryParty,\n      dateOrdered: dateOrdered,\n      pickedAt: pickedAt,\n      pickerEmail: pickerEmail,\n      stockOrderId: line.stockOrderId,\n      deviceType: line.deviceType,\n      quantity: line.quantity,\n      stockAvailability: line.stockAvailability,\n      pickStatus: line.pickStatus,\n      packer: line.packer,\n      terminalSerialNumber: line.terminalSerialNumber,\n      cradleSerialNumber: line.cradleSerialNumber,\n      chargerSerialNumber: line.chargerSerialNumber,\n      cashConnectSerialNumber: line.cashConnectSerialNumber,\n      chargerPacked: line.chargerPacked,\n      cables: line.cables,\n      itemCode: line.itemCode,\n      itemDescription: line.itemDescription\n    }\n  };\n});\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        48
+      ],
+      "id": "ecb38cf9-71d1-4306-8a88-e9f2832c825c",
+      "name": "Flatten array"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        48
+      ],
+      "id": "a7c1cf8e-8d28-45b8-a882-dd137cf0fc03",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>\n  <title>Your Order Has Been Picked</title>\n</head>\n<body style=\"margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;\">\n  <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #f4f4f4; padding: 20px 0;\">\n    <tr>\n      <td align=\"center\">\n        <table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);\">\n\n          <!-- Header -->\n          <tr>\n            <td style=\"background: linear-gradient(135deg, #9C0DD9 0%, #7209B7 100%); padding: 40px 30px; text-align: center;\">\n              <h1 style=\"margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;\">Your Order Has Been Picked 🛒</h1>\n              <p style=\"margin: 10px 0 0 0; color: #ffffff; font-size: 16px; opacity: 0.95;\">Here's what we prepared for you</p>\n            </td>\n          </tr>\n\n          <!-- Order Details -->\n          <tr>\n            <td style=\"padding: 30px;\">\n              <p style=\"margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;\">\n                Hi <strong>Isaacson Shoko</strong>,\n              </p>\n              <p style=\"margin: 0 0 25px 0; color: #666666; font-size: 15px; line-height: 1.6;\">\n                Your order has been picked. Below are the details and current availability status of each item.\n              </p>\n\n              <!-- Out of Stock Warning (conditional) -->\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #ffebee; border-left: 4px solid #d32f2f; border-radius: 4px; margin-bottom: 20px;\">\n                <tr>\n                  <td style=\"padding: 20px;\">\n                    <h3 style=\"margin: 0 0 8px 0; color: #d32f2f; font-size: 16px; font-weight: bold;\">⚠️ Some Items Are Out of Stock</h3>\n                    <p style=\"margin: 0; color: #b71c1c; font-size: 14px;\">Items marked as <strong>Out of stock</strong> will be fulfilled as soon as they become available.</p>\n                  </td>\n                </tr>\n              </table>\n\n              <!-- Order Info -->\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #f8f9fa; border-radius: 6px; margin-bottom: 25px;\">\n                <tr>\n                  <td style=\"padding: 20px;\">\n                    <table width=\"100%\" cellpadding=\"5\" cellspacing=\"0\">\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Order Number:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">15</td>\n                      </tr>\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Order Date:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">19 Oct 2025</td>\n                      </tr>\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Total Items:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">3 items</td>\n                      </tr>\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Picked By:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">Isaacson Shoko</td>\n                      </tr>\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Picked At:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">19/10/2025, 22:11:27</td>\n                      </tr>\n                    </table>\n                  </td>\n                </tr>\n              </table>\n\n              <!-- Items -->\n              <h2 style=\"margin: 30px 0 15px 0; color: #333333; font-size: 20px; font-weight: bold; border-bottom: 2px solid #9C0DD9; padding-bottom: 10px;\">\n                Items in This Order\n              </h2>\n\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin-bottom: 25px;\">\n                <tr>\n                  <td style=\"padding: 15px 0; border-bottom: 1px solid #eeeeee;\">\n                    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n                      <tr>\n                        <td style=\"vertical-align: top;\">\n                          <h3 style=\"margin: 0 0 5px 0; color: #333333; font-size: 16px; font-weight: bold;\">clover-flex-device</h3>\n                          <p style=\"margin: 0 0 8px 0; color: #666666; font-size: 13px;\">Stock Order ID: 15</p>\n                          <div style=\"margin-top: 8px;\">\n                            <span style=\"display: inline-block; background-color: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-right: 8px;\">\n                              In stock\n                            </span>\n                            <span style=\"display: inline-block; background-color: #f0e6f9; color: #7209B7; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;\">\n                              Qty: 1\n                            </span>\n                          </div>\n                        </td>\n                      </tr>\n                    </table>\n                  </td>\n                </tr>\n                <tr>\n                  <td style=\"padding: 15px 0; border-bottom: 1px solid #eeeeee;\">\n                    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n                      <tr>\n                        <td style=\"vertical-align: top;\">\n                          <h3 style=\"margin: 0 0 5px 0; color: #333333; font-size: 16px; font-weight: bold;\">verizon-z9</h3>\n                          <p style=\"margin: 0 0 8px 0; color: #666666; font-size: 13px;\">Stock Order ID: 15</p>\n                          <div style=\"margin-top: 8px;\">\n                            <span style=\"display: inline-block; background-color: #ffebee; color: #d32f2f; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-right: 8px;\">\n                              Out of stock\n                            </span>\n                            <span style=\"display: inline-block; background-color: #f0e6f9; color: #7209B7; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;\">\n                              Qty: 1\n                            </span>\n                          </div>\n                        </td>\n                      </tr>\n                    </table>\n                  </td>\n                </tr>\n                <tr>\n                  <td style=\"padding: 15px 0; border-bottom: 1px solid #eeeeee;\">\n                    <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n                      <tr>\n                        <td style=\"vertical-align: top;\">\n                          <h3 style=\"margin: 0 0 5px 0; color: #333333; font-size: 16px; font-weight: bold;\">n950-smart-terminal-side</h3>\n                          <p style=\"margin: 0 0 8px 0; color: #666666; font-size: 13px;\">Stock Order ID: 15</p>\n                          <div style=\"margin-top: 8px;\">\n                            <span style=\"display: inline-block; background-color: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-right: 8px;\">\n                              In stock\n                            </span>\n                            <span style=\"display: inline-block; background-color: #f0e6f9; color: #7209B7; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;\">\n                              Qty: 1\n                            </span>\n                          </div>\n                        </td>\n                      </tr>\n                    </table>\n                  </td>\n                </tr>\n              </table>\n\n              <!-- Next Steps -->\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px; margin: 25px 0;\">\n                <tr>\n                  <td style=\"padding: 20px;\">\n                    <h3 style=\"margin: 0 0 10px 0; color: #2e7d32; font-size: 16px; font-weight: bold;\">📦 Next Steps</h3>\n                    <ul style=\"margin: 0; padding-left: 20px; color: #555555; font-size: 14px; line-height: 1.8;\">\n                      <li>Items in stock will be dispatched as planned</li>\n                      <li>Out of stock items will be fulfilled once available</li>\n                      <li>You'll receive further updates via email</li>\n                    </ul>\n                  </td>\n                </tr>\n              </table>\n\n              <p style=\"margin: 25px 0 10px 0; color: #666666; font-size: 14px; line-height: 1.6;\">\n                If you have any questions about your order, please don't hesitate to contact us.\n              </p>\n            </td>\n          </tr>\n\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color: #f8f9fa; padding: 25px 30px; text-align: center; border-top: 1px solid #eeeeee;\">\n              <p style=\"margin: 0 0 10px 0; color: #999999; font-size: 13px;\">\n                This is an automated confirmation email. Please do not reply to this message.\n              </p>\n              <p style=\"margin: 0; color: #666666; font-size: 14px; font-weight: bold;\">\n                4D Logistics Inventory Management System\n              </p>\n              <p style=\"margin: 8px 0 0 0; color: #999999; font-size: 12px;\">\n                © 2025 All rights reserved\n              </p>\n            </td>\n          </tr>\n\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>"
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        128,
+        48
+      ],
+      "id": "1ce3072b-0adf-4cd1-a3bc-e3a2d5dbf7ef",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Original orderId, e.g. \"ORD-0013\"\nconst orderId = $input.first().json.orderedBy;\nreturn [\n  {\n orderId\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -384,
+        48
+      ],
+      "id": "ced230b9-1a11-4b6e-b11a-6f40a97c714f",
+      "name": "Variable OrderedBy"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appbFRxaDoYTDJl0v",
+          "mode": "list",
+          "cachedResultName": "Inventory Management",
+          "cachedResultUrl": "https://airtable.com/appbFRxaDoYTDJl0v"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblkDF6kf0gsUWJZk",
+          "mode": "list",
+          "cachedResultName": "Dispatch_Log",
+          "cachedResultUrl": "https://airtable.com/appbFRxaDoYTDJl0v/tblkDF6kf0gsUWJZk"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Order Id": "={{ $json.orderNumber }}",
+            "Device type": "={{ $json.deviceType }}",
+            "Packer": "={{ $json.pickerEmail }}",
+            "StockOrderID": "={{ $json.stockOrderId }}",
+            "Pick Status": "={{ $json.pickStatus }}",
+            "Stock Availability": "={{ $json.stockAvailability }}",
+            "CashConnect SerialNumber": "={{ $json.cashConnectSerialNumber }}",
+            "Cables": "={{ $json.cables }}",
+            "TimePicked": "={{ $json.pickedAt }}",
+            "Quantity": "={{ $json.quantity }}",
+            "Cradle Serial Number": "={{ $json.cradleSerialNumber }}",
+            "Terminal Serial Number": "={{ $json.terminalSerialNumber }}",
+            "Charger Serial Number": "={{ $json.chargerSerialNumber }}",
+            "Item Description": "={{ $json.itemDescription }}",
+            "Charger Packed": "={{ $json.chargerPacked }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Order Id",
+              "displayName": "Order Id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Date Dispatched",
+              "displayName": "Date Dispatched",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Item Category",
+              "displayName": "Item Category",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Item Nature",
+              "displayName": "Item Nature",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Item Description",
+              "displayName": "Item Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Device type",
+              "displayName": "Device type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Cradle Serial Number",
+              "displayName": "Cradle Serial Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Terminal Serial Number",
+              "displayName": "Terminal Serial Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Charger Serial Number",
+              "displayName": "Charger Serial Number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Quantity",
+              "displayName": "Quantity",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Region",
+              "displayName": "Region",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Contractor Company",
+              "displayName": "Contractor Company",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Technician",
+              "displayName": "Technician",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Waybill number",
+              "displayName": "Waybill number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Packer",
+              "displayName": "Packer",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Dispatcher",
+              "displayName": "Dispatcher",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Stock Availability",
+              "displayName": "Stock Availability",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Dispatch Method",
+              "displayName": "Dispatch Method",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Courier",
+                  "value": "Courier"
+                },
+                {
+                  "name": "In-house Delivery",
+                  "value": "In-house Delivery"
+                },
+                {
+                  "name": "Pickup",
+                  "value": "Pickup"
+                },
+                {
+                  "name": "Other",
+                  "value": "Other"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Pick Status",
+              "displayName": "Pick Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Shipped",
+              "displayName": "Shipped",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Yes",
+                  "value": "Yes"
+                },
+                {
+                  "name": "No",
+                  "value": "No"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Package Reference",
+              "displayName": "Package Reference",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Item Code",
+              "displayName": "Item Code",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "StockOrderID",
+              "displayName": "StockOrderID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "CashConnect SerialNumber",
+              "displayName": "CashConnect SerialNumber",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Charger Packed",
+              "displayName": "Charger Packed",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Cables",
+              "displayName": "Cables",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Paper Rolls",
+              "displayName": "Paper Rolls",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Current_Location",
+              "displayName": "Current_Location",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "IL_Match",
+              "displayName": "IL_Match",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "FA_IL",
+              "displayName": "FA_IL",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Nav_Device_Type",
+              "displayName": "Nav_Device_Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Dispatch_To_Location",
+              "displayName": "Dispatch_To_Location",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "TimePicked",
+              "displayName": "TimePicked",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "TimeDispatched",
+              "displayName": "TimeDispatched",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Warehouse Fulfilling",
+              "displayName": "Warehouse Fulfilling",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Bill Folder",
+              "displayName": "Bill Folder",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Stock Order",
+              "displayName": "Stock Order",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -384,
+        -160
+      ],
+      "id": "22f52423-326b-437c-bfb5-0dc74a093730",
+      "name": "Create a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "Hx0xFUwdJTe3zVON",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook Trigger": [
+      {
+        "json": {
+          "headers": {
+            "host": "felisha-nonpeaked-kaitlyn.ngrok-free.dev",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+            "content-length": "2867",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+            "content-type": "application/json",
+            "origin": "http://localhost:8080",
+            "priority": "u=1, i",
+            "referer": "http://localhost:8080/",
+            "sec-ch-ua": "\"Google Chrome\";v=\"141\", \"Not?A_Brand\";v=\"8\", \"Chromium\";v=\"141\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"Windows\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "102.32.121.164",
+            "x-forwarded-host": "felisha-nonpeaked-kaitlyn.ngrok-free.dev",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "orderId": "ORD-0019",
+            "uniqueOrderRecordId": "rechafTVuHGUJnOKL",
+            "uniqueOrderFields": {
+              "Order ID": 19,
+              "Date Ordered": "2025-10-21T00:00:00.000Z",
+              "Item Category": "Other",
+              "Item Nature": "Serialized",
+              "Region": "Gauteng",
+              "Contractor Company": "4D Analytics",
+              "Technician": "Isaacson Shoko",
+              "Quantity Ordered": 2,
+              "Dispatch Status": "Pending",
+              "Ordered by": "shokoisaac@gmail.com",
+              "On Behalf of": "shokoisaac@gmail.com",
+              "PoPID": "4DAISH",
+              "Deliver to Part": "Technician",
+              "Order Location": "Sunninghill",
+              "Order Summary (AI Generated)": {
+                "state": "error",
+                "errorType": "emptyDependency",
+                "value": null,
+                "isStale": false
+              },
+              "CellPhone Number": "+27826769806"
+            },
+            "stockOrderItems": [
+              {
+                "id": "recRah20XQued07T4",
+                "fields": {
+                  "ID": 92,
+                  "Order Id": 19,
+                  "Device Type": "bike-chain",
+                  "Date Ordered": "2025-10-21",
+                  "Quantity ordered": 1,
+                  "QTY dispatched": 1,
+                  "Contractor Company": "4D Analytics",
+                  "Region": "Gauteng",
+                  "Technician": "Isaacson Shoko",
+                  "Ordered by": "shokoisaac@gmail.com",
+                  "Item Category": "Other",
+                  "Item Description": "A standard bicycle chain for gear-driven bikes.",
+                  "Item Nature": "Serialized",
+                  "Order Location": "Sunninghill",
+                  "Tech email": "shokoisaac@gmail.com",
+                  "Pick Status": "Picked"
+                }
+              },
+              {
+                "id": "rec4Qfw59sdKSDDcf",
+                "fields": {
+                  "ID": 93,
+                  "Order Id": 19,
+                  "Device Type": "mountain-bike-front-wheel",
+                  "Date Ordered": "2025-10-21",
+                  "Quantity ordered": 1,
+                  "QTY dispatched": 1,
+                  "Contractor Company": "4D Analytics",
+                  "Region": "Gauteng",
+                  "Technician": "Isaacson Shoko",
+                  "Ordered by": "shokoisaac@gmail.com",
+                  "Item Category": "Other",
+                  "Item Description": "The front wheel assembly for a mountain bike.",
+                  "Item Nature": "Serialized",
+                  "Order Location": "Sunninghill",
+                  "Tech email": "shokoisaac@gmail.com",
+                  "Pick Status": "Picked"
+                }
+              }
+            ],
+            "totalQuantity": 2,
+            "pickedQuantity": 2,
+            "dateOrdered": "2025-10-21T00:00:00.000Z",
+            "orderedBy": "shokoisaac@gmail.com",
+            "deliveryParty": "Technician",
+            "pickedItems": [
+              {
+                "stockOrderId": "recRah20XQued07T4",
+                "deviceType": "bike-chain",
+                "quantity": 1,
+                "stockAvailability": "In Stock",
+                "pickStatus": "Picked in full",
+                "packer": "shokoisaac@gmail.com",
+                "terminalSerialNumber": "ougrefu",
+                "cradleSerialNumber": null,
+                "chargerSerialNumber": null,
+                "cashConnectSerialNumber": null,
+                "chargerPacked": "N",
+                "cables": "N",
+                "itemCode": null,
+                "itemDescription": null
+              },
+              {
+                "stockOrderId": "rec4Qfw59sdKSDDcf",
+                "deviceType": "mountain-bike-front-wheel",
+                "quantity": 1,
+                "stockAvailability": "In Stock",
+                "pickStatus": "Picked in full",
+                "packer": "shokoisaac@gmail.com",
+                "terminalSerialNumber": "lkjhgfd",
+                "cradleSerialNumber": null,
+                "chargerSerialNumber": "SADDDDS",
+                "cashConnectSerialNumber": null,
+                "chargerPacked": "Y",
+                "cables": "Y",
+                "itemCode": null,
+                "itemDescription": null
+              }
+            ],
+            "metadata": {
+              "pickedAt": "2025-10-21T19:47:00.049Z",
+              "pickerEmail": "shokoisaac@gmail.com",
+              "contractorCompany": "4D Analytics",
+              "region": "Gauteng",
+              "technician": "Isaacson Shoko",
+              "dispatchMethod": null,
+              "warehouseFulfilling": null,
+              "waybillNumber": null,
+              "packageReference": null,
+              "dispatchStatus": "Pending",
+              "recordLinks": {
+                "stockOrder": null,
+                "dispatchLog": null
+              }
+            }
+          },
+          "webhookUrl": "http://localhost:5678/webhook-test/order-picked",
+          "executionMode": "test"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Flatten array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Ready (Technician)": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten array": {
+      "main": [
+        [
+          {
+            "node": "Variable OrderedBy",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Email - Ready (Technician)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Variable OrderedBy": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a352879c-1586-43dc-8719-07a4f4ec12bf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "55ba727e4853648a2101bd917e69c518277625a3676c41e84ae6d35af91527d2"
+  },
+  "id": "resy132O3yHGMYiK",
+  "tags": []
+}

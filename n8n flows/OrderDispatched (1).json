@@ -1,0 +1,240 @@
+{
+  "name": "OrderDispatched",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "2bd2d581-51d5-4f97-9a3d-cdf2c764a768",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -544,
+        -112
+      ],
+      "id": "0e9fda73-ea16-4c52-a71c-4545ea4108f7",
+      "name": "Webhook",
+      "webhookId": "2bd2d581-51d5-4f97-9a3d-cdf2c764a768"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Order dispatched notification sent\" } }}",
+        "options": {}
+      },
+      "id": "3a98381c-4d05-4d01-8e46-cc78f39458d9",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        704,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the first incoming item\nconst input = items[0].json;\n\n// Flatten each item in the items array\nconst flattened = input.items.map(item => ({\n  orderId: input.orderId,\n  uniqueOrderRecordId: input.uniqueOrderRecordId,\n  dateOrdered: input.dateOrdered,\n  totalItems: input.totalItems,\n  totalQuantity: input.totalQuantity,\n  orderedBy: input.orderedBy,\n  deliveryParty: input.deliveryParty,\n  contractorCompany: input.contractorCompany,\n  region: input.region,\n  technician: input.technician,\n  onBehalfOf: input.onBehalfOf,\n  orderLocation: input.orderLocation,\n  recipientName: input.recipientName,\n  recipientCompanyName: input.recipientCompanyName,\n  recipientAddress: input.recipientAddress,\n  recipientContactNumber: input.recipientContactNumber,\n  recipientEmail: input.recipientEmail,\n  cellPhoneNumber: input.cellPhoneNumber,\n  warehouseFulfilling: input.warehouseFulfilling,\n  deliverToParty: input.deliverToParty,\n\n  // Item-level fields\n  deviceType: item.deviceType,\n  quantityOrdered: item.quantityOrdered,\n  itemUrl: item.itemUrl,\n  itemCode: item.itemCode,\n\n  // Metadata fields\n  dispatchMethod: input.metadata?.dispatchMethod,\n  waybillNumber: input.metadata?.waybillNumber,\n  dispatchStatus: input.metadata?.dispatchStatus,\n  pickStatus: input.metadata?.pickStatus,\n  additionalNotes: input.metadata?.additionalNotes\n}));\n\n// Return multiple items (n8n will treat each as a separate record)\nreturn flattened.map(f => ({ json: f }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        -112
+      ],
+      "id": "581a3641-96ab-4ab8-85bb-9290c89003ef",
+      "name": "Flatten array"
+    },
+    {
+      "parameters": {
+        "html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>\n  <title>Order Ready for Dispatch</title>\n</head>\n<body style=\"margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;\">\n  <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #f4f4f4; padding: 20px 0;\">\n    <tr>\n      <td align=\"center\">\n        <table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);\">\n\n          <!-- Header -->\n          <tr>\n            <td style=\"background: linear-gradient(135deg, #9C0DD9 0%, #7209B7 100%); padding: 40px 30px; text-align: center;\">\n              <h1 style=\"margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;\">{{ $json.headerTitle }}</h1>\n              <p style=\"margin: 10px 0 0 0; color: #ffffff; font-size: 16px; opacity: 0.95;\">Your order has been prepared and is ready</p>\n            </td>\n          </tr>\n\n          <!-- Order Details -->\n          <tr>\n            <td style=\"padding: 30px;\">\n              <p style=\"margin: 0 0 20px 0; color: #333333; font-size: 16px; line-height: 1.6;\">\n                Hi <strong>{{ $json.recipientName }}</strong>,\n              </p>\n              <p style=\"margin: 0 0 25px 0; color: #666666; font-size: 15px; line-height: 1.6;\">\n                Great news! Your order <strong>{{ $json.orderId }}</strong> has been picked and is now ready for {{ $json.dispatchType }}.\n              </p>\n\n              <!-- Dispatch Method Alert -->\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: {{ $json.alertBgColor }}; border-left: 4px solid {{ $json.alertBorderColor }}; border-radius: 4px; margin-bottom: 25px;\">\n                <tr>\n                  <td style=\"padding: 20px;\">\n                    <h3 style=\"margin: 0 0 8px 0; color: {{ $json.alertTextColor }}; font-size: 16px; font-weight: bold;\">\n                      {{ $json.alertIcon }} {{ $json.alertTitle }}\n                    </h3>\n                    <p style=\"margin: 0; color: {{ $json.alertTextColor }}; font-size: 14px;\">\n                      {{ $json.alertMessage }}\n                    </p>\n                    {{ $json.waybillSection }}\n                  </td>\n                </tr>\n              </table>\n\n              <!-- Order Info -->\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #f8f9fa; border-radius: 6px; margin-bottom: 25px;\">\n                <tr>\n                  <td style=\"padding: 20px;\">\n                    <table width=\"100%\" cellpadding=\"5\" cellspacing=\"0\">\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Order Number:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">{{ $json.orderId }}</td>\n                      </tr>\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Order Date:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">{{ $json.dateOrdered }}</td>\n                      </tr>\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Total Items:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">{{ $json.totalItems }} items ({{ $json.totalQuantity }} units)</td>\n                      </tr>\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Ordered By:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">{{ $json.orderedBy }}</td>\n                      </tr>\n                      {{ $json.technicianRow }}\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Warehouse:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">{{ $json.warehouseFulfilling }}</td>\n                      </tr>\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Region:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">{{ $json.region }}</td>\n                      </tr>\n                    </table>\n                  </td>\n                </tr>\n              </table>\n\n              <!-- Delivery Details -->\n              <h2 style=\"margin: 30px 0 15px 0; color: #333333; font-size: 20px; font-weight: bold; border-bottom: 2px solid #9C0DD9; padding-bottom: 10px;\">\n                Delivery Details\n              </h2>\n\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #f8f9fa; border-radius: 6px; margin-bottom: 25px;\">\n                <tr>\n                  <td style=\"padding: 20px;\">\n                    <table width=\"100%\" cellpadding=\"5\" cellspacing=\"0\">\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Recipient Name:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">{{ $json.recipientName }}</td>\n                      </tr>\n                      {{ $json.companyRow }}\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Delivery Address:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">{{ $json.recipientAddress }}</td>\n                      </tr>\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Contact Number:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">{{ $json.recipientContactNumber }}</td>\n                      </tr>\n                      {{ $json.cellPhoneRow }}\n                      <tr>\n                        <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Email:</td>\n                        <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">{{ $json.recipientEmail }}</td>\n                      </tr>\n                    </table>\n                  </td>\n                </tr>\n              </table>\n\n              <!-- Items -->\n              <h2 style=\"margin: 30px 0 15px 0; color: #333333; font-size: 20px; font-weight: bold; border-bottom: 2px solid #9C0DD9; padding-bottom: 10px;\">\n                Items in This Order\n              </h2>\n\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin-bottom: 25px;\">\n                {{ $json.itemsHtml }}\n              </table>\n\n              {{ $json.additionalNotes }}\n\n              <!-- Next Steps -->\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px; margin: 25px 0;\">\n                <tr>\n                  <td style=\"padding: 20px;\">\n                    <h3 style=\"margin: 0 0 10px 0; color: #2e7d32; font-size: 16px; font-weight: bold;\">{{ $json.nextStepsTitle }}</h3>\n                    <ul style=\"margin: 0; padding-left: 20px; color: #555555; font-size: 14px; line-height: 1.8;\">\n                      {{ $json.nextStepsList }}\n                    </ul>\n                  </td>\n                </tr>\n              </table>\n\n              <p style=\"margin: 25px 0 10px 0; color: #666666; font-size: 14px; line-height: 1.6;\">\n                If you have any questions about your order, please don't hesitate to contact us.\n              </p>\n            </td>\n          </tr>\n\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color: #f8f9fa; padding: 25px 30px; text-align: center; border-top: 1px solid #eeeeee;\">\n              <p style=\"margin: 0 0 10px 0; color: #999999; font-size: 13px;\">\n                This is an automated notification email. Please do not reply to this message.\n              </p>\n              <p style=\"margin: 0; color: #666666; font-size: 14px; font-weight: bold;\">\n                4D Logistics Inventory Management System\n              </p>\n              <p style=\"margin: 8px 0 0 0; color: #999999; font-size: 12px;\">\n                © 2025 All rights reserved\n              </p>\n            </td>\n          </tr>\n\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>"
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        -112
+      ],
+      "id": "c7b04cbe-b9cc-43fb-ae78-0d20a67b672c",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all items from input\nconst items = $input.all();\n\n// Use first item for order-level details\nconst firstItem = items[0].json;\n\n// Determine dispatch type\nconst isCollection = firstItem.dispatchMethod === 'Collection';\n\n// Build items HTML\nlet itemsHtml = '';\nfor (const item of items) {\n  const data = item.json;\n  \n  itemsHtml += `\n    <tr>\n      <td style=\"padding: 15px 0; border-bottom: 1px solid #eeeeee;\">\n        <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n          <tr>\n            <td style=\"vertical-align: top;\">\n              <h3 style=\"margin: 0 0 5px 0; color: #333333; font-size: 16px; font-weight: bold;\">${data.deviceType}</h3>\n              <p style=\"margin: 0 0 8px 0; color: #666666; font-size: 13px;\">Item Code: ${data.itemCode}</p>\n              <div style=\"margin-top: 8px;\">\n                <span style=\"display: inline-block; background-color: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-right: 8px;\">\n                  ${data.pickStatus}\n                </span>\n                <span style=\"display: inline-block; background-color: #f0e6f9; color: #7209B7; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;\">\n                  Qty: ${data.quantityOrdered}\n                </span>\n              </div>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  `;\n}\n\n// Build conditional sections\nconst technicianRow = firstItem.technician ? `\n  <tr>\n    <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Technician:</td>\n    <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">${firstItem.technician}</td>\n  </tr>\n` : '';\n\nconst companyRow = firstItem.recipientCompanyName ? `\n  <tr>\n    <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Company:</td>\n    <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">${firstItem.recipientCompanyName}</td>\n  </tr>\n` : '';\n\nconst cellPhoneRow = firstItem.cellPhoneNumber ? `\n  <tr>\n    <td style=\"color: #666666; font-size: 14px; padding: 8px 0;\">Mobile:</td>\n    <td style=\"color: #333333; font-size: 14px; font-weight: bold; text-align: right; padding: 8px 0;\">${firstItem.cellPhoneNumber}</td>\n  </tr>\n` : '';\n\nconst waybillSection = firstItem.waybillNumber ? `\n  <p style=\"margin: 8px 0 0 0; color: ${isCollection ? '#1565c0' : '#e65100'}; font-size: 14px; font-weight: bold;\">\n    Waybill Number: ${firstItem.waybillNumber}\n  </p>\n` : '';\n\nconst additionalNotes = firstItem.additionalNotes ? `\n  <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #fffbf0; border-left: 4px solid #ff9800; border-radius: 4px; margin: 25px 0;\">\n    <tr>\n      <td style=\"padding: 20px;\">\n        <h3 style=\"margin: 0 0 10px 0; color: #e65100; font-size: 16px; font-weight: bold;\">📝 Additional Notes</h3>\n        <p style=\"margin: 0; color: #555555; font-size: 14px; line-height: 1.6;\">\n          ${firstItem.additionalNotes}\n        </p>\n      </td>\n    </tr>\n  </table>\n` : '';\n\n// Alert config\nconst alertBgColor = isCollection ? '#e3f2fd' : '#fff3e0';\nconst alertBorderColor = isCollection ? '#1976d2' : '#f57c00';\nconst alertTextColor = isCollection ? '#1565c0' : '#e65100';\nconst alertIcon = isCollection ? '📍' : '🚚';\nconst alertTitle = isCollection ? 'Collection Required' : 'Courier Dispatch';\nconst alertMessage = isCollection \n  ? `Please collect your order from: ${firstItem.warehouseFulfilling}`\n  : `Your order will be dispatched via ${firstItem.deliveryParty}`;\n\n// Next steps\nconst headerTitle = isCollection ? '📦 Order Ready for Collection' : '🚚 Order Ready for Dispatch';\nconst dispatchType = isCollection ? 'collection' : 'dispatch';\nconst nextStepsTitle = isCollection ? '📍 Next Steps - Collection' : '📦 Next Steps - Delivery';\nconst nextStepsList = isCollection ? `\n  <li>Your order is ready for collection at ${firstItem.warehouseFulfilling}</li>\n  <li>Please bring valid identification when collecting</li>\n  <li>Contact us if you need to arrange a different collection time</li>\n` : `\n  <li>Your order will be dispatched via ${firstItem.deliveryParty}</li>\n  ${firstItem.waybillNumber ? `<li>Track your shipment using waybill number: ${firstItem.waybillNumber}</li>` : ''}\n  <li>You'll receive a delivery notification once the courier is on the way</li>\n  <li>Please ensure someone is available to receive the delivery</li>\n`;\n\n// Return prepared data for HTML template\nreturn [{\n  json: {\n    headerTitle: headerTitle,\n    recipientName: firstItem.recipientName,\n    orderId: firstItem.orderId,\n    dispatchType: dispatchType,\n    alertBgColor: alertBgColor,\n    alertBorderColor: alertBorderColor,\n    alertTextColor: alertTextColor,\n    alertIcon: alertIcon,\n    alertTitle: alertTitle,\n    alertMessage: alertMessage,\n    waybillSection: waybillSection,\n    dateOrdered: firstItem.dateOrdered,\n    totalItems: firstItem.totalItems,\n    totalQuantity: firstItem.totalQuantity,\n    orderedBy: firstItem.orderedBy,\n    technicianRow: technicianRow,\n    warehouseFulfilling: firstItem.warehouseFulfilling,\n    region: firstItem.region,\n    companyRow: companyRow,\n    recipientAddress: firstItem.recipientAddress,\n    recipientContactNumber: firstItem.recipientContactNumber,\n    cellPhoneRow: cellPhoneRow,\n    recipientEmail: firstItem.recipientEmail,\n    itemsHtml: itemsHtml,\n    additionalNotes: additionalNotes,\n    nextStepsTitle: nextStepsTitle,\n    nextStepsList: nextStepsList\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -112
+      ],
+      "id": "7855f585-ef20-4d03-9e34-c04b0a0f50d5",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "fromEmail": "admin@4danalytics.co.za",
+        "toEmail": "={{ $('Variable OrderedBy').item.json.orderId }}",
+        "subject": "Order ready for Dispatch",
+        "html": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        -112
+      ],
+      "id": "174703b6-ef39-4d7b-b9f3-74d2b19885ad",
+      "name": "Send email",
+      "webhookId": "90a5f8d1-6cd5-413f-817a-cb5c64f44be5",
+      "credentials": {
+        "smtp": {
+          "id": "88oRhr3cAgRIueAU",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Original orderId, e.g. \"ORD-0013\"\nconst orderId = $input.first().json.orderedBy;\nreturn [\n  {\n orderId\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -112
+      ],
+      "id": "6fed132a-4fb0-4009-9c9f-44804c079eff",
+      "name": "Variable OrderedBy"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "orderId": "ORD-1234",
+          "uniqueOrderRecordId": "recABC123",
+          "dateOrdered": "15 Dec 2024",
+          "totalItems": 2,
+          "totalQuantity": 3,
+          "orderedBy": "John Smith",
+          "deliveryParty": "Courier Express",
+          "contractorCompany": "Tech Solutions Ltd",
+          "region": "Gauteng",
+          "technician": "Mike Johnson",
+          "onBehalfOf": "Sarah Wilson",
+          "orderLocation": "Johannesburg Branch",
+          "recipientName": "Jane Doe",
+          "recipientCompanyName": "ABC Corporation",
+          "recipientAddress": "123 Main Street, Sandton, Johannesburg",
+          "recipientContactNumber": "+27 11 123 4567",
+          "recipientEmail": "jane.doe@abc.com",
+          "cellPhoneNumber": "+27 82 123 4567",
+          "warehouseFulfilling": "JHB Warehouse",
+          "deliverToParty": "Customer",
+          "items": [
+            {
+              "deviceType": "iPhone 12 Pro",
+              "quantityOrdered": 1,
+              "itemUrl": "https://example.com/image.jpg",
+              "itemCode": "IPH12P-128GB"
+            },
+            {
+              "deviceType": "Samsung Galaxy S21",
+              "quantityOrdered": 2,
+              "itemUrl": "https://example.com/samsung.jpg",
+              "itemCode": "SGS21-256GB"
+            }
+          ],
+          "metadata": {
+            "dispatchMethod": "Courier",
+            "waybillNumber": "TN123456789",
+            "dispatchStatus": "Dispatched",
+            "pickStatus": "Picked",
+            "additionalNotes": "Handle with care - fragile items"
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Flatten array": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Flatten array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Variable OrderedBy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Variable OrderedBy": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f98eb70d-3775-48dd-a752-e3050f51e2a4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "55ba727e4853648a2101bd917e69c518277625a3676c41e84ae6d35af91527d2"
+  },
+  "id": "euhKHtwC9wy9BxSj",
+  "tags": []
+}
