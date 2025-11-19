@@ -112,6 +112,23 @@ const formatOrderNumber = (orderNumber: number): string => {
   return `ORD-${String(orderNumber).padStart(4, '0')}`;
 };
 
+// Stock availability utilities
+const normalizeStockAvailabilityValue = (value?: string | null): string | undefined => {
+  if (!value) return undefined;
+
+  const lower = value.toLowerCase().trim();
+
+  // Map UI values to database values
+  if (lower === 'in stock') return 'Available';
+  if (lower === 'out of stock') return 'Not Available';
+  if (lower === 'available') return 'Available';
+  if (lower === 'not available') return 'Not Available';
+  if (lower === 'backordered') return 'Backordered';
+  if (lower === 'partial') return 'Partial';
+
+  return undefined;
+};
+
 // Pick status utilities
 const normalizePickStatusValue = (value?: string | null): PickStatusEnum | undefined => {
   if (!value) return undefined;
@@ -120,7 +137,7 @@ const normalizePickStatusValue = (value?: string | null): PickStatusEnum | undef
 
   if (lower === 'not picked') return 'Not Picked';
   if (lower === 'partially picked') return 'Partially Picked';
-  if (lower === 'picked') return 'Picked';
+  if (lower === 'picked in full' || lower === 'picked') return 'Picked';
   if (lower === 'pending') return 'Pending';
 
   return undefined;
@@ -618,6 +635,12 @@ export const orderService = {
           qty_dispatched: item.quantity,
           pick_status: normalizePickStatusValue(item.pickStatus) || 'Pending',
         };
+
+        // Add stock_availability if provided
+        const normalizedAvailability = normalizeStockAvailabilityValue(item.stockAvailability);
+        if (normalizedAvailability) {
+          (updateData as any).stock_availability = normalizedAvailability;
+        }
 
         const { error } = await supabase
           .from('stock_order')
