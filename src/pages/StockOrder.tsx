@@ -259,11 +259,11 @@ const StockOrder = () => {
 
   useEffect(() => {
     if (deliveryParty === 'Technician' && selectedTechnician && selectedTechnician !== 'select' && technicians) {
-      const tech = technicians.find(t => t.fields['Name & Surname'] === selectedTechnician);
+      const tech = technicians.find(t => t.name_surname === selectedTechnician);
       if (tech) {
-        form.setValue('onBehalfOf', tech.fields['Email Address'] || '');
-        form.setValue('orderLocation', tech.fields['Area Based'] || '');
-        form.setValue('popId', tech.fields['Location Code'] || tech.id || '');
+        form.setValue('onBehalfOf', tech.email_address || '');
+        form.setValue('orderLocation', tech.area_based || '');
+        form.setValue('popId', tech.location_code || tech.id || '');
       }
     }
   }, [selectedTechnician, technicians, deliveryParty]);
@@ -272,8 +272,8 @@ const StockOrder = () => {
     if (!searchQuery) return true;
     const search = searchQuery.toLowerCase();
     return (
-      item.fields['Device Type']?.toLowerCase().includes(search) ||
-      item.fields['Item_Description']?.toLowerCase().includes(search)
+      item.item_name?.toLowerCase().includes(search) ||
+      item.item_description?.toLowerCase().includes(search)
     );
   }) || [];
 
@@ -289,15 +289,15 @@ const StockOrder = () => {
     }
 
     const itemImageUrl =
-      item.fields['Item_Url'] ||
-      item.fields['Item Url'] ||
-      item.fields.Thumbnail?.[0]?.url;
+      item.item_url ||
+      item.item_url ||
+      null?.[0]?.url;
 
     const cartItem: CartItem = {
       id: item.id,
-      itemName: item.fields['Device Type'],
-      itemDescription: item.fields['Item_Description'],
-      itemCategory: item.fields['Item_Category'],
+      itemName: item.item_name,
+      itemDescription: item.item_description,
+      itemCategory: item.item_category,
       quantity,
       itemNature: selectedNature,
       itemUrl: itemImageUrl ?? undefined,
@@ -697,8 +697,8 @@ const StockOrder = () => {
                                 )}
                                 {!techniciansLoading && normalizedRegion && technicians?.length ? (
                                   technicians.map((tech) => (
-                                    <SelectItem key={tech.id} value={tech.fields['Name & Surname']}>
-                                      {tech.fields['Name & Surname']}
+                                    <SelectItem key={tech.id} value={tech.name_surname}>
+                                      {tech.name_surname}
                                     </SelectItem>
                                   ))
                                 ) : null}
@@ -1009,8 +1009,8 @@ const StockOrder = () => {
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {filteredInventory.map((item) => {
-                  const thumbnailUrl = item.fields.Thumbnail?.[0]?.url;
-                  const imageUrl = thumbnailUrl ?? item.fields['Item_Url'];
+                  const thumbnailUrl = null?.[0]?.url;
+                  const imageUrl = thumbnailUrl ?? item.item_url;
 
                   return (
                   <Card 
@@ -1023,7 +1023,7 @@ const StockOrder = () => {
                           {imageUrl ? (
                             <img 
                               src={imageUrl} 
-                              alt={item.fields['Device Type']}
+                              alt={item.item_name}
                               className="h-full w-full object-cover"
                             />
                           ) : (
@@ -1033,13 +1033,13 @@ const StockOrder = () => {
                         <div className="flex-1 space-y-2">
                           <div className="space-y-1">
                             <p className="text-sm font-medium">
-                              Device Type: {item.fields['Device Type']}
+                              Device Type: {item.item_name}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {item.fields['Item_Description']}
+                              {item.item_description}
                             </p>
                             <p className="text-xs">
-                              Category: {item.fields['Item_Category']}
+                              Category: {item.item_category}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">

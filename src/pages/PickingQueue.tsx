@@ -24,9 +24,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { usePickingQueue, useStockOrderItemsByOrders } from '@/hooks/useAirtable';
+import { usePickingQueue, useStockOrderItemsByOrders } from '@/hooks/useSupabase';
 import { BUSINESS_LINES, formatOrderNumber, normaliseBusinessLine, expandLineItemUnits } from '@/lib/orders';
-import type { UniqueOrder } from '@/types/airtable';
+import type { UniqueOrder } from '@/integrations/supabase/services';
 import ThemeToggle from '@/components/theme-toggle';
 
 const pickStatusTone: Record<string, string> = {
@@ -55,7 +55,7 @@ const getOrderDate = (value?: string) => {
 };
 
 const sumQuantities = (orders: UniqueOrder[]) =>
-  orders.reduce((total, order) => total + (order.fields['Quantity Ordered'] ?? 0), 0);
+  orders.reduce((total, order) => total + (order.quantity_ordered ?? 0), 0);
 
 const PickingQueue = () => {
   const navigate = useNavigate();
@@ -68,7 +68,7 @@ const PickingQueue = () => {
   const queueStats = useMemo(() => {
     return businessLineDisplay.map((line) => {
       const lineOrders = orders.filter(
-        (order) => normaliseBusinessLine(order.fields['Item Category']) === line
+        (order) => normaliseBusinessLine(order.item_category) === line
       );
 
       return {
@@ -102,7 +102,7 @@ const PickingQueue = () => {
   const filteredOrders = useMemo(() => {
     if (!orders.length) return [];
     return orders.filter(
-      (order) => normaliseBusinessLine(order.fields['Item Category']) === effectiveSelectedLine
+      (order) => normaliseBusinessLine(order.item_category) === effectiveSelectedLine
     );
   }, [orders, effectiveSelectedLine]);
 
@@ -122,7 +122,7 @@ const PickingQueue = () => {
 
   const renderOrderCard = (order: UniqueOrder) => {
     const orderNumber = formatOrderNumber(order);
-    const dateOrdered = getOrderDate(order.fields['Date Ordered']);
+    const dateOrdered = getOrderDate(order.date_ordered);
     const isExpanded = expandedOrderId === order.id;
   const lineItems = orderNumber ? lineItemsMap[orderNumber] ?? [] : [];
   const expandedUnits = expandLineItemUnits(lineItems);
@@ -141,9 +141,9 @@ const PickingQueue = () => {
                   <span className="text-sm font-semibold text-foreground">
                     {orderNumber ?? 'Unknown Order'}
                   </span>
-                  {renderStatusBadge(order.fields['Pick Status'], pickStatusTone, 'border-border')}
+                  {renderStatusBadge(order.pick_status, pickStatusTone, 'border-border')}
                   {renderStatusBadge(
-                    order.fields['Dispatch Status'],
+                    order.dispatch_status,
                     dispatchStatusTone,
                     'border-border'
                   )}
@@ -155,14 +155,14 @@ const PickingQueue = () => {
                       {dateOrdered}
                     </span>
                   )}
-                  {order.fields['Recipient Company Name'] && (
+                  {order.recipient_company_name && (
                     <span className="flex items-center gap-1">
                       <Building2 className="h-3.5 w-3.5" />
-                      {order.fields['Recipient Company Name']}
+                      {order.recipient_company_name}
                     </span>
                   )}
                   <span className="flex items-center gap-1 font-medium text-foreground">
-                    Qty: {order.fields['Quantity Ordered'] ?? 0}
+                    Qty: {order.quantity_ordered ?? 0}
                   </span>
                 </div>
               </div>
@@ -180,35 +180,35 @@ const PickingQueue = () => {
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground uppercase">Recipient</p>
                   <p className="font-medium text-foreground">
-                    {order.fields['Recipient Name'] ?? '—'}
+                    {order.recipient_name ?? '—'}
                   </p>
                   <p className="text-muted-foreground">
-                    {order.fields['Recipient Company Name'] ?? 'No company captured'}
+                    {order.recipient_company_name ?? 'No company captured'}
                   </p>
-                  {order.fields['Recipient Contact Number'] && (
+                  {order.recipient_contact_number && (
                     <p className="text-muted-foreground">
-                      {order.fields['Recipient Contact Number']}
+                      {order.recipient_contact_number}
                     </p>
                   )}
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground uppercase">Logistics</p>
-                  <p>Deliver to: {order.fields['Deliver to Part'] ?? '—'}</p>
-                  <p>Region: {order.fields['Region'] ?? '—'}</p>
-                  <p>Warehouse: {order.fields['Warehouse Fulfilling'] ?? '—'}</p>
+                  <p>Deliver to: {order.deliver_to_part ?? '—'}</p>
+                  <p>Region: {order.region ?? '—'}</p>
+                  <p>Warehouse: {order.warehouse_fulfilling ?? '—'}</p>
                 </div>
               </div>
 
-              {order.fields['Order Notes'] && (
+              {order.order_notes && (
                 <div className="rounded-md bg-background border p-3 text-muted-foreground">
                   <p className="text-xs uppercase font-semibold mb-1">Order Notes</p>
-                  <p>{order.fields['Order Notes']}</p>
+                  <p>{order.order_notes}</p>
                 </div>
               )}
 
               <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                 <div className="text-xs text-muted-foreground">
-                  Last Updated Pick Status: {order.fields['Pick Status'] ?? '—'}
+                  Last Updated Pick Status: {order.pick_status ?? '—'}
                 </div>
                 <Button size="sm" onClick={() => handleNavigateToCart(order.id)}>
                   Open Picking Cart

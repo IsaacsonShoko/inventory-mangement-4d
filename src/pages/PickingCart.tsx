@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { useDispatchLog, useStockOrderItems, useUniqueOrderRecord, useUpdateUniqueOrder } from '@/hooks/useAirtable';
+import { useDispatchLog, useStockOrderItems, useUniqueOrderRecord, useUpdateUniqueOrder } from '@/hooks/useSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { expandLineItemUnits, formatOrderNumber, getLineItemImageUrl, type ExpandedLineItemUnit } from '@/lib/orders';
 import { n8nService } from '@/integrations/n8n';
@@ -202,16 +202,16 @@ const PickingCart = () => {
         .map((unit) => trimmedSerialMap[unit.unitId])
         .filter((value): value is string => Boolean(value));
 
-      const quantityOrdered = item.fields['Quantity ordered'] ?? unitsForItem.length;
+      const quantityOrdered = item.quantity_ordered ?? unitsForItem.length;
 
       return {
-        deviceType: item.fields['Device Type'] ?? 'Unknown',
+        deviceType: item.device_type ?? 'Unknown',
         quantityOrdered,
         itemUrl: getLineItemImageUrl(item),
-        itemCode: item.fields['Item Code'] as string | undefined,
-        itemDescription: item.fields['Item Description'] as string | undefined,
-        itemCategory: item.fields['Item Category'] as string | undefined,
-        itemNature: item.fields['Item Nature'] as string | undefined,
+        itemCode: item.item_code as string | undefined,
+        itemDescription: item.item_description as string | undefined,
+        itemCategory: item.item_category as string | undefined,
+        itemNature: item.item_nature as string | undefined,
         itemId: item.id,
         serialNumbers,
         units: unitsForItem.map((unit) => ({
@@ -246,8 +246,8 @@ const PickingCart = () => {
               items: itemsPayload,
               metadata: {
                 pickStatus: 'Picked',
-                dispatchStatus: uniqueOrder?.fields['Dispatch Status'] ?? 'Pending',
-                dateOrdered: uniqueOrder?.fields['Date Ordered'],
+                dispatchStatus: uniqueOrder?.dispatch_status ?? 'Pending',
+                dateOrdered: uniqueOrder?.date_ordered,
                 serialCapture: {
                   requiredUnits: totalSerialRequired,
                   capturedUnits: totalSerialCaptured,
@@ -272,9 +272,9 @@ const PickingCart = () => {
     );
   };
 
-  const pickStatus = uniqueOrder?.fields['Pick Status'] ?? 'Not Picked';
-  const dispatchStatus = uniqueOrder?.fields['Dispatch Status'] ?? 'Pending';
-  const dateOrdered = safeFormatDate(uniqueOrder?.fields['Date Ordered']);
+  const pickStatus = uniqueOrder?.pick_status ?? 'Not Picked';
+  const dispatchStatus = uniqueOrder?.dispatch_status ?? 'Pending';
+  const dateOrdered = safeFormatDate(uniqueOrder?.date_ordered);
   const inputsDisabled = pickStatus === 'Picked' || updateMutation.isPending;
 
   return (
@@ -327,16 +327,16 @@ const PickingCart = () => {
             <div className="space-y-2">
               <p className="text-xs uppercase text-muted-foreground">Recipient</p>
               <p className="text-base font-semibold text-foreground">
-                {uniqueOrder?.fields['Recipient Name'] ?? '—'}
+                {uniqueOrder?.recipient_name ?? '—'}
               </p>
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
-                {uniqueOrder?.fields['Recipient Company Name'] ?? 'Company not captured'}
+                {uniqueOrder?.recipient_company_name ?? 'Company not captured'}
               </p>
-              {uniqueOrder?.fields['Recipient Contact Number'] && (
+              {uniqueOrder?.recipient_contact_number && (
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  {uniqueOrder.fields['Recipient Contact Number']}
+                  {uniqueOrder.recipient_contact_number}
                 </p>
               )}
             </div>
@@ -349,12 +349,12 @@ const PickingCart = () => {
               </p>
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                {uniqueOrder?.fields['Region'] ?? 'Region unknown'}
+                {uniqueOrder?.region ?? 'Region unknown'}
               </p>
-              {uniqueOrder?.fields['Warehouse Fulfilling'] && (
+              {uniqueOrder?.warehouse_fulfilling && (
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <Hash className="h-4 w-4" />
-                  {uniqueOrder.fields['Warehouse Fulfilling']}
+                  {uniqueOrder.warehouse_fulfilling}
                 </p>
               )}
             </div>
@@ -362,12 +362,12 @@ const PickingCart = () => {
             <div className="space-y-2">
               <p className="text-xs uppercase text-muted-foreground">Order Metrics</p>
               <p className="text-2xl font-bold text-foreground">
-                {uniqueOrder?.fields['Quantity Ordered'] ?? 0}
+                {uniqueOrder?.quantity_ordered ?? 0}
               </p>
               <p className="text-sm text-muted-foreground">Total items requested</p>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">{uniqueOrder?.fields['Item Category'] ?? 'Category'}</Badge>
-                <Badge variant="outline">{uniqueOrder?.fields['Item Nature'] ?? 'Nature'}</Badge>
+                <Badge variant="outline">{uniqueOrder?.item_category ?? 'Category'}</Badge>
+                <Badge variant="outline">{uniqueOrder?.item_nature ?? 'Nature'}</Badge>
               </div>
             </div>
           </CardContent>
@@ -423,7 +423,7 @@ const PickingCart = () => {
                 {lineItems.map((item) => {
                   const unitsForItem = unitsByLineItemId[item.id] ?? [];
                   const imageUrl = getLineItemImageUrl(item);
-                  const quantityOrdered = item.fields['Quantity ordered'] ?? unitsForItem.length;
+                  const quantityOrdered = item.quantity_ordered ?? unitsForItem.length;
                   const requiresSerial = unitsForItem.some((unit) => unit.isSerialised);
 
                   return (
@@ -437,7 +437,7 @@ const PickingCart = () => {
                             {imageUrl ? (
                               <img
                                 src={imageUrl}
-                                alt={item.fields['Device Type'] ?? 'Inventory item'}
+                                alt={item.device_type ?? 'Inventory item'}
                                 className="h-full w-full object-cover"
                               />
                             ) : (
@@ -446,16 +446,16 @@ const PickingCart = () => {
                           </div>
                           <div className="space-y-1">
                             <p className="text-sm font-semibold text-foreground">
-                              {item.fields['Device Type'] ?? 'Unknown device'}
+                              {item.device_type ?? 'Unknown device'}
                             </p>
                             <p className="text-xs text-muted-foreground max-w-md">
-                              {item.fields['Item Description'] ?? 'No description captured.'}
+                              {item.item_description ?? 'No description captured.'}
                             </p>
                             <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
                               <span>Qty: {quantityOrdered}</span>
-                              {(item.fields['Item Code'] as string | undefined) && (
+                              {(item.item_code as string | undefined) && (
                                 <span className="font-semibold">
-                                  {item.fields['Item Code'] as string}
+                                  {item.item_code as string}
                                 </span>
                               )}
                               {requiresSerial ? (
@@ -471,9 +471,9 @@ const PickingCart = () => {
                           </div>
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1 md:text-right">
-                          <p>Bin / Package: {item.fields['Package Reference'] ?? item.fields['Order Location'] ?? '—'}</p>
-                          {item.fields['Item Category'] && <p>Category: {item.fields['Item Category']}</p>}
-                          {item.fields['Item Nature'] && <p>Nature: {item.fields['Item Nature']}</p>}
+                          <p>Bin / Package: {item.package_reference ?? item.order_location ?? '—'}</p>
+                          {item.item_category && <p>Category: {item.item_category}</p>}
+                          {item.item_nature && <p>Nature: {item.item_nature}</p>}
                         </div>
                       </div>
 
@@ -574,11 +574,11 @@ const PickingCart = () => {
               {dispatchLog.slice(0, 3).map((entry) => (
                 <div key={entry.id} className="border border-border/40 rounded-md p-3">
                   <p className="font-medium text-foreground">
-                    {entry.fields['Dispatch Method'] ?? 'Dispatch Update'}
+                    {entry.dispatch_method ?? 'Dispatch Update'}
                   </p>
-                  <p>{safeFormatDate(entry.fields['Date Dispatched']) ?? 'Date not set'}</p>
+                  <p>{safeFormatDate(entry.date_dispatched) ?? 'Date not set'}</p>
                   <p className="text-xs text-muted-foreground">
-                    Waybill: {entry.fields['Waybill number'] ?? 'Not captured'}
+                    Waybill: {entry.waybill_number ?? 'Not captured'}
                   </p>
                 </div>
               ))}

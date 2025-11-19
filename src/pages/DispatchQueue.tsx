@@ -24,9 +24,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { useDispatchQueue, useStockOrderItemsByOrders } from '@/hooks/useAirtable';
+import { useDispatchQueue, useStockOrderItemsByOrders } from '@/hooks/useSupabase';
 import { BUSINESS_LINES, expandLineItemUnits, formatOrderNumber, normaliseBusinessLine } from '@/lib/orders';
-import type { UniqueOrder } from '@/types/airtable';
+import type { UniqueOrder } from '@/integrations/supabase/services';
 import ThemeToggle from '@/components/theme-toggle';
 
 const dispatchTone: Record<string, string> = {
@@ -53,7 +53,7 @@ const getOrderDate = (value?: string) => {
 };
 
 const sumQuantities = (orders: UniqueOrder[]) =>
-  orders.reduce((total, order) => total + (order.fields['Quantity Ordered'] ?? 0), 0);
+  orders.reduce((total, order) => total + (order.quantity_ordered ?? 0), 0);
 
 const DispatchQueue = () => {
   const navigate = useNavigate();
@@ -66,7 +66,7 @@ const DispatchQueue = () => {
   const queueStats = useMemo(() => {
     return businessLineDisplay.map((line) => {
       const lineOrders = orders.filter(
-        (order) => normaliseBusinessLine(order.fields['Item Category']) === line
+        (order) => normaliseBusinessLine(order.item_category) === line
       );
 
       return {
@@ -100,7 +100,7 @@ const DispatchQueue = () => {
   const filteredOrders = useMemo(() => {
     if (!orders.length) return [];
     return orders.filter(
-      (order) => normaliseBusinessLine(order.fields['Item Category']) === effectiveSelectedLine
+      (order) => normaliseBusinessLine(order.item_category) === effectiveSelectedLine
     );
   }, [orders, effectiveSelectedLine]);
 
@@ -244,7 +244,7 @@ const DispatchQueue = () => {
                 <div>
                   {filteredOrders.map((order) => {
                     const orderNumber = formatOrderNumber(order);
-                    const dateOrdered = getOrderDate(order.fields['Date Ordered']);
+                    const dateOrdered = getOrderDate(order.date_ordered);
                     const isExpanded = expandedOrderId === order.id;
                     const lineItems = orderNumber ? lineItemsMap[orderNumber] ?? [] : [];
                     const expandedUnits = expandLineItemUnits(lineItems);
@@ -263,8 +263,8 @@ const DispatchQueue = () => {
                                   <span className="text-sm font-semibold text-foreground">
                                     {orderNumber ?? 'Unknown Order'}
                                   </span>
-                                  {renderStatusBadge(order.fields['Dispatch Status'], dispatchTone)}
-                                  {renderStatusBadge(order.fields['Pick Status'], pickTone)}
+                                  {renderStatusBadge(order.dispatch_status, dispatchTone)}
+                                  {renderStatusBadge(order.pick_status, pickTone)}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
                                   {dateOrdered && (
@@ -273,14 +273,14 @@ const DispatchQueue = () => {
                                       {dateOrdered}
                                     </span>
                                   )}
-                                  {order.fields['Recipient Company Name'] && (
+                                  {order.recipient_company_name && (
                                     <span className="flex items-center gap-1">
                                       <Building2 className="h-3.5 w-3.5" />
-                                      {order.fields['Recipient Company Name']}
+                                      {order.recipient_company_name}
                                     </span>
                                   )}
                                   <span className="flex items-center gap-1 font-medium text-foreground">
-                                    Qty: {order.fields['Quantity Ordered'] ?? 0}
+                                    Qty: {order.quantity_ordered ?? 0}
                                   </span>
                                 </div>
                               </div>
@@ -298,35 +298,35 @@ const DispatchQueue = () => {
                                 <div className="space-y-1">
                                   <p className="text-xs text-muted-foreground uppercase">Recipient</p>
                                   <p className="font-medium text-foreground">
-                                    {order.fields['Recipient Name'] ?? '—'}
+                                    {order.recipient_name ?? '—'}
                                   </p>
                                   <p className="text-muted-foreground">
-                                    {order.fields['Recipient Company Name'] ?? 'No company captured'}
+                                    {order.recipient_company_name ?? 'No company captured'}
                                   </p>
-                                  {order.fields['Recipient Contact Number'] && (
+                                  {order.recipient_contact_number && (
                                     <p className="text-muted-foreground">
-                                      {order.fields['Recipient Contact Number']}
+                                      {order.recipient_contact_number}
                                     </p>
                                   )}
                                 </div>
                                 <div className="space-y-1">
                                   <p className="text-xs text-muted-foreground uppercase">Logistics</p>
-                                  <p>Dispatch Method: {order.fields['Dispatch Method'] ?? '—'}</p>
-                                  <p>Waybill: {order.fields['WayBill Number'] ?? '—'}</p>
-                                  <p>Warehouse: {order.fields['Warehouse Fulfilling'] ?? '—'}</p>
+                                  <p>Dispatch Method: {order.dispatch_method ?? '—'}</p>
+                                  <p>Waybill: {order.waybill_number ?? '—'}</p>
+                                  <p>Warehouse: {order.warehouse_fulfilling ?? '—'}</p>
                                 </div>
                               </div>
 
-                              {order.fields['Order Notes'] && (
+                              {order.order_notes && (
                                 <div className="rounded-md bg-background border p-3 text-muted-foreground">
                                   <p className="text-xs uppercase font-semibold mb-1">Order Notes</p>
-                                  <p>{order.fields['Order Notes']}</p>
+                                  <p>{order.order_notes}</p>
                                 </div>
                               )}
 
                               <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                                 <div className="text-xs text-muted-foreground">
-                                  Delivery Party: {order.fields['Deliver to Part'] ?? '—'}
+                                  Delivery Party: {order.deliver_to_part ?? '—'}
                                 </div>
                                 <Button size="sm" onClick={() => handleNavigateToCart(order.id)}>
                                   Open Dispatch Cart

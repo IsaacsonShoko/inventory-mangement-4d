@@ -27,13 +27,13 @@ import {
   useUniqueOrderRecord,
   useUpdateUniqueOrder,
   useUpdateStockOrderLines,
-} from '@/hooks/useAirtable';
+} from '@/hooks/useSupabase';
 
 import { formatOrderNumber, getLineItemImageUrl } from '@/lib/orders';
 import { n8nService } from '@/integrations/n8n';
 import ThemeToggle from '@/components/theme-toggle';
-import type { StockOrderLineItem } from '@/types/airtable';
-import type { StockOrderPickedUpdateInput } from '@/integrations/airtable';
+import type { StockOrderLineItem } from '@/integrations/supabase/services';
+import type { StockOrderPickedUpdateInput } from '@/integrations/supabase';
 
 interface PickedItemData {
   stockOrderId: string;
@@ -90,7 +90,7 @@ const PickingCartNew = () => {
   });
 
   const totalQuantity = useMemo(() => {
-    return lineItems.reduce((sum, item) => sum + (item.fields['Quantity ordered'] ?? 0), 0);
+    return lineItems.reduce((sum, item) => sum + (item.quantity_ordered ?? 0), 0);
   }, [lineItems]);
 
   const pickedQuantity = useMemo(() => {
@@ -122,7 +122,7 @@ const PickingCartNew = () => {
       return;
     }
 
-    const isSerialised = selectedLineItem.fields['Item Nature']?.toLowerCase().includes('serial');
+    const isSerialised = selectedLineItem.item_nature?.toLowerCase().includes('serial');
 
     // Check for duplicate serial numbers
     if (isSerialised && formData.terminalSerialNumber) {
@@ -143,7 +143,7 @@ const PickingCartNew = () => {
 
     const newItem: PickedItemData = {
       stockOrderId: selectedLineItem.id,
-      deviceType: selectedLineItem.fields['Device Type'],
+      deviceType: selectedLineItem.device_type,
       quantity: isSerialised ? 1 : (formData.quantity ?? 1),
       stockAvailability: formData.stockAvailability!,
       pickStatus: formData.pickStatus!,
@@ -232,9 +232,9 @@ const PickingCartNew = () => {
         stockOrderItems: stockOrderItemsPayload,
         totalQuantity: totalQuantity,
         pickedQuantity: pickedQuantity,
-        dateOrdered: uniqueOrder?.fields['Date Ordered'],
-        orderedBy: uniqueOrder?.fields['Ordered by'],
-        deliveryParty: uniqueOrder?.fields['Deliver to Part'],
+        dateOrdered: uniqueOrder?.date_ordered,
+        orderedBy: uniqueOrder?.ordered_by,
+        deliveryParty: uniqueOrder?.deliver_to_part,
         items: itemsPayload,
         // Send ALL picked items in an array for n8n to loop through
         pickedItems: pickedItems.map((item) => ({
@@ -256,17 +256,17 @@ const PickingCartNew = () => {
         metadata: {
           pickedAt: new Date().toISOString(),
           pickerEmail: pickedItems[0]?.packer || 'unknown',
-          contractorCompany: uniqueOrder?.fields['Contractor Company'] ?? null,
-          region: uniqueOrder?.fields['Region'] ?? null,
-          technician: uniqueOrder?.fields['Technician'] ?? null,
-          dispatchMethod: uniqueOrder?.fields['Dispatch Method'] ?? null,
-          warehouseFulfilling: uniqueOrder?.fields['Warehouse Fulfilling'] ?? null,
-          waybillNumber: uniqueOrder?.fields['WayBill Number'] ?? null,
-          packageReference: uniqueOrder?.fields['Package Reference'] ?? null,
-          dispatchStatus: uniqueOrder?.fields['Dispatch Status'] ?? null,
+          contractorCompany: uniqueOrder?.contractor_company ?? null,
+          region: uniqueOrder?.region ?? null,
+          technician: uniqueOrder?.technician ?? null,
+          dispatchMethod: uniqueOrder?.dispatch_method ?? null,
+          warehouseFulfilling: uniqueOrder?.warehouse_fulfilling ?? null,
+          waybillNumber: uniqueOrder?.waybill_number ?? null,
+          packageReference: uniqueOrder?.package_reference ?? null,
+          dispatchStatus: uniqueOrder?.dispatch_status ?? null,
           recordLinks: {
-            stockOrder: uniqueOrder?.fields['Stock Order'] ?? null,
-            dispatchLog: uniqueOrder?.fields['Dispatch Log'] ?? null,
+            stockOrder: uniqueOrder?.stock_order ?? null,
+            dispatchLog: uniqueOrder?.dispatch_log ?? null,
           },
         }
       };
@@ -359,7 +359,7 @@ const PickingCartNew = () => {
   };
 
   const isSerialised = (item: StockOrderLineItem) =>
-    item.fields['Item Nature']?.toLowerCase().includes('serial');
+    item.item_nature?.toLowerCase().includes('serial');
 
   if (orderLoading || itemsLoading) {
     return (
@@ -369,7 +369,7 @@ const PickingCartNew = () => {
     );
   }
 
-  const orderDate = getOrderDate(uniqueOrder?.fields['Date Ordered']);
+  const orderDate = getOrderDate(uniqueOrder?.date_ordered);
 
   return (
     <div className="min-h-screen bg-background">
@@ -389,10 +389,10 @@ const PickingCartNew = () => {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="bg-primary-foreground/10 text-primary-foreground border-primary-foreground/20">
-              Pick Status: {uniqueOrder?.fields['Pick Status'] ?? 'Not Picked'}
+              Pick Status: {uniqueOrder?.pick_status ?? 'Not Picked'}
             </Badge>
             <Badge variant="outline" className="bg-primary-foreground/10 text-primary-foreground border-primary-foreground/20">
-              Dispatch Status: {uniqueOrder?.fields['Dispatch Status'] ?? 'Pending'}
+              Dispatch Status: {uniqueOrder?.dispatch_status ?? 'Pending'}
             </Badge>
             <ThemeToggle variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/20" />
           </div>
@@ -429,9 +429,9 @@ const PickingCartNew = () => {
               <div className="space-y-4">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase">Recipient</p>
-                  <p className="font-medium">{uniqueOrder?.fields['Recipient Name'] ?? '—'}</p>
+                  <p className="font-medium">{uniqueOrder?.recipient_name ?? '—'}</p>
                   <p className="text-sm text-muted-foreground">
-                    {uniqueOrder?.fields['Recipient Company Name'] ?? 'No company captured'}
+                    {uniqueOrder?.recipient_company_name ?? 'No company captured'}
                   </p>
                 </div>
                 <Separator />
@@ -444,13 +444,13 @@ const PickingCartNew = () => {
                         <span>{orderDate}</span>
                       </div>
                     )}
-                    {uniqueOrder?.fields['Region'] && (
+                    {uniqueOrder?.region && (
                       <div className="flex items-center gap-2">
                         <Building2 className="h-3.5 w-3.5" />
-                        <span>Region: {uniqueOrder.fields['Region']}</span>
+                        <span>Region: {uniqueOrder.region}</span>
                       </div>
                     )}
-                    <p>Deliver to: {uniqueOrder?.fields['Deliver to Part'] ?? '—'}</p>
+                    <p>Deliver to: {uniqueOrder?.deliver_to_part ?? '—'}</p>
                   </div>
                 </div>
                 <Separator />
@@ -461,8 +461,8 @@ const PickingCartNew = () => {
                     <span className="text-2xl font-bold">{totalQuantity}</span>
                   </div>
                   <div className="flex gap-2 mt-2">
-                    <Badge>{uniqueOrder?.fields['Item Category']}</Badge>
-                    <Badge variant="outline">{uniqueOrder?.fields['Item Nature']}</Badge>
+                    <Badge>{uniqueOrder?.item_category}</Badge>
+                    <Badge variant="outline">{uniqueOrder?.item_nature}</Badge>
                   </div>
                 </div>
               </div>
@@ -486,7 +486,7 @@ const PickingCartNew = () => {
                   {lineItems.map((item) => {
                     const imageUrl = getLineItemImageUrl(item);
                     const itemPicked = pickedItems.filter((p) => p.stockOrderId === item.id);
-                    const quantityOrdered = item.fields['Quantity ordered'] ?? 0;
+                    const quantityOrdered = item.quantity_ordered ?? 0;
                     const quantityPicked = itemPicked.reduce((sum, p) => sum + p.quantity, 0);
                     const isComplete = quantityPicked >= quantityOrdered;
 
@@ -499,22 +499,22 @@ const PickingCartNew = () => {
                       >
                         <div className="h-16 w-16 rounded-md bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                           {imageUrl ? (
-                            <img src={imageUrl} alt={item.fields['Device Type']} className="h-full w-full object-cover" />
+                            <img src={imageUrl} alt={item.device_type} className="h-full w-full object-cover" />
                           ) : (
                             <PackageIcon className="h-6 w-6 text-primary" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold">{item.fields['Device Type']}</p>
+                          <p className="text-sm font-semibold">{item.device_type}</p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {item.fields['Item Description'] ?? 'No description'}
+                            {item.item_description ?? 'No description'}
                           </p>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-xs">
                               Qty: <span className="font-semibold">{quantityOrdered}</span>
                             </span>
-                            {item.fields['Item Code'] && (
-                              <span className="text-xs text-muted-foreground">{item.fields['Item Code']}</span>
+                            {item.item_code && (
+                              <span className="text-xs text-muted-foreground">{item.item_code}</span>
                             )}
                             <Badge variant="outline" className="text-[10px]">
                               {isSerialised(item) ? 'Serial' : 'Stock'}
@@ -607,7 +607,7 @@ const PickingCartNew = () => {
       <Dialog open={showPickDialog} onOpenChange={setShowPickDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Pick Item: {selectedLineItem?.fields['Device Type']}</DialogTitle>
+            <DialogTitle>Pick Item: {selectedLineItem?.device_type}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {/* Stock Availability */}
@@ -701,7 +701,7 @@ const PickingCartNew = () => {
                 </div>
 
                 {/* Cash Connect Serial */}
-                {selectedLineItem.fields['Item Category']?.includes('Cash Connect') && (
+                {selectedLineItem.item_category?.includes('Cash Connect') && (
                   <div className="space-y-2">
                     <Label htmlFor="cashConnectSerial">CashConnect Serial Number</Label>
                     <Input

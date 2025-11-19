@@ -55,15 +55,15 @@ import {
   useUniqueOrderRecord,
   useUpdateDispatchLogEntries,
   useUpdateUniqueOrder,
-} from '@/hooks/useAirtable';
+} from '@/hooks/useSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { formatOrderNumber, getLineItemImageUrl } from '@/lib/orders';
 import { downloadOrderManifestPdf, type ManifestItemRow, type ManifestPayload } from '@/lib/order-manifest';
 import { n8nService } from '@/integrations/n8n';
 import ThemeToggle from '@/components/theme-toggle';
 import { cn, coerceToString } from '@/lib/utils';
-import type { DispatchLogEntry, StockOrderLineItem } from '@/types/airtable';
-import type { DispatchLogUpdateInput } from '@/integrations/airtable';
+import type { DispatchLogEntry, StockOrderLineItem } from '@/integrations/supabase/services';
+import type { DispatchLogUpdateInput } from '@/integrations/supabase';
 
 const dispatchBadgeTone: Record<string, string> = {
   Dispatched: 'bg-emerald-100 text-emerald-700 border-emerald-300',
@@ -138,9 +138,9 @@ const DispatchCart = () => {
   const [dispatchItemForms, setDispatchItemForms] = useState<Record<string, DispatchItemFormState>>({});
   const [referencedItemIds, setReferencedItemIds] = useState<Set<string>>(new Set());
 
-  const pickStatus = uniqueOrder?.fields['Pick Status'] ?? 'Pending';
-  const dispatchStatus = uniqueOrder?.fields['Dispatch Status'] ?? 'Pending';
-  const dateOrdered = safeFormatDate(uniqueOrder?.fields['Date Ordered']);
+  const pickStatus = uniqueOrder?.pick_status ?? 'Pending';
+  const dispatchStatus = uniqueOrder?.dispatch_status ?? 'Pending';
+  const dateOrdered = safeFormatDate(uniqueOrder?.date_ordered);
 
   const dispatchLogById = useMemo(() => {
     return dispatchLog.reduce<Record<string, DispatchLogEntry>>((acc, entry) => {
@@ -193,19 +193,19 @@ const DispatchCart = () => {
 
         next[entry.id] = {
           dispatchLogId: entry.id,
-          dispatchMethod: entry.fields['Dispatch Method'],
-          waybillNumber: entry.fields['Waybill number'],
-          packageReference: entry.fields['Package Reference'],
-          multiplePackages: (entry.fields['Package Reference'] ?? '').toString().includes(','),
-          dispatcher: entry.fields['Dispatcher'],
+          dispatchMethod: entry.dispatch_method,
+          waybillNumber: entry.waybill_number,
+          packageReference: entry.package_reference,
+          multiplePackages: (entry.package_reference ?? '').toString().includes(','),
+          dispatcher: entry.dispatcher,
           shipped:
-            entry.fields['Shipped'] === true ||
-            entry.fields['Shipped'] === 'Yes' ||
-            entry.fields['Shipped'] === 'Y',
-          dispatchToLocation: entry.fields['Dispatch_To_Location'],
-          timeDispatched: entry.fields['TimeDispatched'],
-          chargerPacked: entry.fields['Charger Packed'] as 'Y' | 'N' | undefined,
-          cables: entry.fields['Cables'] as 'Y' | 'N' | undefined,
+            entry.shipped === true ||
+            entry.shipped === 'Yes' ||
+            entry.shipped === 'Y',
+          dispatchToLocation: entry.dispatch_to_location,
+          timeDispatched: entry.time_dispatched,
+          chargerPacked: entry.charger_packed as 'Y' | 'N' | undefined,
+          cables: entry.cables as 'Y' | 'N' | undefined,
         };
       });
 
@@ -217,16 +217,16 @@ const DispatchCart = () => {
     (lineItemId: string) => {
       const entry = dispatchLog.find((log) => {
         const itemCodeMatches =
-          log.fields['Item Code'] && log.fields['Item Code'] === stockItemsById[lineItemId]?.fields['Item Code'];
+          log.item_code && log.item_code === stockItemsById[lineItemId]?.item_code;
         const serialMatches =
-          log.fields['Terminal Serial Number'] &&
-          log.fields['Terminal Serial Number'] === stockItemsById[lineItemId]?.fields['Terminal Serial Number'];
+          log.terminal_serial_number &&
+          log.terminal_serial_number === stockItemsById[lineItemId]?.terminal_serial_number;
 
         if (itemCodeMatches || serialMatches) {
           return true;
         }
 
-        const orderIdField = log.fields['Order Id'];
+        const orderIdField = log.order_id;
         const orderIds = Array.isArray(orderIdField)
           ? orderIdField
           : orderIdField !== undefined && orderIdField !== null
@@ -239,7 +239,7 @@ const DispatchCart = () => {
 
         return orderIds.some((value) => {
           const normalizedValue = value?.toString();
-          const lineItemOrderId = stockItemsById[lineItemId]?.fields['Order Id']?.toString();
+          const lineItemOrderId = stockItemsById[lineItemId]?.order_id?.toString();
           return normalizedValue && lineItemOrderId && normalizedValue === lineItemOrderId;
         });
       });
@@ -269,11 +269,11 @@ const DispatchCart = () => {
       }
 
       const hasDetails = Boolean(
-        entry.fields['Package Reference'] ||
-          entry.fields['Waybill number'] ||
-          entry.fields['Dispatch Method'] ||
-          entry.fields['Dispatcher'] ||
-          entry.fields['Shipped'],
+        entry.package_reference ||
+          entry.waybill_number ||
+          entry.dispatch_method ||
+          entry.dispatcher ||
+          entry.shipped,
       );
 
       if (hasDetails) {
@@ -313,19 +313,19 @@ const DispatchCart = () => {
             ...previous,
             [dispatchLogId]: {
               dispatchLogId,
-              dispatchMethod: entry.fields['Dispatch Method'],
-              waybillNumber: entry.fields['Waybill number'],
-              packageReference: entry.fields['Package Reference'],
-              multiplePackages: (entry.fields['Package Reference'] ?? '').toString().includes(','),
-              dispatcher: entry.fields['Dispatcher'],
+              dispatchMethod: entry.dispatch_method,
+              waybillNumber: entry.waybill_number,
+              packageReference: entry.package_reference,
+              multiplePackages: (entry.package_reference ?? '').toString().includes(','),
+              dispatcher: entry.dispatcher,
               shipped:
-                entry.fields['Shipped'] === true ||
-                entry.fields['Shipped'] === 'Yes' ||
-                entry.fields['Shipped'] === 'Y',
-              dispatchToLocation: entry.fields['Dispatch_To_Location'],
-              timeDispatched: entry.fields['TimeDispatched'],
-              chargerPacked: entry.fields['Charger Packed'] as 'Y' | 'N' | undefined,
-              cables: entry.fields['Cables'] as 'Y' | 'N' | undefined,
+                entry.shipped === true ||
+                entry.shipped === 'Yes' ||
+                entry.shipped === 'Y',
+              dispatchToLocation: entry.dispatch_to_location,
+              timeDispatched: entry.time_dispatched,
+              chargerPacked: entry.charger_packed as 'Y' | 'N' | undefined,
+              cables: entry.cables as 'Y' | 'N' | undefined,
             },
           }));
         }
@@ -609,7 +609,7 @@ const DispatchCart = () => {
     }
 
     if (additionalNotes) {
-      const mergedNotes = [uniqueOrder?.fields['Order Notes'], additionalNotes]
+      const mergedNotes = [uniqueOrder?.order_notes, additionalNotes]
         .filter(Boolean)
         .join('\n');
       fields['Order Notes'] = mergedNotes;
@@ -628,10 +628,10 @@ const DispatchCart = () => {
           });
 
           const itemsPayload = lineItems.map((item) => ({
-            deviceType: item.fields['Device Type'] ?? 'Unknown',
-            quantityOrdered: item.fields['Quantity ordered'] ?? 0,
+            deviceType: item.device_type ?? 'Unknown',
+            quantityOrdered: item.quantity_ordered ?? 0,
             itemUrl: getLineItemImageUrl(item),
-            itemCode: item.fields['Item Code'] as string | undefined,
+            itemCode: item.item_code as string | undefined,
           }));
 
           void n8nService
@@ -640,28 +640,28 @@ const DispatchCart = () => {
               uniqueOrderRecordId: recordId,
               dateOrdered: dateOrdered,
               totalItems: lineItems.length,
-              totalQuantity: lineItems.reduce((sum, item) => sum + (item.fields['Quantity ordered'] ?? 0), 0),
-              orderedBy: coerceToString(uniqueOrder?.fields['Ordered By']),
-              deliveryParty: coerceToString(uniqueOrder?.fields['Delivery Party']),
-              contractorCompany: coerceToString(uniqueOrder?.fields['Contractor Company']),
-              region: coerceToString(uniqueOrder?.fields['Region']),
-              technician: coerceToString(uniqueOrder?.fields['Technician']),
-              onBehalfOf: coerceToString(uniqueOrder?.fields['On Behalf Of']),
-              orderLocation: coerceToString(uniqueOrder?.fields['Order Location']),
-              recipientName: coerceToString(uniqueOrder?.fields['Recipient Name']),
-              recipientCompanyName: coerceToString(uniqueOrder?.fields['Recipient Company Name']),
-              recipientAddress: coerceToString(uniqueOrder?.fields['Recipient Address']),
-              recipientContactNumber: coerceToString(uniqueOrder?.fields['Recipient Contact Number']),
-              recipientEmail: coerceToString(uniqueOrder?.fields['Recipient Email']),
-              cellPhoneNumber: coerceToString(uniqueOrder?.fields['CellPhone Number']),
-              warehouseFulfilling: coerceToString(uniqueOrder?.fields['Warehouse Fulfilling']),
-              deliverToParty: coerceToString(uniqueOrder?.fields['Deliver to Part']),
+              totalQuantity: lineItems.reduce((sum, item) => sum + (item.quantity_ordered ?? 0), 0),
+              orderedBy: coerceToString(uniqueOrder?.ordered_by),
+              deliveryParty: coerceToString(uniqueOrder?.deliver_to_part),
+              contractorCompany: coerceToString(uniqueOrder?.contractor_company),
+              region: coerceToString(uniqueOrder?.region),
+              technician: coerceToString(uniqueOrder?.technician),
+              onBehalfOf: coerceToString(uniqueOrder?.on_behalf_of),
+              orderLocation: coerceToString(uniqueOrder?.order_location),
+              recipientName: coerceToString(uniqueOrder?.recipient_name),
+              recipientCompanyName: coerceToString(uniqueOrder?.recipient_company_name),
+              recipientAddress: coerceToString(uniqueOrder?.recipient_address),
+              recipientContactNumber: coerceToString(uniqueOrder?.recipient_contact_number),
+              recipientEmail: coerceToString(uniqueOrder?.recipient_email_address),
+              cellPhoneNumber: coerceToString(uniqueOrder?.cell_phone_number),
+              warehouseFulfilling: coerceToString(uniqueOrder?.warehouse_fulfilling),
+              deliverToParty: coerceToString(uniqueOrder?.deliver_to_part),
               items: itemsPayload,
               metadata: {
-                dispatchMethod: dispatchMethod || coerceToString(uniqueOrder?.fields['Dispatch Method']),
-                waybillNumber: waybillNumber || coerceToString(uniqueOrder?.fields['WayBill Number']),
+                dispatchMethod: dispatchMethod || coerceToString(uniqueOrder?.dispatch_method),
+                waybillNumber: waybillNumber || coerceToString(uniqueOrder?.waybill_number),
                 dispatchStatus: 'Dispatched',
-                pickStatus: coerceToString(uniqueOrder?.fields['Pick Status']),
+                pickStatus: coerceToString(uniqueOrder?.pick_status),
                 additionalNotes,
               },
             })
@@ -710,33 +710,33 @@ const DispatchCart = () => {
       const dispatchLogEntry = dispatchLogId ? dispatchLogById[dispatchLogId] : null;
 
       // Use dispatch log data if available, fallback to line item data
-      const packageReference = dispatchLogEntry?.fields['Package Reference'] ?? item.fields['Package Reference'] ?? null;
-      const waybillNumber = dispatchLogEntry?.fields['Waybill number'] ?? item.fields['Waybill number'] ?? null;
+      const packageReference = dispatchLogEntry?.package_reference ?? item.package_reference ?? null;
+      const waybillNumber = dispatchLogEntry?.waybill_number ?? item.waybill_number ?? null;
 
       return {
-        deviceType: item.fields['Device Type'] ?? 'Unknown device',
-        serialNumber: item.fields['Terminal Serial Number'] ?? item.fields['Item Code'] ?? null,
+        deviceType: item.device_type ?? 'Unknown device',
+        serialNumber: item.terminal_serial_number ?? item.item_code ?? null,
         packageReference: packageReference || waybillNumber,
-        chargerIncluded: (dispatchLogEntry?.fields['Charger Packed'] ?? item.fields['Charger Packed'] ?? '').toString().toLowerCase() === 'yes' || (dispatchLogEntry?.fields['Charger Packed'] ?? item.fields['Charger Packed'] ?? '').toString().toLowerCase() === 'y',
-        cablesIncluded: (dispatchLogEntry?.fields['Cables'] ?? item.fields['Cables'] ?? '').toString().toLowerCase() === 'yes' || (dispatchLogEntry?.fields['Cables'] ?? item.fields['Cables'] ?? '').toString().toLowerCase() === 'y',
+        chargerIncluded: (dispatchLogEntry?.charger_packed ?? item.charger_packed ?? '').toString().toLowerCase() === 'yes' || (dispatchLogEntry?.charger_packed ?? item.charger_packed ?? '').toString().toLowerCase() === 'y',
+        cablesIncluded: (dispatchLogEntry?.cables ?? item.cables ?? '').toString().toLowerCase() === 'yes' || (dispatchLogEntry?.cables ?? item.cables ?? '').toString().toLowerCase() === 'y',
       };
     });
 
     // Use dispatch log waybill if available, fallback to global waybill
-    const primaryWaybill = dispatchLog.find(entry => entry.fields['Waybill number'])?.fields['Waybill number'] || waybillNumber;
+    const primaryWaybill = dispatchLog.find(entry => entry.waybill_number)?.waybill_number || waybillNumber;
 
     const manifestPayload: ManifestPayload = {
-      orderNumber: orderNumber ?? coerceToString(uniqueOrder.fields['Order ID']) ?? recordId ?? 'Unknown',
+      orderNumber: orderNumber ?? coerceToString(uniqueOrder.order_id) ?? recordId ?? 'Unknown',
       orderDate: dateOrdered,
       manifestDate: new Date(),
       totalItems: manifestItems.length,
-      waybillNumber: primaryWaybill || coerceToString(uniqueOrder.fields['WayBill Number']) || null,
-      customerName: coerceToString(uniqueOrder.fields['Recipient Name']) || null,
-      addressLine1: coerceToString(uniqueOrder.fields['Recipient Address']) || coerceToString(uniqueOrder.fields['Order Location']) || null,
-      addressLine2: coerceToString(uniqueOrder.fields['Region']) || null,
-      contactNumber: coerceToString(uniqueOrder.fields['Recipient Contact Number']) || coerceToString(uniqueOrder.fields['CellPhone Number']) || null,
+      waybillNumber: primaryWaybill || coerceToString(uniqueOrder.waybill_number) || null,
+      customerName: coerceToString(uniqueOrder.recipient_name) || null,
+      addressLine1: coerceToString(uniqueOrder.recipient_address) || coerceToString(uniqueOrder.order_location) || null,
+      addressLine2: coerceToString(uniqueOrder.region) || null,
+      contactNumber: coerceToString(uniqueOrder.recipient_contact_number) || coerceToString(uniqueOrder.cell_phone_number) || null,
       deliveryInstructions:
-        additionalNotes || coerceToString(uniqueOrder.fields['Order Notes']) || coerceToString(uniqueOrder.fields['Order Summary (AI Generated)']) || null,
+        additionalNotes || coerceToString(uniqueOrder.order_notes) || coerceToString(uniqueOrder.order_summary_ai) || null,
       items: manifestItems,
     };
 
@@ -786,16 +786,16 @@ const DispatchCart = () => {
             <div className="space-y-2">
               <p className="text-xs uppercase text-muted-foreground">Recipient</p>
               <p className="text-base font-semibold text-foreground">
-                {uniqueOrder?.fields['Recipient Name'] ?? '—'}
+                {uniqueOrder?.recipient_name ?? '—'}
               </p>
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
-                {uniqueOrder?.fields['Recipient Company Name'] ?? 'Company not captured'}
+                {uniqueOrder?.recipient_company_name ?? 'Company not captured'}
               </p>
-              {uniqueOrder?.fields['Recipient Contact Number'] && (
+              {uniqueOrder?.recipient_contact_number && (
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <FileText className="h-4 w-4" />
-                  {uniqueOrder.fields['Recipient Contact Number']}
+                  {uniqueOrder.recipient_contact_number}
                 </p>
               )}
             </div>
@@ -808,24 +808,24 @@ const DispatchCart = () => {
               </p>
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                {uniqueOrder?.fields['Region'] ?? 'Region unknown'}
+                {uniqueOrder?.region ?? 'Region unknown'}
               </p>
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <PackageSearch className="h-4 w-4" />
-                {uniqueOrder?.fields['Warehouse Fulfilling'] ?? 'Warehouse not set'}
+                {uniqueOrder?.warehouse_fulfilling ?? 'Warehouse not set'}
               </p>
             </div>
 
             <div className="space-y-2">
               <p className="text-xs uppercase text-muted-foreground">Current Dispatch</p>
               <p className="text-muted-foreground">
-                Method: {uniqueOrder?.fields['Dispatch Method'] ?? 'Not captured'}
+                Method: {uniqueOrder?.dispatch_method ?? 'Not captured'}
               </p>
               <p className="text-muted-foreground">
-                Waybill: {uniqueOrder?.fields['WayBill Number'] ?? 'Not captured'}
+                Waybill: {uniqueOrder?.waybill_number ?? 'Not captured'}
               </p>
               <p className="text-muted-foreground">
-                Delivery Party: {uniqueOrder?.fields['Deliver to Part'] ?? '—'}
+                Delivery Party: {uniqueOrder?.deliver_to_part ?? '—'}
               </p>
             </div>
           </CardContent>
@@ -903,26 +903,26 @@ const DispatchCart = () => {
                         <TableCell>
                           <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center overflow-hidden">
                             {imageUrl ? (
-                              <img src={imageUrl} alt={item.fields['Device Type'] ?? 'Inventory item'} className="h-full w-full object-cover" />
+                              <img src={imageUrl} alt={item.device_type ?? 'Inventory item'} className="h-full w-full object-cover" />
                             ) : (
                               <PackageSearch className="h-5 w-5 text-primary" />
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="font-medium text-foreground">
-                          {item.fields['Device Type'] ?? 'Unknown'}
+                          {item.device_type ?? 'Unknown'}
                         </TableCell>
                         <TableCell className="hidden lg:table-cell text-muted-foreground">
-                          {item.fields['Item Description'] ?? '—'}
+                          {item.item_description ?? '—'}
                         </TableCell>
                         <TableCell>
-                          <span className="font-semibold">{item.fields['Quantity ordered'] ?? 0}</span>
+                          <span className="font-semibold">{item.quantity_ordered ?? 0}</span>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell font-mono text-xs">
-                          {item.fields['Item Code'] ?? '—'}
+                          {item.item_code ?? '—'}
                         </TableCell>
                         <TableCell className="hidden xl:table-cell text-muted-foreground">
-                          {item.fields['Waybill number'] ?? item.fields['Package Reference'] ?? '—'}
+                          {item.waybill_number ?? item.package_reference ?? '—'}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
                           {(() => {
@@ -972,11 +972,11 @@ const DispatchCart = () => {
               dispatchLog.slice(0, 4).map((entry) => (
                 <div key={entry.id} className="border border-border/40 rounded-md p-3">
                   <p className="font-medium text-foreground">
-                    {entry.fields['Dispatch Method'] ?? 'Dispatch Update'}
+                    {entry.dispatch_method ?? 'Dispatch Update'}
                   </p>
-                  <p>{safeFormatDate(entry.fields['Date Dispatched']) ?? 'Date not set'}</p>
+                  <p>{safeFormatDate(entry.date_dispatched) ?? 'Date not set'}</p>
                   <p className="text-xs text-muted-foreground">
-                    Waybill: {entry.fields['Waybill number'] ?? 'Not captured'}
+                    Waybill: {entry.waybill_number ?? 'Not captured'}
                   </p>
                 </div>
               ))
@@ -998,9 +998,9 @@ const DispatchCart = () => {
             <SheetTitle>Item dispatch details</SheetTitle>
             {selectedLineItem && (
               <div className="text-sm text-muted-foreground space-y-1">
-                <p className="font-medium text-foreground">{selectedLineItem.fields['Device Type'] ?? 'Inventory item'}</p>
-                <p>Serial: {selectedLineItem.fields['Terminal Serial Number'] ?? 'N/A'}</p>
-                <p>Item code: {selectedLineItem.fields['Item Code'] ?? 'N/A'}</p>
+                <p className="font-medium text-foreground">{selectedLineItem.device_type ?? 'Inventory item'}</p>
+                <p>Serial: {selectedLineItem.terminal_serial_number ?? 'N/A'}</p>
+                <p>Item code: {selectedLineItem.item_code ?? 'N/A'}</p>
               </div>
             )}
           </SheetHeader>

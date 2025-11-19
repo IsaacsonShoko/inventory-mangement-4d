@@ -16,6 +16,7 @@ import PickingQueue from "./pages/PickingQueue";
 import PickingCart from "./pages/PickingCartNew";
 import DispatchQueue from "./pages/DispatchQueue";
 import DispatchCart from "./pages/DispatchCart";
+import SupabaseTest from "./pages/SupabaseTest";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
           <Route path="/picking/cart/:recordId" element={<PickingCart />} />
           <Route path="/dispatching" element={<DispatchQueue />} />
           <Route path="/dispatching/cart/:recordId" element={<DispatchCart />} />
+          <Route path="/supabase-test" element={<SupabaseTest />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
