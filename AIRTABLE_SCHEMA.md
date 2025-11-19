@@ -2,44 +2,22 @@
 
 This document outlines all the Airtable tables and their columns used in this application.
 
-## Table: Inventory Items (tblCO9KUm09O4sISd)
+**Last Updated**: 2025-11-19
+
+---
+
+## Table: Inventory Items (tbla6U4lTWvBM7yiW)
 
 | Field Name | Type | Description |
 |------------|------|-------------|
 | Device Type | Single line text | The type/model of the device |
-| Item Description | Long text | Detailed description of the item |
-| Item Category | Single select | Category classification (e.g., MODEM, Accessories, VPS, etc.) |
-| Serialized | Single select | Whether the item requires serial number tracking (Y/N) |
+| Item_Description | Long text | Detailed description of the item |
+| Item_Category | Single select | Category classification (e.g., Modems, Accessories, VPS, Absa, Cash Connect, Sim Management, Other) |
+| Item_Nature | Single select | Whether the item requires serial number tracking (Serialised/Non-serialised) |
+| Item_Url / Item Url / Item url | URL | Product URL or link |
 | Thumbnail | Attachment | Product images stored in AWS S3 |
 
 **Usage**: Primary inventory catalog for browsing and ordering products. Images are stored as attachments with AWS S3 URLs.
-
----
-
-## Table: Point of Presence (tblUl7V4d7OP5YWsm)
-
-| Field Name | Type | Description |
-|------------|------|-------------|
-| Name & Surname | Single line text | Full name of the technician |
-| Contractor | Single line text | Contractor company name |
-| Region | Single line text | Geographic region (e.g., KZN, WC) |
-| Email Address | Email | Contact email |
-| Area Based | Single line text | Specific area/location |
-| Location Code | Single line text | Unique location identifier |
-| Contact Number | Phone number | Contact phone |
-
-**Usage**: Technician directory for delivery assignments and regional warehouse locations.
-
----
-
-## Table: Business Lines (tblx8qOPeOOqGJ3Nh)
-
-| Field Name | Type | Description |
-|------------|------|-------------|
-| Item Category | Single line text | Business line category |
-| Item Nature | Single select | Serialised or Non-serialised |
-
-**Usage**: Defines valid combinations of item categories and their serialization requirements. Used for form validation and filtering.
 
 **Categories** (in custom sort order):
 1. Accessories
@@ -52,49 +30,379 @@ This document outlines all the Airtable tables and their columns used in this ap
 
 ---
 
-## Table: Orders (tbl2JKhWWHOEVEWPB)
+## Table: Point of Presence (tblm1u9gUS4cFCd79)
 
 | Field Name | Type | Description |
 |------------|------|-------------|
-| Order ID | Single line text | Unique order identifier (auto-generated) |
-| Date Ordered | Date | Order placement date |
-| Item Category | Single line text | Category from Business Lines |
-| Item Nature | Single line text | Serialised/Non-serialised |
-| Device type | Single line text | Specific device from Inventory |
-| Quantity ordered | Number | Number of units |
-| Ordered by | Email | Email of person placing order |
-| Deliver to Part | Single select | Technician / Regional Warehouse / Non Technician |
-| Contractor Company | Single line text | (Conditional) Required for Technician delivery |
-| Region | Single line text | (Conditional) Required for Technician/Regional Warehouse |
-| Technician | Single line text | (Conditional) Specific technician name |
-| On Behalf of | Email | (Conditional) For Technician orders |
-| Order Location | Single line text | (Optional) Physical location |
-| Recipient Name | Single line text | (Conditional) For Non-Technician orders |
-| Recipient Company Name | Single line text | (Optional) Company name |
-| Recipient Address | Long text | (Conditional) Delivery address for Non-Technician |
-| Recipient Contact Number | Phone number | (Optional) Contact number |
-| Recipient Email Address | Email | (Conditional) Recipient email |
-| Status | Single select | Order status (Pending, Approved, Shipped, etc.) |
-| PoPID | Number | Point of Presence ID reference |
+| Name & Surname | Single line text | Full name of the technician |
+| Contractor | Single line text | Contractor company name |
+| Region | Single line text | Geographic region (e.g., KZN, WC, GP) |
+| Email Address | Email | Contact email |
+| Area Based | Single line text | Specific area/location |
+| Location Code | Single line text | Unique location identifier |
+| Contact Number | Phone number | Contact phone |
 
-**Usage**: Stores all order transactions with complete delivery and recipient details.
+**Usage**: Technician directory for delivery assignments and regional warehouse locations.
 
 ---
 
-## Data Flow
+## Table: Business Lines (tbla6U4lTWvBM7yiW)
 
-1. **Browse Inventory**: Users browse `Inventory Items` table filtered by category/nature from `Business Lines`
-2. **Select Recipients**: Based on delivery type, users select from `Point of Presence` table
-3. **Create Order**: Order records created in `Orders` table with all form data and cart items
-4. **Track**: Orders can be tracked and managed through the Orders table
+| Field Name | Type | Description |
+|------------|------|-------------|
+| Item Category | Single line text | Business line category |
+| Item Nature | Single select | Serialised or Non-serialised |
+
+**Usage**: Defines valid combinations of item categories and their serialization requirements. Used for form validation and filtering.
+
+**Note**: This table shares the same table ID as Inventory Items, suggesting they may be the same table or views.
+
+---
+
+## Table: Unique Orders (tblyqUnUVOyvQwRAA)
+
+Master table for tracking orders at a high level.
+
+| Field Name | Type | Description |
+|------------|------|-------------|
+| Order ID | Autonumber | Unique order identifier (auto-generated by Airtable) |
+| Date Ordered | Date | Order placement date |
+| Item Category | Single line text | Category from Business Lines |
+| Item Nature | Single line text | Serialised/Non-serialised |
+| Region | Single line text | Delivery region |
+| Contractor Company | Single line text | Contractor company name |
+| Technician | Single line text | Technician name |
+| Quantity Ordered | Number | Total number of units in order |
+| Dispatch Status | Single select | Current dispatch status |
+| Stock Availability | Single select | Stock availability status |
+| Pick Status | Single select | Picking status (Picked, Partially Picked, Not Picked) |
+| Dispatch Method | Single select | Method of dispatch (Courier, Collection, etc.) |
+| WayBill Number | Single line text | Waybill tracking number |
+| Ordered by | Email | Email of person placing order |
+| On Behalf of | Email | For Technician orders |
+| PoPID | Single line text | Point of Presence ID reference |
+| Deliver to Part | Single select | Technician / Regional Warehouse / Non Technician |
+| Recipient Contact Number | Phone number | Contact number |
+| Recipient Name | Single line text | For Non-Technician orders |
+| Recipient Company Name | Single line text | Company name |
+| Recipient Address | Long text | Delivery address for Non-Technician |
+| Recipient Email Address | Email | Recipient email |
+| Order Location | Single line text | Physical location |
+| Warehouse Fulfilling | Single line text | Warehouse handling the order |
+| Order Notes | Long text | Additional notes |
+| Order Summary (AI Generated) | Long text | AI-generated summary |
+| CellPhone Number | Phone number | Cell phone contact |
+| Dispatch Log | Link to records | Links to Dispatch_Log entries |
+| Stock Order | Link to records | Links to Stock_Order line items |
+
+**Usage**: Stores master order records with complete delivery and recipient details. Acts as the parent for Stock_Order line items.
+
+---
+
+## Table: Stock Order (tblyezK6u6JsGu4cJ)
+
+Line item table for individual products in orders.
+
+| Field Name | Type | Description |
+|------------|------|-------------|
+| Order Id | Number | Links to Unique Orders (Order ID field) |
+| Device Type | Single line text | Specific device from Inventory |
+| Date Ordered | Date | Order placement date |
+| Quantity ordered | Number | Number of units for this line item |
+| QTY dispatched | Number | Quantity actually dispatched |
+| Contractor Company | Single line text | Contractor company name |
+| Region | Single line text | Delivery region |
+| Technician | Single line text | Technician name |
+| Waybill number | Single line text | Waybill tracking number |
+| Dispatch / order | Single line text | Dispatch order reference |
+| Dispatch to | Single line text | Dispatch destination |
+| Ordered by | Email | Email of person placing order |
+| Item Category | Single line text | Category from Business Lines |
+| Item Description | Long text | Product description |
+| Item Nature | Single line text | Serialised/Non-serialised |
+| Order Location | Single line text | Physical location |
+| Pick Status | Single select | Picked, Partially Picked, Not Picked |
+| Package Reference | Single line text | Package identifier |
+| Item Code | Single line text | SKU or item code |
+| Terminal Serial Number | Single line text | Serial number for terminal |
+| Cradle Serial Number | Single line text | Serial number for cradle |
+| Charger Serial Number | Single line text | Serial number for charger |
+| CashConnect Serial Number | Single line text | Serial number for CashConnect device |
+| Charger Packed | Single line text | "Yes" or "No" |
+| Cables | Single line text | "Yes" or "No" |
+| Packer | Single line text | Name of person who packed |
+| Dispatch Method | Single select | Method of dispatch |
+| Warehouse Fulfilling | Single line text | Warehouse handling the item |
+| Item Url / Item url / Item_Url | URL | Product URL |
+| Item Image / Item image | URL | Image URL |
+| Item Thumbnail / Thumbnail | Attachment | Product images |
+
+**Usage**: Stores individual line items for each order. Multiple Stock_Order records can link to a single Unique_Orders record.
+
+---
+
+## Table: Dispatch Log (tblkDF6kf0gsUWJZk)
+
+Historical log of all dispatch activities.
+
+| Field Name | Type | Description |
+|------------|------|-------------|
+| Order Id | Link to records | Links to Unique Orders |
+| Date Dispatched | Date | When item was dispatched |
+| Item Category | Single line text | Category from Business Lines |
+| Item Nature | Single line text | Serialised/Non-serialised |
+| Item Description | Long text | Product description |
+| Device type | Single line text | Device model/type |
+| Quantity | Number | Quantity dispatched |
+| Contractor Company | Single line text | Contractor company name |
+| Region | Single line text | Delivery region |
+| Technician | Single line text | Technician name |
+| Dispatch Method | Single select | Method of dispatch |
+| Waybill number | Single line text | Waybill tracking number |
+| Package Reference | Single line text | Package identifier |
+| Pick Status | Single select | Picking status |
+| Stock Availability | Single select | Stock availability |
+| TimePicked | Date/time | Timestamp when picked |
+| TimeDispatched | Date/time | Timestamp when dispatched |
+| Warehouse Fulfilling | Single line text | Warehouse handling dispatch |
+| Terminal Serial Number | Single line text | Serial number for terminal |
+| Cradle Serial Number | Single line text | Serial number for cradle |
+| Charger Serial Number | Single line text | Serial number for charger |
+| CashConnect Serial Number | Single line text | Serial number for CashConnect device |
+| Charger Packed | Single line text | "Yes" or "No" |
+| Cables | Single line text | "Yes" or "No" |
+| Packer | Single line text | Name of person who packed |
+| Item Code | Single line text | SKU or item code |
+| StockOrderID | Single line text | Reference to Stock_Order record |
+| Dispatcher | Single line text | Name of person who dispatched |
+| Dispatch_To_Location | Single line text | Dispatch destination |
+| Shipped | Checkbox or Single line text | Whether item has shipped |
+
+**Usage**: Creates a historical record for each dispatch action. Linked to Unique_Orders for tracking and reporting.
+
+---
+
+## Table: Stock Levels (Read-Only)
+
+Used for reading current stock inventory levels.
+
+| Field Name | Type | Description |
+|------------|------|-------------|
+| Device Type | Single line text | Item code/ID |
+| Item Description | Long text | Product description |
+| Item Category | Single line text | Category classification |
+| Item Nature | Single select | Serialised/Non-serialised |
+| Item Code | Single line text | SKU or item code |
+| BIN LOCATION | Single line text | Physical bin location in warehouse |
+| Count Type | Single select | Monthly, Mid-Month, Daily |
+| Quantity | Number | Current quantity |
+| Manufacture Serial Number | Single line text | Manufacturer's serial number |
+| QR Code Serial Number | Single line text | QR code identifier |
+| Xlink Serial Number | Single line text | Xlink system serial number |
+| Cradle Serial Number | Single line text | Cradle serial number |
+| Charger Serial Number | Single line text | Charger serial number |
+| Stock Holder | Single line text | Who holds the stock |
+| Name or Location | Single line text | Location or person name |
+| Contractor Company | Single line text | Contractor company |
+| Contractor Region | Single line text | Region |
+| Technician Name | Single line text | Technician name |
+| Tech ID | Single line text | Technician identifier |
+| Item Status | Single select | Status of item |
+| Fault Reason | Single line text | Reason for fault (if applicable) |
+| Overall Condition | Single select | Condition of item |
+| XLI Case Ref | Single line text | Case reference number |
+| CountID | Single line text | Links to Rolledup Stock Counts |
+| Created At | Date/time | Creation timestamp |
+| Updated At | Date/time | Last update timestamp |
+
+**Usage**: Read-only table for querying current stock levels and inventory status.
+
+---
+
+## Table: Rolledup Stock Counts (Write-Only)
+
+Used for creating new stock count entries.
+
+| Field Name | Type | Description |
+|------------|------|-------------|
+| Count Type | Single select | Monthly, Mid-Month, Daily |
+| Stock Holder | Single line text | Who holds the stock |
+| Name or Location | Single line text | Location or person name |
+| Item Category | Single line text | Category classification |
+| BIN LOCATION | Single line text | Physical bin location |
+| Device Type | Single line text | Device model/type |
+| Item Nature | Single select | Serialised/Non-serialised |
+| Item Code | Single line text | SKU or item code |
+| Item Description | Long text | Product description |
+| Quantity | Number | Counted quantity |
+| Manufacture Serial Number | Single line text | Manufacturer's serial number |
+| QR Code Serial Number | Single line text | QR code identifier |
+| Xlink Serial Number | Single line text | Xlink system serial number |
+| Cradle Serial Number | Single line text | Cradle serial number |
+| Charger Serial Number | Single line text | Charger serial number |
+| Item Status | Single select | Status of item |
+| Fault Reason | Single line text | Reason for fault |
+| Overall Condition | Single select | Condition of item |
+| XLI Case Ref | Single line text | Case reference number |
+| Contractor Company | Single line text | Contractor company |
+| Contractor Region | Single line text | Region |
+| Technician Name | Single line text | Technician name |
+| Tech ID | Single line text | Technician identifier |
+| Updated At | Date/time | Auto-updated timestamp |
+
+**Usage**: Write-only table for submitting new stock count records.
+
+---
+
+## Data Flow Architecture
+
+### 1. Order Creation Flow
+```
+User creates order in UI
+    ↓
+Create Unique_Orders record (master order)
+    ↓
+Airtable auto-generates Order ID
+    ↓
+Application polls for Order ID
+    ↓
+Send webhook to n8n with:
+    - Order ID
+    - Form data snapshot
+    - Cart items array
+    ↓
+n8n creates Stock_Order records (line items)
+    - One record per cart item
+    - Links to Unique_Orders via Order Id
+```
+
+### 2. Picking Flow
+```
+Picking Queue shows orders where Pick Status is blank/Not Picked
+    ↓
+Warehouse staff opens Picking Cart
+    ↓
+For each line item:
+    - Enter picked quantity
+    - Capture serial numbers (if serialised)
+    - Set Pick Status (Picked/Partially Picked/Not Picked)
+    ↓
+Submit → Updates Stock_Order records
+    ↓
+Send webhook to n8n with picking details
+```
+
+### 3. Dispatch Flow
+```
+Dispatch Queue shows orders where Pick Status = "Picked"
+    ↓
+Warehouse staff opens Dispatch Cart
+    ↓
+For each picked item:
+    - Enter waybill number
+    - Enter package reference
+    - Select dispatch method
+    - Toggle Charger Packed/Cables (Yes/No)
+    - Enter dispatcher name
+    ↓
+Generate PDF manifest
+    ↓
+Create Dispatch_Log entries
+    - Links to Unique_Orders
+    - Contains complete dispatch details
+    ↓
+Update Stock_Order records
+    ↓
+Send webhook to n8n with dispatch data
+```
+
+### 4. Stock Count Flow
+```
+User creates stock count with type
+    ↓
+Search and select items from Stock Levels
+    ↓
+Enter count data:
+    - Quantity
+    - Serial numbers (if applicable)
+    - Bin location
+    - Condition/status
+    ↓
+Submit → Creates Rolledup Stock Counts record
+```
+
+---
+
+## Table Relationships
+
+```
+Unique_Orders (Master Order)
+    ├── Stock_Order (Line Items) [1:Many via Order Id]
+    └── Dispatch_Log (Dispatch History) [1:Many via Order Id link]
+
+Point of Presence
+    └── Linked to orders via Technician/Contractor/Region fields
+
+Inventory Items
+    └── Referenced in Stock_Order via Device Type
+
+Business Lines
+    └── Validates Item Category + Item Nature combinations
+
+Stock Levels (Read)
+    └── Rolledup Stock Counts (Write) [Linked via CountID]
+```
+
+---
 
 ## Environment Variables Required
 
 ```env
+# Airtable Configuration
 VITE_AIRTABLE_PAT=your_airtable_personal_access_token
-VITE_AIRTABLE_BASE_ID=your_base_id
-VITE_AIRTABLE_INVENTORY_TABLE_ID=tblCO9KUm09O4sISd
-VITE_AIRTABLE_POINT_OF_PRESENCE_TABLE_ID=tblUl7V4d7OP5YWsm
-VITE_AIRTABLE_BUSINESS_LINES_TABLE_ID=tblx8qOPeOOqGJ3Nh
-VITE_AIRTABLE_ORDERS_TABLE_ID=tbl2JKhWWHOEVEWPB
+VITE_AIRTABLE_BASE_ID=appbFRxaDoYTDJl0v
+
+# Table IDs
+VITE_AIRTABLE_INVENTORY_TABLE_ID=tbla6U4lTWvBM7yiW
+VITE_AIRTABLE_POINT_OF_PRESENCE_TABLE_ID=tblm1u9gUS4cFCd79
+VITE_AIRTABLE_BUSINESS_LINES_TABLE_ID=tbla6U4lTWvBM7yiW
+VITE_AIRTABLE_UNIQUE_ORDERS_TABLE_ID=tblyqUnUVOyvQwRAA
+VITE_AIRTABLE_ORDERS_TABLE_ID=tblyezK6u6JsGu4cJ
+VITE_AIRTABLE_DISPATCH_LOG_TABLE_ID=tblkDF6kf0gsUWJZk
 ```
+
+**Note**: Stock Levels and Rolledup Stock Counts are accessed by table name, not environment variables.
+
+---
+
+## Key Schema Changes from Previous Version
+
+1. **New Tables Added**:
+   - Unique_Orders (master order table)
+   - Dispatch_Log (dispatch history tracking)
+   - Stock Levels (inventory levels)
+   - Rolledup Stock Counts (count submissions)
+
+2. **Table ID Changes**:
+   - All table IDs have changed from previous documentation
+   - Inventory Items: tblCO9KUm09O4sISd → tbla6U4lTWvBM7yiW
+   - Point of Presence: tblUl7V4d7OP5YWsm → tblm1u9gUS4cFCd79
+   - Orders: tbl2JKhWWHOEVEWPB → tblyezK6u6JsGu4cJ (now Stock_Order)
+
+3. **Architecture Evolution**:
+   - Moved from single Orders table to dual-table architecture (Unique_Orders + Stock_Order)
+   - Added Dispatch_Log for historical tracking
+   - Separated stock counting into read/write tables
+
+4. **New Fields**:
+   - Pick Status tracking
+   - Package Reference for multi-package shipments
+   - Charger Packed / Cables (Yes/No format)
+   - Multiple serial number fields
+   - Warehouse Fulfilling
+   - Dispatch timestamps
+
+5. **Field Type Changes**:
+   - Order ID changed from text to autonumber
+   - Charger Packed/Cables changed from boolean to "Yes"/"No" strings
+   - Order Id in Stock_Order and Dispatch_Log changed to number/link types
