@@ -20,6 +20,7 @@ import DispatchQueue from "./pages/DispatchQueue";
 import DispatchCart from "./pages/DispatchCart";
 import SupabaseTest from "./pages/SupabaseTest";
 import UserManagement from "./pages/UserManagement";
+import KPIDashboard from "./pages/KPIDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/picking/cart/:recordId" element={<PickingCart />} />
             <Route path="/dispatching" element={<DispatchQueue />} />
             <Route path="/dispatching/cart/:recordId" element={<DispatchCart />} />
+            <Route path="/kpi" element={<KPIDashboard />} />
             <Route path="/supabase-test" element={<SupabaseTest />} />
             <Route path="/admin/users" element={
               <AdminRoute>
