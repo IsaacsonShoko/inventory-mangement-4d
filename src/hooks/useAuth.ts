@@ -4,12 +4,16 @@ import type { User, Session } from '@supabase/supabase-js';
 
 // User role types
 export type UserRole = 'admin' | 'back_office' | 'user';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 export interface UserProfile {
   id: string;
   email: string;
   full_name: string | null;
   role: UserRole;
+  approval_status: ApprovalStatus;
+  approved_by: string | null;
+  approved_at: string | null;
   warehouse: string | null;
 }
 
@@ -23,6 +27,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isAdmin: boolean;
   isBackOffice: boolean;
+  isApproved: boolean;
+  isPending: boolean;
   hasRole: (roles: UserRole[]) => boolean;
 }
 
@@ -122,6 +128,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Role checking helpers
   const isAdmin = profile?.role === 'admin';
   const isBackOffice = profile?.role === 'back_office' || profile?.role === 'admin';
+  const isApproved = profile?.approval_status === 'approved';
+  const isPending = profile?.approval_status === 'pending';
 
   const hasRole = (roles: UserRole[]) => {
     if (!profile) return false;
@@ -138,6 +146,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     isAdmin,
     isBackOffice,
+    isApproved,
+    isPending,
     hasRole,
   };
 

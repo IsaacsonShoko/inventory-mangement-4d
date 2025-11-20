@@ -66,6 +66,12 @@ CREATE TYPE user_role_enum AS ENUM (
   'user'
 );
 
+CREATE TYPE approval_status_enum AS ENUM (
+  'pending',
+  'approved',
+  'rejected'
+);
+
 -- ============================================
 -- TABLES
 -- ============================================
@@ -76,6 +82,9 @@ CREATE TABLE user_profiles (
   email TEXT NOT NULL,
   full_name TEXT,
   role user_role_enum NOT NULL DEFAULT 'user',
+  approval_status approval_status_enum NOT NULL DEFAULT 'pending',
+  approved_by UUID REFERENCES auth.users(id),
+  approved_at TIMESTAMP,
   warehouse TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -83,17 +92,30 @@ CREATE TABLE user_profiles (
 
 CREATE INDEX idx_user_profiles_role ON user_profiles(role);
 CREATE INDEX idx_user_profiles_email ON user_profiles(email);
+CREATE INDEX idx_user_profiles_approval ON user_profiles(approval_status);
 
 -- Auto-create profile on signup
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  admin_emails TEXT[] := ARRAY[
+    'carolinem@xlink.co.za',
+    'yakooba@xlink.co.za',
+    'briana@xlink.co.za',
+    'isaacson.shoko@4danalytics.co.za'
+  ];
+  is_admin BOOLEAN;
 BEGIN
-  INSERT INTO user_profiles (id, email, full_name, role)
+  -- Check if user email is in admin list
+  is_admin := NEW.email = ANY(admin_emails);
+
+  INSERT INTO user_profiles (id, email, full_name, role, approval_status)
   VALUES (
     NEW.id,
     NEW.email,
     NEW.raw_user_meta_data->>'full_name',
-    COALESCE((NEW.raw_user_meta_data->>'role')::user_role_enum, 'user')
+    CASE WHEN is_admin THEN 'admin'::user_role_enum ELSE 'user'::user_role_enum END,
+    CASE WHEN is_admin THEN 'approved'::approval_status_enum ELSE 'pending'::approval_status_enum END
   );
   RETURN NEW;
 END;
