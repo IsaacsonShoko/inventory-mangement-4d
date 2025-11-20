@@ -1,0 +1,154 @@
+{
+  "name": "OrderPicked-Supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-picked",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-800, 48],
+      "webhookId": "order-picked"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the first input item (from webhook)\nconst input = items[0].json.body || items[0].json;\n\n// Extract order-level data\nconst orderId = input.orderId;\nconst orderNumber = parseInt(orderId.replace(/\\\\D/g, ''), 10);\nconst uniqueOrderRecordId = input.uniqueOrderRecordId;\nconst orderedBy = input.orderedBy;\nconst deliveryParty = input.deliveryParty;\nconst dateOrdered = input.dateOrdered;\nconst pickedAt = input.metadata?.pickedAt;\nconst pickerEmail = input.metadata?.pickerEmail;\n\n// Normalize stock availability values for Supabase\nconst normalizeStockAvailability = (value) => {\n  if (!value) return null;\n  const lower = value.toLowerCase().trim();\n  if (lower === 'in stock') return 'Available';\n  if (lower === 'out of stock') return 'Not Available';\n  return value;\n};\n\n// Normalize pick status values for Supabase\nconst normalizePickStatus = (value) => {\n  if (!value) return 'Pending';\n  const lower = value.toLowerCase().trim();\n  if (lower === 'picked in full') return 'Picked';\n  if (lower === 'partially picked') return 'Partially Picked';\n  if (lower === 'not picked') return 'Not Picked';\n  return value;\n};\n\n// Map pickedItems to separate line items\nconst output = input.pickedItems.map((line, index) => {\n  return {\n    json: {\n      lineNumber: index + 1,\n      orderId: orderId,\n      orderNumber: orderNumber,\n      uniqueOrderRecordId: uniqueOrderRecordId,\n      orderedBy: orderedBy,\n      deliveryParty: deliveryParty,\n      dateOrdered: dateOrdered,\n      pickedAt: pickedAt,\n      pickerEmail: pickerEmail,\n      stockOrderId: line.stockOrderId,\n      deviceType: line.deviceType,\n      quantity: line.quantity,\n      stockAvailability: normalizeStockAvailability(line.stockAvailability),\n      pickStatus: normalizePickStatus(line.pickStatus),\n      packer: line.packer,\n      terminalSerialNumber: line.terminalSerialNumber,\n      cradleSerialNumber: line.cradleSerialNumber,\n      chargerSerialNumber: line.chargerSerialNumber,\n      cashConnectSerialNumber: line.cashConnectSerialNumber,\n      chargerPacked: line.chargerPacked,\n      cables: line.cables,\n      itemCode: line.itemCode,\n      itemDescription: line.itemDescription\n    }\n  };\n});\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-500, 48],
+      "id": "flatten-array",
+      "name": "Flatten & Normalize"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO dispatch_log (\n  order_id,\n  unique_order_record_id,\n  stock_order_id,\n  date_dispatched,\n  device_type,\n  quantity,\n  terminal_serial_number,\n  cradle_serial_number,\n  charger_serial_number,\n  cashconnect_serial_number,\n  charger_packed,\n  cables,\n  packer,\n  stock_availability,\n  pick_status\n) VALUES (\n  {{ $json.orderNumber }},\n  {{ $json.uniqueOrderRecordId }},\n  {{ $json.stockOrderId }},\n  CURRENT_DATE,\n  '{{ $json.deviceType }}',\n  {{ $json.quantity }},\n  {{ $json.terminalSerialNumber ? \"'\" + $json.terminalSerialNumber + \"'\" : \"NULL\" }},\n  {{ $json.cradleSerialNumber ? \"'\" + $json.cradleSerialNumber + \"'\" : \"NULL\" }},\n  {{ $json.chargerSerialNumber ? \"'\" + $json.chargerSerialNumber + \"'\" : \"NULL\" }},\n  {{ $json.cashConnectSerialNumber ? \"'\" + $json.cashConnectSerialNumber + \"'\" : \"NULL\" }},\n  '{{ $json.chargerPacked || \"No\" }}',\n  '{{ $json.cables || \"No\" }}',\n  '{{ $json.packer }}',\n  '{{ $json.stockAvailability }}',\n  '{{ $json.pickStatus }}'\n) RETURNING id;",
+        "options": {}
+      },
+      "id": "create-dispatch-log",
+      "name": "Create Dispatch Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [-200, 48],
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_SUPABASE_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [100, 48],
+      "id": "aggregate",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "fromEmail": "admin@4danalytics.co.za",
+        "toEmail": "={{ $json.data[0].orderedBy }}",
+        "subject": "Your Order has been picked",
+        "emailFormat": "html",
+        "html": "<!DOCTYPE html><html><body><h1>Order Picked</h1><p>Your order {{ $json.data[0].orderId }} has been picked.</p></body></html>",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [400, 48],
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Order picked notification sent\" } }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 48]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Flatten & Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten & Normalize": {
+      "main": [
+        [
+          {
+            "node": "Create Dispatch Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Dispatch Log": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "notes": "Supabase version - Replace YOUR_SUPABASE_POSTGRES_CREDENTIAL_ID with your Supabase connection. Stock availability is normalized: 'In Stock' -> 'Available', 'Out of stock' -> 'Not Available'. Pick status is normalized: 'Picked in full' -> 'Picked'."
+  }
+}

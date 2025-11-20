@@ -194,8 +194,9 @@ CREATE TABLE stock_order (
   -- Status Fields
   pick_status pick_status_enum DEFAULT 'Pending',
   dispatch_status dispatch_status_enum DEFAULT 'Pending',
+  stock_availability stock_availability_enum,
   dispatch_or_order dispatch_or_order_enum,
-  
+
   -- Reference
   waybill_number TEXT,
   
