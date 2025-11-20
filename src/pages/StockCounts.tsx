@@ -40,6 +40,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { stockCountSupabaseService as stockCountService } from '@/services/stockCountSupabaseService';
 import { StockItem, StockCountFormData } from '@/types/stock';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
+import { useAuth } from '@/hooks/useAuth';
 
 // Form validation schema
 const formSchema = z.object({
@@ -73,6 +74,7 @@ type FormValues = z.infer<typeof formSchema>;
 const StockCounts = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [itemCategory, setItemCategory] = useState('');
   const [isSerialized, setIsSerialized] = useState<boolean | undefined>(undefined);
@@ -106,10 +108,13 @@ const StockCounts = () => {
   // Create or update stock count
   const mutation = useMutation({
     mutationFn: async (data: StockCountFormData) => {
+      if (!user?.email) {
+        throw new Error('User email not available');
+      }
       if (editingId) {
         return stockCountService.updateStockCount(editingId, data);
       }
-      return stockCountService.createStockCount(data);
+      return stockCountService.createStockCount(data, user.email);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stockItems'] });
