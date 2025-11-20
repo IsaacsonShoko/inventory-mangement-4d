@@ -20,7 +20,7 @@ const { createClient } = require('@supabase/supabase-js');
 const AIRTABLE_PAT = process.env.VITE_AIRTABLE_PAT;
 const AIRTABLE_BASE_ID = process.env.VITE_AIRTABLE_BASE_ID;
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_KEY = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
 // Table IDs
 const TABLE_IDS = {
@@ -48,6 +48,50 @@ async function fetchAllRecords(tableId) {
   return records;
 }
 
+// Helper to normalize enum values to match Supabase schema
+function normalizeItemNature(value) {
+  if (!value) return null;
+  const normalized = value.toLowerCase();
+  if (normalized === 'serialized' || normalized === 'serialised') {
+    return 'Serialised';
+  }
+  if (normalized === 'non-serialized' || normalized === 'non-serialised') {
+    return 'Non-serialised';
+  }
+  return value;
+}
+
+
+function normalizeBusinessLine(value) {
+  if (!value) return null;
+  const map = {
+    'absa': 'Absa',
+    'cash connect': 'Cash Connect',
+    'vps': 'VPS',
+    'modems': 'Modems',
+    'accessories': 'Accessories',
+    'sim management': 'Sim Management',
+    'other': 'Other'
+  };
+  const key = value.toLowerCase();
+  return map[key] || value;
+}
+
+
+function normalizeDispatchMethod(value) {
+  if (!value) return null;
+  const map = {
+    'courier': 'Courier',
+    'collection': 'Pickup',
+    'delivery': 'In-house Delivery',
+    'in-house delivery': 'In-house Delivery',
+    'pickup': 'Pickup',
+    'other': 'Other'
+  };
+  const key = value.toLowerCase();
+  return map[key] || 'Other';
+}
+
 // Helper to insert in batches
 async function insertBatch(table, records, batchSize = 100) {
   const results = [];
@@ -73,9 +117,9 @@ async function migrateInventory() {
   const transformed = records.map(record => ({
     item_name: record.fields['Device Type'] || null,
     item_url: record.fields['Item_Url'] || record.fields['Item Url'] || null,
-    item_category: record.fields['Item_Category'] || null,
+    item_category: normalizeBusinessLine(record.fields['Item_Category']),
     item_description: record.fields['Item_Description'] || null,
-    item_nature: record.fields['Item_Nature'] || null,
+    item_nature: normalizeItemNature(record.fields['Item_Nature']),
   }));
 
   const inserted = await insertBatch('inventory_items', transformed);
@@ -138,8 +182,8 @@ async function migrateUniqueOrders() {
       _airtable_id: record.id,
       _airtable_order_id: orderId,
       date_ordered: record.fields['Date Ordered'] || new Date().toISOString(),
-      item_category: record.fields['Item Category'] || null,
-      item_nature: record.fields['Item Nature'] || null,
+      item_category: normalizeBusinessLine(record.fields['Item Category']),
+      item_nature: normalizeItemNature(record.fields['Item Nature']),
       quantity_ordered: record.fields['Quantity Ordered'] || null,
       region: record.fields['Region'] || null,
       contractor_company: record.fields['Contractor Company'] || null,
@@ -159,7 +203,7 @@ async function migrateUniqueOrders() {
       dispatch_status: record.fields['Dispatch Status'] || 'Pending',
       stock_availability: record.fields['Stock Availability'] || null,
       pick_status: record.fields['Pick Status'] || 'Pending',
-      dispatch_method: record.fields['Dispatch Method'] || null,
+      dispatch_method: normalizeDispatchMethod(record.fields['Dispatch Method']),
       waybill_number: record.fields['WayBill Number'] || null,
       order_notes: record.fields['Order Notes'] || null,
       order_summary_ai: record.fields['Order Summary (AI Generated)'] || null,
@@ -187,7 +231,8 @@ async function migrateUniqueOrders() {
       inserted.push(data);
       orderIdMap.set(transformed[i]._airtable_id, {
         id: data.id,
-        order_id: data.order_id
+        order_id: data.order_id,
+        airtable_order_id: transformed[i]._airtable_order_id
       });
     }
 
@@ -206,22 +251,17 @@ async function migrateStockOrders(orderIdMap) {
   console.log(`  Found ${records.length} records in Airtable`);
 
   const transformed = records.map(record => {
-    // Try to find the matching unique order
-    const orderIdField = record.fields['Order Id'];
+    // Try to find the matching unique order using the Order Id number
     let orderId = null;
     let uniqueOrderRecordId = null;
 
-    // Order Id could be a linked record array or a number
-    if (Array.isArray(orderIdField) && orderIdField.length > 0) {
-      const mapping = orderIdMap.get(orderIdField[0]);
-      if (mapping) {
-        orderId = mapping.order_id;
-        uniqueOrderRecordId = mapping.id;
-      }
-    } else if (typeof orderIdField === 'number') {
-      // Find by order number
+    // Order Id is a number that matches the original Airtable Order ID
+    const orderIdValue = record.fields['Order Id'];
+
+    if (typeof orderIdValue === 'number') {
+      // Find the mapping by Airtable Order ID number
       for (const [, mapping] of orderIdMap) {
-        if (mapping.order_id === orderIdField) {
+        if (mapping.airtable_order_id === orderIdValue) {
           orderId = mapping.order_id;
           uniqueOrderRecordId = mapping.id;
           break;
@@ -230,15 +270,15 @@ async function migrateStockOrders(orderIdMap) {
     }
 
     return {
-      order_id: orderId || 1, // Default to 1 if not found
-      unique_order_record_id: uniqueOrderRecordId || 1,
+      order_id: orderId,
+      unique_order_record_id: uniqueOrderRecordId,
       device_type: record.fields['Device Type'] || 'Unknown',
       date_ordered: record.fields['Date Ordered'] || null,
       quantity_ordered: record.fields['Quantity ordered'] || 1,
       qty_dispatched: record.fields['QTY dispatched'] || 0,
-      item_category: record.fields['Item Category'] || null,
+      item_category: normalizeBusinessLine(record.fields['Item Category']),
       item_description: record.fields['Item Description'] || null,
-      item_nature: record.fields['Item Nature'] || null,
+      item_nature: normalizeItemNature(record.fields['Item Nature']),
       contractor_company: record.fields['Contractor Company'] || null,
       region: record.fields['Region'] || null,
       technician: record.fields['Technician'] || null,
@@ -292,8 +332,8 @@ async function migrateDispatchLog(orderIdMap) {
       unique_order_record_id: uniqueOrderRecordId,
       stock_order_id: null, // Would need stock order mapping
       date_dispatched: record.fields['Date Dispatched'] || new Date().toISOString().split('T')[0],
-      item_category: record.fields['Item Category'] || null,
-      item_nature: record.fields['Item Nature'] || null,
+      item_category: normalizeBusinessLine(record.fields['Item Category']),
+      item_nature: normalizeItemNature(record.fields['Item Nature']),
       item_description: record.fields['Item Description'] || null,
       device_type: record.fields['Device type'] || null,
       quantity: record.fields['Quantity'] || null,
@@ -309,7 +349,7 @@ async function migrateDispatchLog(orderIdMap) {
       cables: record.fields['Cables'] || null,
       packer: record.fields['Packer'] || null,
       dispatcher: record.fields['Dispatcher'] || null,
-      dispatch_method: record.fields['Dispatch Method'] || null,
+      dispatch_method: normalizeDispatchMethod(record.fields['Dispatch Method']),
       waybill_number: record.fields['Waybill number'] || null,
       package_reference: record.fields['Package Reference'] || null,
       stock_availability: record.fields['Stock Availability'] || null,
