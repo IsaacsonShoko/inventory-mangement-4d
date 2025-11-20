@@ -10,7 +10,7 @@ async function clearTables() {
   console.log('Clearing tables for fresh migration...');
   
   // Delete in reverse order of dependencies
-  const tables = ['dispatch_log', 'stock_order', 'unique_orders', 'point_of_presence', 'inventory_items'];
+  const tables = ['stock_counts', 'stock_levels', 'dispatch_log', 'stock_order', 'unique_orders', 'point_of_presence', 'inventory_items'];
   
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().neq('id', 0);

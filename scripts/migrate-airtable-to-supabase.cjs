@@ -29,6 +29,8 @@ const TABLE_IDS = {
   uniqueOrders: process.env.VITE_AIRTABLE_UNIQUE_ORDERS_TABLE_ID,
   orders: process.env.VITE_AIRTABLE_ORDERS_TABLE_ID,
   dispatchLog: process.env.VITE_AIRTABLE_DISPATCH_LOG_TABLE_ID,
+  stockLevels: process.env.VITE_AIRTABLE_STOCK_LEVELS_TABLE_ID || 'Stock Levels',
+  stockCounts: process.env.VITE_AIRTABLE_STOCK_COUNTS_TABLE_ID || 'Rolledup Stock Counts',
 };
 
 // Initialize clients
@@ -90,6 +92,17 @@ function normalizeDispatchMethod(value) {
   };
   const key = value.toLowerCase();
   return map[key] || 'Other';
+}
+
+function normalizeCountType(value) {
+  if (!value) return 'Monthly';
+  const map = {
+    'monthly': 'Monthly',
+    'mid-month': 'Mid-Month',
+    'daily': 'Daily'
+  };
+  const key = value.toLowerCase();
+  return map[key] || 'Monthly';
 }
 
 // Helper to insert in batches
@@ -363,6 +376,83 @@ async function migrateDispatchLog(orderIdMap) {
   return inserted;
 }
 
+async function migrateStockLevels() {
+  console.log('\n📊 Migrating stock_levels...');
+  const records = await fetchAllRecords(TABLE_IDS.stockLevels);
+  console.log(`  Found ${records.length} records in Airtable`);
+
+  const transformed = records.map(record => ({
+    device_type: record.fields['Device Type'] || 'Unknown',
+    item_description: record.fields['Item Description'] || null,
+    item_category: normalizeBusinessLine(record.fields['Item Category']),
+    item_nature: normalizeItemNature(record.fields['Item Nature']),
+    item_code: record.fields['Item Code'] || null,
+    bin_location: record.fields['BIN LOCATION'] || null,
+    quantity: record.fields['Quantity'] || 0,
+    manufacture_serial_number: record.fields['Manufacture Serial Number'] || null,
+    qr_code_serial_number: record.fields['QR Code Serial Number'] || null,
+    xlink_serial_number: record.fields['Xlink Serial Number'] || null,
+    cradle_serial_number: record.fields['Cradle Serial Number'] || null,
+    charger_serial_number: record.fields['Charger Serial Number'] || null,
+    stock_holder: record.fields['Stock Holder'] || null,
+    name_or_location: record.fields['Name or Location'] || null,
+    contractor_company: record.fields['Contractor Company'] || null,
+    contractor_region: record.fields['Contractor Region'] || null,
+    technician_name: record.fields['Technician Name'] || null,
+    tech_id: record.fields['Tech ID'] || null,
+    item_status: record.fields['Item Status'] || null,
+    fault_reason: record.fields['Fault Reason'] || null,
+    overall_condition: record.fields['Overall Condition'] || null,
+    xli_case_ref: record.fields['XLI Case Ref'] || null,
+    count_type: normalizeCountType(record.fields['Count Type']),
+    count_id: record.fields['CountID'] || null,
+    created_at: record.fields['Created At'] || new Date().toISOString(),
+    updated_at: record.fields['Updated At'] || new Date().toISOString(),
+  }));
+
+  const inserted = await insertBatch('stock_levels', transformed);
+  console.log(`  ✅ Migrated ${inserted.length} stock levels`);
+  return inserted;
+}
+
+async function migrateStockCounts() {
+  console.log('\n📋 Migrating stock_counts...');
+  const records = await fetchAllRecords(TABLE_IDS.stockCounts);
+  console.log(`  Found ${records.length} records in Airtable`);
+
+  const transformed = records.map(record => ({
+    count_type: normalizeCountType(record.fields['Count Type']),
+    stock_holder: record.fields['Stock Holder'] || null,
+    name_or_location: record.fields['Name or Location'] || null,
+    item_category: normalizeBusinessLine(record.fields['Item Category']),
+    bin_location: record.fields['BIN LOCATION'] || null,
+    device_type: record.fields['Device Type'] || 'Unknown',
+    item_nature: normalizeItemNature(record.fields['Item Nature']),
+    item_code: record.fields['Item Code'] || null,
+    item_description: record.fields['Item Description'] || null,
+    quantity: record.fields['Quantity'] || 0,
+    manufacture_serial_number: record.fields['Manufacture Serial Number'] || null,
+    qr_code_serial_number: record.fields['QR Code Serial Number'] || null,
+    xlink_serial_number: record.fields['Xlink Serial Number'] || null,
+    cradle_serial_number: record.fields['Cradle Serial Number'] || null,
+    charger_serial_number: record.fields['Charger Serial Number'] || null,
+    item_status: record.fields['Item Status'] || null,
+    fault_reason: record.fields['Fault Reason'] || null,
+    overall_condition: record.fields['Overall Condition'] || null,
+    xli_case_ref: record.fields['XLI Case Ref'] || null,
+    contractor_company: record.fields['Contractor Company'] || null,
+    contractor_region: record.fields['Contractor Region'] || null,
+    technician_name: record.fields['Technician Name'] || null,
+    tech_id: record.fields['Tech ID'] || null,
+    created_at: record.fields['Created At'] || new Date().toISOString(),
+    updated_at: record.fields['Updated At'] || new Date().toISOString(),
+  }));
+
+  const inserted = await insertBatch('stock_counts', transformed);
+  console.log(`  ✅ Migrated ${inserted.length} stock counts`);
+  return inserted;
+}
+
 // Main migration function
 async function migrate() {
   console.log('🚀 Starting Airtable to Supabase Migration\n');
@@ -389,6 +479,8 @@ async function migrate() {
     const { orderIdMap } = await migrateUniqueOrders();
     await migrateStockOrders(orderIdMap);
     await migrateDispatchLog(orderIdMap);
+    await migrateStockLevels();
+    await migrateStockCounts();
 
     console.log('\n✅ Migration completed successfully!');
   } catch (error) {

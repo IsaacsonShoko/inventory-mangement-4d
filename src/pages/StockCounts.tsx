@@ -37,7 +37,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-import { stockCountService } from '@/services/stockCountService';
+import { stockCountSupabaseService as stockCountService } from '@/services/stockCountSupabaseService';
 import { StockItem, StockCountFormData } from '@/types/stock';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
 
