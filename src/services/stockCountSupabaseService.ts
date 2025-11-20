@@ -131,10 +131,11 @@ export const stockCountSupabaseService = {
   },
 
   // Create or update a stock count (upsert based on user + device + type + period)
+  // Also updates stock_levels with the new count as the source of truth
   async createStockCount(data: StockCountFormData, userEmail: string): Promise<StockItem> {
     const countPeriod = getCountPeriod(data.countType);
 
-    const insertData = {
+    const countData = {
       count_type: data.countType,
       stock_holder: data.stockHolder,
       name_or_location: data.nameOrLocation,
@@ -162,19 +163,59 @@ export const stockCountSupabaseService = {
       count_period: countPeriod,
     };
 
-    // Use upsert to overwrite existing count for same user + device + type + period
-    const { data: inserted, error } = await supabase
+    // 1. Upsert to stock_counts (historical record)
+    const { data: inserted, error: countError } = await supabase
       .from('stock_counts')
-      .upsert(insertData, {
+      .upsert(countData, {
         onConflict: 'user_email,device_type,count_type,count_period',
         ignoreDuplicates: false,
       })
       .select()
       .single();
 
-    if (error) {
-      console.error('Error creating/updating stock count:', error);
-      throw error;
+    if (countError) {
+      console.error('Error creating/updating stock count:', countError);
+      throw countError;
+    }
+
+    // 2. Update stock_levels with the new count (source of truth)
+    const stockLevelData = {
+      device_type: data.deviceType,
+      item_description: data.itemDescription,
+      item_category: data.itemCategory,
+      item_nature: data.itemNature,
+      item_code: data.itemCode,
+      bin_location: data.binLocation,
+      quantity: data.quantity,
+      manufacture_serial_number: data.manufactureSerialNumber,
+      qr_code_serial_number: data.qrCodeSerialNumber,
+      xlink_serial_number: data.xlinkSerialNumber,
+      cradle_serial_number: data.cradleSerialNumber,
+      charger_serial_number: data.chargerSerialNumber,
+      stock_holder: data.stockHolder,
+      name_or_location: data.nameOrLocation,
+      contractor_company: data.contractorCompany,
+      contractor_region: data.contractorRegion,
+      technician_name: data.technicianName,
+      tech_id: data.techId,
+      item_status: data.itemStatus,
+      fault_reason: data.faultReason,
+      overall_condition: data.overallCondition,
+      xli_case_ref: data.xliCaseRef,
+      count_type: data.countType,
+    };
+
+    // Upsert to stock_levels based on device_type + tech_id
+    const { error: levelError } = await supabase
+      .from('stock_levels')
+      .upsert(stockLevelData, {
+        onConflict: data.techId ? 'device_type,tech_id' : 'device_type,bin_location',
+        ignoreDuplicates: false,
+      });
+
+    if (levelError) {
+      console.error('Error updating stock level:', levelError);
+      // Don't throw - the count was saved, just log the level update failure
     }
 
     return transformToStockItem(inserted as StockLevelRow);
