@@ -60,9 +60,77 @@ CREATE TYPE dispatch_or_order_enum AS ENUM (
   'Order'
 );
 
+CREATE TYPE user_role_enum AS ENUM (
+  'admin',
+  'back_office',
+  'user'
+);
+
 -- ============================================
 -- TABLES
 -- ============================================
+
+-- 0. USER_PROFILES (Authentication & Roles)
+CREATE TABLE user_profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  full_name TEXT,
+  role user_role_enum NOT NULL DEFAULT 'user',
+  warehouse TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_user_profiles_role ON user_profiles(role);
+CREATE INDEX idx_user_profiles_email ON user_profiles(email);
+
+-- Auto-create profile on signup
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO user_profiles (id, email, full_name, role)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    NEW.raw_user_meta_data->>'full_name',
+    COALESCE((NEW.raw_user_meta_data->>'role')::user_role_enum, 'user')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION handle_new_user();
+
+-- Enable RLS on user_profiles
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own profile
+CREATE POLICY "Users can view own profile"
+  ON user_profiles FOR SELECT
+  USING (auth.uid() = id);
+
+-- Admins can view all profiles
+CREATE POLICY "Admins can view all profiles"
+  ON user_profiles FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Admins can update any profile
+CREATE POLICY "Admins can update profiles"
+  ON user_profiles FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
 
 -- 1. INVENTORY_ITEMS (Product Catalog)
 CREATE TABLE inventory_items (
