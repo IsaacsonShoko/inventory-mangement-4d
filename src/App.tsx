@@ -26,6 +26,7 @@ import UserManagement from "./pages/UserManagement";
 import KPIDashboard from "./pages/KPIDashboard";
 import StockIngestion from "./pages/StockIngestion";
 import StockAdmin from "./pages/StockAdmin";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -58,6 +59,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/stock-order" element={<StockOrder />} />
             <Route path="/asset-management" element={<AssetManagement />} />
             <Route path="/stock-ingestion" element={<StockIngestion />} />
