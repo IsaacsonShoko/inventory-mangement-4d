@@ -51,7 +51,7 @@ import {
   useTechnicians,
   useCreateOrder
 } from "@/hooks/useAirtable";
-import type { CartItem, OrderFormData } from "@/types/airtable";
+import type { CartItem, OrderFormData } from "@/hooks/useAirtable";
 import { Skeleton } from "@/components/ui/skeleton";
 import ThemeToggle from "@/components/theme-toggle";
 
