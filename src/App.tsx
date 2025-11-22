@@ -24,6 +24,7 @@ import DispatchCart from "./pages/DispatchCart";
 import SupabaseTest from "./pages/SupabaseTest";
 import UserManagement from "./pages/UserManagement";
 import KPIDashboard from "./pages/KPIDashboard";
+import StockIngestion from "./pages/StockIngestion";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/stock-order" element={<StockOrder />} />
             <Route path="/asset-management" element={<AssetManagement />} />
+            <Route path="/stock-ingestion" element={<StockIngestion />} />
             <Route path="/stock-counts" element={<StockCounts />} />
             <Route path="/stock-counts-report" element={<StockCountsReport />} />
             <Route path="/exceptions-report" element={<ExceptionsReport />} />

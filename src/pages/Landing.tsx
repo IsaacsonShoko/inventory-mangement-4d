@@ -50,7 +50,7 @@ const fieldOperationModules: ModuleCard[] = [
     icon: Boxes,
     path: "/asset-management",
     color: "from-sky-500 to-blue-600",
-    status: "soon",
+    status: "active",
     testId: "card-asset-management",
   },
   {
