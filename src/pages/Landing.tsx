@@ -65,15 +65,6 @@ const fieldOperationModules: ModuleCard[] = [
     testId: "card-asset-management",
   },
   {
-    title: "Product Catalog",
-    description: "Manage inventory items, categories, descriptions, and device images.",
-    icon: Database,
-    path: "/stock-admin",
-    color: "from-amber-500 to-orange-600",
-    status: "active",
-    testId: "card-product-catalog",
-  },
-  {
     title: "Tracking",
     description: "Monitor shipments, delivery milestones, and proof-of-delivery metadata in one place.",
     icon: MapPin,
@@ -120,6 +111,15 @@ const adminWorkspaceModules: ModuleCard[] = [
     color: "from-violet-600 to-purple-600",
     status: "active",
     testId: "card-point-of-presence",
+  },
+  {
+    title: "Product Catalog",
+    description: "Manage inventory items, categories, descriptions, and device images.",
+    icon: Database,
+    path: "/stock-admin",
+    color: "from-amber-500 to-orange-600",
+    status: "active",
+    testId: "card-product-catalog",
   },
 ];
 
