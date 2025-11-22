@@ -25,6 +25,8 @@ import {
   ThumbsUp,
   Bell,
   PackageX,
+  TrendingDown,
+  Activity,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -408,17 +410,116 @@ const KPIDashboard = () => {
       return acc;
     }, {} as Record<string, { item_code: string; item_category: string; warehouse: string; quantity: number }>);
 
-    // Calculate alerts based on thresholds: 0 = Out of Stock, ≤5 = Critical, ≤10 = Warning
+    // Calculate velocity from dispatch logs for each item_code
+    const velocityData = dispatchLogs.reduce((acc, log) => {
+      const itemCode = log.item_code || 'Unknown';
+      if (!acc[itemCode]) {
+        acc[itemCode] = {
+          totalDispatched: 0,
+          firstDispatch: log.date_dispatched,
+          lastDispatch: log.date_dispatched,
+          dispatchCount: 0,
+        };
+      }
+      acc[itemCode].totalDispatched += log.quantity || 1;
+      acc[itemCode].dispatchCount += 1;
+
+      // Track date range
+      if (log.date_dispatched) {
+        if (!acc[itemCode].firstDispatch || log.date_dispatched < acc[itemCode].firstDispatch) {
+          acc[itemCode].firstDispatch = log.date_dispatched;
+        }
+        if (!acc[itemCode].lastDispatch || log.date_dispatched > acc[itemCode].lastDispatch) {
+          acc[itemCode].lastDispatch = log.date_dispatched;
+        }
+      }
+      return acc;
+    }, {} as Record<string, { totalDispatched: number; firstDispatch: string | null; lastDispatch: string | null; dispatchCount: number }>);
+
+    // Calculate alerts with velocity-based thresholds
     const stockAlerts = Object.values(stockAggregation).map((item) => {
+      const velocityInfo = velocityData[item.item_code];
+
+      // Calculate data maturity (days of history)
+      let daysOfHistory = 0;
+      let velocity = 0;
+      let daysOfStock: number | null = null;
+      let dataMaturity: 'manual' | 'learning' | 'stable' | 'forecast' = 'manual';
+      let dataProgress = 0;
+
+      if (velocityInfo && velocityInfo.firstDispatch && velocityInfo.lastDispatch) {
+        try {
+          const firstDate = parseISO(velocityInfo.firstDispatch);
+          const lastDate = parseISO(velocityInfo.lastDispatch);
+          const now = new Date();
+
+          // Days since first dispatch
+          daysOfHistory = differenceInDays(now, firstDate);
+
+          // Calculate velocity (units per day)
+          const dayRange = Math.max(1, differenceInDays(lastDate, firstDate) || 1);
+          velocity = velocityInfo.totalDispatched / dayRange;
+
+          // Calculate days of stock remaining
+          if (velocity > 0) {
+            daysOfStock = Math.round(item.quantity / velocity);
+          }
+
+          // Determine data maturity phase
+          if (daysOfHistory >= 90) {
+            dataMaturity = 'forecast';
+            dataProgress = 100;
+          } else if (daysOfHistory >= 30) {
+            dataMaturity = 'stable';
+            dataProgress = Math.round((daysOfHistory / 90) * 100);
+          } else if (daysOfHistory >= 1) {
+            dataMaturity = 'learning';
+            dataProgress = Math.round((daysOfHistory / 30) * 100);
+          } else {
+            dataMaturity = 'manual';
+            dataProgress = 0;
+          }
+        } catch {
+          // Keep defaults if date parsing fails
+        }
+      }
+
+      // Determine severity based on data maturity
       let severity: 'outOfStock' | 'critical' | 'warning' | 'ok' = 'ok';
+      let alertMethod: 'static' | 'velocity' = 'static';
+
       if (item.quantity === 0) {
         severity = 'outOfStock';
-      } else if (item.quantity <= 5) {
-        severity = 'critical';
-      } else if (item.quantity <= 10) {
-        severity = 'warning';
+      } else if (dataMaturity === 'stable' || dataMaturity === 'forecast') {
+        // Use velocity-based thresholds when we have enough data
+        alertMethod = 'velocity';
+        if (daysOfStock !== null) {
+          if (daysOfStock <= 3) {
+            severity = 'critical';
+          } else if (daysOfStock <= 7) {
+            severity = 'warning';
+          }
+        }
+      } else {
+        // Fall back to static thresholds
+        if (item.quantity <= 5) {
+          severity = 'critical';
+        } else if (item.quantity <= 10) {
+          severity = 'warning';
+        }
       }
-      return { ...item, severity };
+
+      return {
+        ...item,
+        severity,
+        velocity: Math.round(velocity * 10) / 10, // Round to 1 decimal
+        daysOfStock,
+        daysOfHistory,
+        dataMaturity,
+        dataProgress,
+        alertMethod,
+        dispatchCount: velocityInfo?.dispatchCount || 0,
+      };
     }).filter(item => item.severity !== 'ok');
 
     const alertCounts = {
@@ -1213,7 +1314,11 @@ const KPIDashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-orange-600">{kpis.alertCounts.critical}</div>
-                    <p className="text-xs text-muted-foreground">Quantity 1-5</p>
+                    <p className="text-xs text-muted-foreground">
+                      {kpis.stockAlerts.some(a => a.alertMethod === 'velocity' && a.severity === 'critical')
+                        ? '≤3 days stock'
+                        : 'Quantity 1-5'}
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -1224,7 +1329,11 @@ const KPIDashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-yellow-600">{kpis.alertCounts.warning}</div>
-                    <p className="text-xs text-muted-foreground">Quantity 6-10</p>
+                    <p className="text-xs text-muted-foreground">
+                      {kpis.stockAlerts.some(a => a.alertMethod === 'velocity' && a.severity === 'warning')
+                        ? '≤7 days stock'
+                        : 'Quantity 6-10'}
+                    </p>
                   </CardContent>
                 </Card>
               </div>
@@ -1237,7 +1346,7 @@ const KPIDashboard = () => {
                       <Bell className="h-5 w-5" />
                       Stock Alerts
                     </CardTitle>
-                    <CardDescription>Items with low stock levels requiring attention</CardDescription>
+                    <CardDescription>Items with low stock levels requiring attention - using velocity-based thresholds when sufficient data is available</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -1250,33 +1359,85 @@ const KPIDashboard = () => {
                         .map((alert, index) => (
                           <div
                             key={`${alert.item_code}-${alert.warehouse}-${index}`}
-                            className="flex items-center justify-between p-3 rounded-lg border"
+                            className="p-3 rounded-lg border space-y-3"
                           >
-                            <div className="flex items-center gap-3">
-                              {alert.severity === 'outOfStock' && <PackageX className="h-5 w-5 text-red-500" />}
-                              {alert.severity === 'critical' && <AlertTriangle className="h-5 w-5 text-orange-500" />}
-                              {alert.severity === 'warning' && <AlertCircle className="h-5 w-5 text-yellow-500" />}
-                              <div>
-                                <div className="font-medium">{alert.item_code}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {alert.item_category} • {alert.warehouse}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {alert.severity === 'outOfStock' && <PackageX className="h-5 w-5 text-red-500" />}
+                                {alert.severity === 'critical' && <AlertTriangle className="h-5 w-5 text-orange-500" />}
+                                {alert.severity === 'warning' && <AlertCircle className="h-5 w-5 text-yellow-500" />}
+                                <div>
+                                  <div className="font-medium">{alert.item_code}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {alert.item_category} • {alert.warehouse}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="text-right">
-                                <div className="font-medium">{alert.quantity}</div>
-                                <div className="text-xs text-muted-foreground">in stock</div>
+                              <div className="flex items-center gap-3">
+                                {alert.severity === 'outOfStock' && (
+                                  <Badge variant="destructive">Out of Stock</Badge>
+                                )}
+                                {alert.severity === 'critical' && (
+                                  <Badge className="bg-orange-500 hover:bg-orange-600">Critical</Badge>
+                                )}
+                                {alert.severity === 'warning' && (
+                                  <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black">Warning</Badge>
+                                )}
                               </div>
-                              {alert.severity === 'outOfStock' && (
-                                <Badge variant="destructive">Out of Stock</Badge>
-                              )}
-                              {alert.severity === 'critical' && (
-                                <Badge className="bg-orange-500 hover:bg-orange-600">Critical</Badge>
-                              )}
-                              {alert.severity === 'warning' && (
-                                <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black">Warning</Badge>
-                              )}
+                            </div>
+
+                            {/* Stock & Velocity Info */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                              <div className="text-center p-2 rounded bg-muted">
+                                <div className="font-semibold">{alert.quantity}</div>
+                                <div className="text-xs text-muted-foreground">In Stock</div>
+                              </div>
+                              <div className="text-center p-2 rounded bg-muted">
+                                <div className="font-semibold flex items-center justify-center gap-1">
+                                  {alert.velocity > 0 ? (
+                                    <>
+                                      {alert.velocity}
+                                      <TrendingDown className="h-3 w-3" />
+                                    </>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </div>
+                                <div className="text-xs text-muted-foreground">Units/Day</div>
+                              </div>
+                              <div className="text-center p-2 rounded bg-muted">
+                                <div className={`font-semibold ${
+                                  alert.daysOfStock !== null && alert.daysOfStock <= 3 ? 'text-red-600' :
+                                  alert.daysOfStock !== null && alert.daysOfStock <= 7 ? 'text-yellow-600' :
+                                  ''
+                                }`}>
+                                  {alert.daysOfStock !== null ? `${alert.daysOfStock}d` : '—'}
+                                </div>
+                                <div className="text-xs text-muted-foreground">Days Left</div>
+                              </div>
+                              <div className="text-center p-2 rounded bg-muted">
+                                <div className="font-semibold">{alert.dispatchCount}</div>
+                                <div className="text-xs text-muted-foreground">Dispatches</div>
+                              </div>
+                            </div>
+
+                            {/* Data Maturity Indicator */}
+                            <div className="flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-muted-foreground" />
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between text-xs mb-1">
+                                  <span className="text-muted-foreground">
+                                    {alert.dataMaturity === 'manual' && 'No dispatch history'}
+                                    {alert.dataMaturity === 'learning' && `Learning (${alert.daysOfHistory} days)`}
+                                    {alert.dataMaturity === 'stable' && `Stable (${alert.daysOfHistory} days)`}
+                                    {alert.dataMaturity === 'forecast' && `Forecast Ready (${alert.daysOfHistory} days)`}
+                                  </span>
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                    {alert.alertMethod === 'velocity' ? 'Velocity' : 'Static'}
+                                  </Badge>
+                                </div>
+                                <Progress value={alert.dataProgress} className="h-1.5" />
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1289,7 +1450,7 @@ const KPIDashboard = () => {
                     <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-4" />
                     <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">Stock Levels Healthy</h3>
                     <p className="text-sm text-green-600 dark:text-green-500 mt-1">
-                      All items have sufficient stock (above 10 units)
+                      All items have sufficient stock (above 10 units or 7+ days)
                     </p>
                   </CardContent>
                 </Card>

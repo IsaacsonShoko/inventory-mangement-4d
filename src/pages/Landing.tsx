@@ -3,18 +3,16 @@ import { Link } from "react-router-dom";
 import {
   Package,
   Truck,
-  FileBarChart,
+  BarChart3,
   ShoppingCart,
   ClipboardList,
   MapPin,
   Map,
-  Bell,
   Boxes,
   ArrowRight
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/theme-toggle";
 
 type ModuleCard = {
@@ -86,19 +84,20 @@ const adminWorkspaceModules: ModuleCard[] = [
     testId: "card-dispatching",
   },
   {
+    title: "Analytics Dashboard",
+    description: "Monitor KPIs, stock alerts, device health, and performance metrics in real-time.",
+    icon: BarChart3,
+    path: "/kpi-dashboard",
+    color: "from-emerald-500 to-teal-600",
+    status: "active",
+    testId: "card-analytics",
+  },
+  {
     title: "Point of Presence",
     description: "Maintain your national technician roster, regions, and contact information.",
     icon: Map,
     path: "/point-of-presence",
     color: "from-violet-600 to-purple-600",
-    status: "soon",
-  },
-  {
-    title: "Stock Alerts",
-    description: "Receive automation-driven alerts when reorder points or critical stock rules fire.",
-    icon: Bell,
-    path: "/stock-alerts",
-    color: "from-purple-500 to-pink-600",
     status: "soon",
   },
 ];
@@ -172,14 +171,8 @@ const Landing = () => {
           </section>
 
           <section className="space-y-2.5">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div className="text-center">
               <h2 className="text-base font-semibold">Admin Workspace</h2>
-              <Link to="/exceptions-report">
-                <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs hover:bg-primary/10">
-                  <FileBarChart className="h-3.5 w-3.5" />
-                  Exceptions Dashboard
-                </Button>
-              </Link>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {adminWorkspaceModules.map(({ icon: Icon, title, description, path, color, status }, index) => (
