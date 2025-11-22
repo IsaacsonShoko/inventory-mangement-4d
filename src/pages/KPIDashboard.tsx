@@ -265,8 +265,6 @@ const KPIDashboard = () => {
 
   // Calculate KPIs
   const kpis = useMemo(() => {
-    if (!filteredOrders.length) return null;
-
     // Order Lifecycle KPIs
     const totalOrders = filteredOrders.length;
     const dispatchedOrders = filteredOrders.filter(o => o.dispatch_status === 'Dispatched').length;
@@ -756,12 +754,7 @@ const KPIDashboard = () => {
           </CardContent>
         </Card>
 
-        {!kpis ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No data available for selected period</p>
-          </div>
-        ) : (
-          <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs defaultValue="overview" className="space-y-6">
             <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 lg:w-auto lg:inline-flex">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
@@ -1634,7 +1627,6 @@ const KPIDashboard = () => {
               </Card>
             </TabsContent>
           </Tabs>
-        )}
       </main>
     </div>
   );

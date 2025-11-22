@@ -47,15 +47,6 @@ const fieldOperationModules: ModuleCard[] = [
     testId: "card-stock-counts",
   },
   {
-    title: "Stock Ingestion",
-    description: "Register new devices into inventory with batch tracking and serial number validation.",
-    icon: PackagePlus,
-    path: "/stock-ingestion",
-    color: "from-teal-500 to-cyan-600",
-    status: "active",
-    testId: "card-stock-ingestion",
-  },
-  {
     title: "Asset Management",
     description: "Track serialized hardware across lifecycles, repairs, and redeployments.",
     icon: Boxes,
@@ -63,15 +54,6 @@ const fieldOperationModules: ModuleCard[] = [
     color: "from-sky-500 to-blue-600",
     status: "active",
     testId: "card-asset-management",
-  },
-  {
-    title: "Product Catalog",
-    description: "Manage inventory items, categories, descriptions, and device images.",
-    icon: Database,
-    path: "/stock-admin",
-    color: "from-amber-500 to-orange-600",
-    status: "active",
-    testId: "card-product-catalog",
   },
   {
     title: "Tracking",
@@ -120,6 +102,24 @@ const adminWorkspaceModules: ModuleCard[] = [
     color: "from-violet-600 to-purple-600",
     status: "active",
     testId: "card-point-of-presence",
+  },
+  {
+    title: "Product Catalog",
+    description: "Manage inventory items, categories, descriptions, and device images.",
+    icon: Database,
+    path: "/stock-admin",
+    color: "from-amber-500 to-orange-600",
+    status: "active",
+    testId: "card-product-catalog",
+  },
+  {
+    title: "Stock Ingestion",
+    description: "Register new devices into inventory with batch tracking and serial number validation.",
+    icon: PackagePlus,
+    path: "/stock-ingestion",
+    color: "from-teal-500 to-cyan-600",
+    status: "active",
+    testId: "card-stock-ingestion",
   },
 ];
 
