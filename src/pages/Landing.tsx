@@ -9,7 +9,9 @@ import {
   MapPin,
   Map,
   Boxes,
-  ArrowRight
+  ArrowRight,
+  PackagePlus,
+  Database
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,8 +43,17 @@ const fieldOperationModules: ModuleCard[] = [
     icon: ClipboardList,
     path: "/stock-counts",
     color: "from-purple-500 to-fuchsia-600",
-    status: "soon",
+    status: "active",
     testId: "card-stock-counts",
+  },
+  {
+    title: "Stock Ingestion",
+    description: "Register new devices into inventory with batch tracking and serial number validation.",
+    icon: PackagePlus,
+    path: "/stock-ingestion",
+    color: "from-teal-500 to-cyan-600",
+    status: "active",
+    testId: "card-stock-ingestion",
   },
   {
     title: "Asset Management",
@@ -52,6 +63,15 @@ const fieldOperationModules: ModuleCard[] = [
     color: "from-sky-500 to-blue-600",
     status: "active",
     testId: "card-asset-management",
+  },
+  {
+    title: "Product Catalog",
+    description: "Manage inventory items, categories, descriptions, and device images.",
+    icon: Database,
+    path: "/stock-admin",
+    color: "from-amber-500 to-orange-600",
+    status: "active",
+    testId: "card-product-catalog",
   },
   {
     title: "Tracking",
@@ -87,7 +107,7 @@ const adminWorkspaceModules: ModuleCard[] = [
     title: "Analytics Dashboard",
     description: "Monitor KPIs, stock alerts, device health, and performance metrics in real-time.",
     icon: BarChart3,
-    path: "/kpi-dashboard",
+    path: "/kpi",
     color: "from-emerald-500 to-teal-600",
     status: "active",
     testId: "card-analytics",
@@ -98,7 +118,8 @@ const adminWorkspaceModules: ModuleCard[] = [
     icon: Map,
     path: "/point-of-presence",
     color: "from-violet-600 to-purple-600",
-    status: "soon",
+    status: "active",
+    testId: "card-point-of-presence",
   },
 ];
 
