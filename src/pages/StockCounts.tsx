@@ -1,10 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, Plus, RefreshCw, Check, X, ClipboardList, Loader2, Barcode, Camera, AlertTriangle
+  Search,
+  Plus,
+  ShoppingCart,
+  ClipboardList,
+  Loader2,
+  Check,
+  Camera,
+  X,
+  AlertTriangle,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -12,91 +21,80 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from '@/components/ui/form';
-import { useToast } from '@/components/ui/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-import { stockCountSupabaseService as stockCountService } from '@/services/stockCountSupabaseService';
-import { StockItem, StockCountFormData } from '@/types/stock';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useToast } from '@/components/ui/use-toast';
+import { Badge } from '@/components/ui/badge';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
 import { useAuth } from '@/hooks/useAuth';
-import { Separator } from '@/components/ui/separator';
 
-// Helper to check if item is Cash Connect
-const isCashConnect = (itemCategory: string | undefined) =>
-  itemCategory?.includes('Cash Connect') ?? false;
+import type { Tables, Enums } from '@/integrations/supabase/types';
 
-// Parse comma-separated QR code input for Cash Connect
-const parseQrCodeInput = (input: string) => {
-  const commaCount = (input.match(/,/g) || []).length;
+type InventoryItem = Tables<'inventory_items'>;
+type PointOfPresenceRecord = Tables<'point_of_presence'>;
+type BusinessLineEnum = Enums<'business_line_enum'>;
+type ItemNatureEnum = Enums<'item_nature_enum'>;
 
-  if (commaCount >= 1) {
-    const firstCommaIndex = input.indexOf(',');
-    const itemCode = input.substring(0, firstCommaIndex).trim();
+// Categories in order
+const CATEGORIES: { label: string; value: BusinessLineEnum }[] = [
+  { label: 'Cash Connect', value: 'Cash Connect' },
+  { label: 'ABSA', value: 'Absa' },
+  { label: 'VPS', value: 'VPS' },
+  { label: 'Modems', value: 'Modems' },
+  { label: 'Accessories', value: 'Accessories' },
+  { label: 'SIM Management', value: 'Sim Management' },
+  { label: 'Other', value: 'Other' },
+];
 
-    let cashConnectSerial = '';
-    if (commaCount > 1) {
-      // More than 1 comma: extract characters 14-18 (positions 13-17 in 0-based index)
-      cashConnectSerial = input.substring(13, 18);
-    } else if (commaCount === 1) {
-      // Exactly 1 comma: extract everything after the first comma
-      cashConnectSerial = input.substring(firstCommaIndex + 1).trim();
-    }
+// Stock holder options
+const STOCK_HOLDERS = ['Warehouse', 'Technician', 'OEM'];
 
-    return { itemCode, cashConnectSerial };
-  }
-
-  // No comma: use entire input as item code
-  return { itemCode: input.trim(), cashConnectSerial: '' };
-};
+// Cart item type
+interface CartItem {
+  id: string;
+  deviceType: string;
+  itemDescription: string;
+  itemCategory: string;
+  itemNature: string;
+  quantity: number;
+  itemCode: string;
+  itemUrl?: string;
+}
 
 // Form validation schema
 const formSchema = z.object({
   countType: z.enum(['Monthly', 'Mid-Month', 'Daily']),
   stockHolder: z.string().min(1, 'Stock holder is required'),
-  nameOrLocation: z.string().min(1, 'Name or location is required'),
+  nameOrLocation: z.string().optional(),
+  contractorCompany: z.string().optional(),
+  technician: z.string().optional(),
   itemCategory: z.string().min(1, 'Item category is required'),
-  binLocation: z.string().optional(),
-  deviceType: z.string().min(1, 'Device type is required'),
   itemNature: z.enum(['Serialised', 'Non-serialised']),
-  itemCode: z.string().min(1, 'Item code is required'),
-  itemDescription: z.string().min(1, 'Item description is required'),
-  quantity: z.number().min(0, 'Quantity must be 0 or greater'),
-  manufactureSerialNumber: z.string().optional(),
-  qrCodeSerialNumber: z.string().optional(),
-  xlinkSerialNumber: z.string().optional(),
-  cradleSerialNumber: z.string().optional(),
-  chargerSerialNumber: z.string().optional(),
-  itemStatus: z.string().min(1, 'Item status is required'),
-  faultReason: z.string().optional(),
-  overallCondition: z.string().optional(),
-  xliCaseRef: z.string().optional(),
-  contractorCompany: z.string().min(1, 'Contractor company is required'),
-  contractorRegion: z.string().min(1, 'Contractor region is required'),
-  technicianName: z.string().min(1, 'Technician name is required'),
-  techId: z.string().min(1, 'Tech ID is required'),
+  binLocation: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -105,793 +103,638 @@ const StockCounts = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [itemCategory, setItemCategory] = useState('');
-  const [isSerialized, setIsSerialized] = useState<boolean | undefined>(undefined);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [showScanner, setShowScanner] = useState(false);
-  const [currentScanField, setCurrentScanField] = useState<string | null>(null);
-  const scannerRef = useRef<{ closeScanner: () => void }>(null);
-  const [qrScanInput, setQrScanInput] = useState('');
-  const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
-  // Initialize form
+  // State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const scannerRef = useRef<{ closeScanner: () => void }>(null);
+
+  // Form
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       countType: 'Monthly',
-      itemNature: 'Non-serialised',
-      quantity: 1,
+      stockHolder: '',
+      nameOrLocation: '',
+      contractorCompany: '',
+      technician: '',
+      itemCategory: '',
+      itemNature: 'Serialised',
+      binLocation: '',
     },
   });
 
-  // Fetch stock items
-  const { data: stockItems = [], isLoading, refetch } = useQuery({
-    queryKey: ['stockItems', { searchTerm, itemCategory, isSerialized }],
-    queryFn: () =>
-      stockCountService.getStockItems({
-        searchTerm,
-        itemCategory: itemCategory || undefined,
-        isSerialized,
-      }),
-  });
+  const watchStockHolder = form.watch('stockHolder');
+  const watchContractorCompany = form.watch('contractorCompany');
+  const watchItemCategory = form.watch('itemCategory');
+  const watchItemNature = form.watch('itemNature');
 
-  // Fetch existing stock levels for duplicate checking
-  const { data: existingStockLevels = [] } = useQuery({
-    queryKey: ['stockLevelsForDuplicateCheck'],
+  // Fetch inventory items
+  const { data: inventoryItems = [], isLoading: loadingItems } = useQuery({
+    queryKey: ['inventoryItems'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('stock_levels')
-        .select('id, manufacture_serial_number, qr_code_serial_number, xlink_serial_number, cradle_serial_number, charger_serial_number, item_category');
+        .from('inventory_items')
+        .select('*')
+        .order('item_name', { ascending: true });
+
       if (error) throw error;
       return data || [];
     },
-    staleTime: 30 * 1000, // 30 seconds
   });
 
-  // Handle QR code scan input change for Cash Connect
-  const handleQrScanChange = (value: string) => {
-    setQrScanInput(value);
+  // Fetch contractors from Point of Presence
+  const { data: contractors = [] } = useQuery({
+    queryKey: ['contractors'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('point_of_presence')
+        .select('contractor')
+        .not('contractor', 'is', null);
 
-    if (value && isCashConnect(form.watch('itemCategory'))) {
-      const { itemCode, cashConnectSerial } = parseQrCodeInput(value);
-      form.setValue('itemCode', itemCode);
-      form.setValue('qrCodeSerialNumber', cashConnectSerial);
-    }
+      if (error) throw error;
+      const unique = [...new Set(data?.map((r) => r.contractor).filter(Boolean))] as string[];
+      return unique.sort();
+    },
+  });
+
+  // Fetch technicians based on selected contractor
+  const { data: technicians = [] } = useQuery({
+    queryKey: ['technicians', watchContractorCompany],
+    queryFn: async () => {
+      if (!watchContractorCompany) return [];
+
+      const { data, error } = await supabase
+        .from('point_of_presence')
+        .select('*')
+        .eq('contractor', watchContractorCompany)
+        .order('name_surname', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!watchContractorCompany,
+  });
+
+  // Fetch warehouse locations
+  const { data: warehouses = [] } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: async () => {
+      // For now, return static warehouses - can be fetched from a table if available
+      return ['JHB Warehouse', 'CPT Warehouse', 'DBN Warehouse'];
+    },
+  });
+
+  // Filter inventory items based on category and nature
+  const filteredItems = inventoryItems.filter((item) => {
+    const matchesCategory = !watchItemCategory || item.item_category === watchItemCategory;
+    const matchesNature = !watchItemNature || item.item_nature === watchItemNature;
+    const matchesSearch = !searchTerm ||
+      item.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.item_description?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesNature && matchesSearch;
+  });
+
+  // Add item to cart
+  const addToCart = (item: InventoryItem, quantity: number) => {
+    const cartItem: CartItem = {
+      id: `${item.id}-${Date.now()}`,
+      deviceType: item.item_name,
+      itemDescription: item.item_description || '',
+      itemCategory: item.item_category || '',
+      itemNature: item.item_nature || '',
+      quantity,
+      itemCode: item.item_name,
+      itemUrl: item.item_url || undefined,
+    };
+
+    setCart((prev) => [...prev, cartItem]);
+    setShowSuccessModal(true);
   };
 
-  // Check for duplicate serial numbers
-  const checkDuplicateSerials = (data: FormValues): string | null => {
-    if (data.itemNature !== 'Serialised') return null;
-
-    const isCashConnectItem = isCashConnect(data.itemCategory);
-
-    if (isCashConnectItem) {
-      // Cash Connect: Check only QR Code Serial Number (CashConnect Serial)
-      if (data.qrCodeSerialNumber) {
-        const duplicate = existingStockLevels.find(
-          (item) =>
-            item.id !== editingId &&
-            item.qr_code_serial_number &&
-            item.qr_code_serial_number.toUpperCase() === data.qrCodeSerialNumber!.toUpperCase()
-        );
-        if (duplicate) {
-          return `Duplicate CashConnect Serial Number detected: "${data.qrCodeSerialNumber}" already exists in inventory.`;
-        }
-      }
-    } else {
-      // All other business lines: Check Manufacture OR Cradle OR Charger serial numbers
-      if (data.manufactureSerialNumber) {
-        const duplicate = existingStockLevels.find(
-          (item) =>
-            item.id !== editingId &&
-            item.manufacture_serial_number &&
-            item.manufacture_serial_number.toUpperCase() === data.manufactureSerialNumber!.toUpperCase()
-        );
-        if (duplicate) {
-          return `Duplicate Manufacture Serial Number detected: "${data.manufactureSerialNumber}" already exists in inventory.`;
-        }
-      }
-
-      if (data.cradleSerialNumber) {
-        const duplicate = existingStockLevels.find(
-          (item) =>
-            item.id !== editingId &&
-            item.cradle_serial_number &&
-            item.cradle_serial_number.toUpperCase() === data.cradleSerialNumber!.toUpperCase()
-        );
-        if (duplicate) {
-          return `Duplicate Cradle Serial Number detected: "${data.cradleSerialNumber}" already exists in inventory.`;
-        }
-      }
-
-      if (data.chargerSerialNumber) {
-        const duplicate = existingStockLevels.find(
-          (item) =>
-            item.id !== editingId &&
-            item.charger_serial_number &&
-            item.charger_serial_number.toUpperCase() === data.chargerSerialNumber!.toUpperCase()
-        );
-        if (duplicate) {
-          return `Duplicate Charger Serial Number detected: "${data.chargerSerialNumber}" already exists in inventory.`;
-        }
-      }
-    }
-
-    return null;
+  // Remove item from cart
+  const removeFromCart = (id: string) => {
+    setCart((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Create or update stock count
-  const mutation = useMutation({
-    mutationFn: async (data: StockCountFormData) => {
-      if (!user?.email) {
-        throw new Error('User email not available');
-      }
-      if (editingId) {
-        return stockCountService.updateStockCount(editingId, data);
-      }
-      return stockCountService.createStockCount(data, user.email);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['stockItems'] });
-      toast({
-        title: 'Success',
-        description: editingId ? 'Stock count updated successfully' : 'Stock count created successfully',
-      });
-      resetForm();
-    },
-    onError: (error) => {
+  // Submit stock count
+  const submitStockCount = async () => {
+    if (cart.length === 0) {
       toast({
         title: 'Error',
-        description: error.message || 'An error occurred',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Handle form submission
-  const onSubmit = (data: FormValues) => {
-    // Check for duplicate serial numbers before submission
-    const duplicateErrorMsg = checkDuplicateSerials(data);
-    if (duplicateErrorMsg) {
-      setDuplicateError(duplicateErrorMsg);
-      toast({
-        title: 'Duplicate Serial Number Detected',
-        description: duplicateErrorMsg,
+        description: 'Please add items to cart before submitting',
         variant: 'destructive',
       });
       return;
     }
 
-    setDuplicateError(null);
-    mutation.mutate(data as StockCountFormData);
-  };
+    setIsSubmitting(true);
 
-  // Handle barcode scan result
-  const handleBarcodeScanned = (result: string) => {
-    if (currentScanField) {
-      form.setValue(currentScanField as any, result, { shouldValidate: true });
-      setCurrentScanField(null);
+    try {
+      const formData = form.getValues();
+
+      // Create stock count records for each cart item
+      for (const item of cart) {
+        const stockCountData = {
+          count_type: formData.countType,
+          stock_holder: formData.stockHolder,
+          name_or_location: formData.stockHolder === 'Technician'
+            ? formData.contractorCompany
+            : formData.nameOrLocation,
+          contractor_company: formData.contractorCompany || null,
+          technician: formData.technician || null,
+          item_category: item.itemCategory,
+          item_nature: item.itemNature,
+          device_type: item.deviceType,
+          quantity: item.quantity,
+          bin_location: formData.binLocation || null,
+          user_email: user?.email || null,
+          count_date: new Date().toISOString(),
+        };
+
+        const { error } = await supabase
+          .from('stock_counts')
+          .insert(stockCountData);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: 'Success',
+        description: `Stock count submitted successfully with ${cart.length} items`,
+      });
+
+      // Clear cart and form
+      setCart([]);
+      form.reset();
+      queryClient.invalidateQueries({ queryKey: ['stockCounts'] });
+
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit stock count',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  // Handle barcode scan
+  const handleBarcodeScanned = (result: string) => {
+    setSearchTerm(result);
     setShowScanner(false);
   };
 
-  // Open scanner for a specific field
-  const openScanner = (fieldName: string) => {
-    setCurrentScanField(fieldName);
-    setShowScanner(true);
-  };
-
-  // Reset form
-  const resetForm = () => {
-    form.reset();
-    setEditingId(null);
-    setIsFormOpen(false);
-    setShowScanner(false);
-    setCurrentScanField(null);
-    setQrScanInput('');
-    setDuplicateError(null);
-  };
-
-  // Edit stock count
-  const handleEdit = (item: StockItem) => {
-    form.reset({
-      countType: item.countType,
-      stockHolder: item.stockHolder,
-      nameOrLocation: item.nameOrLocation,
-      itemCategory: item.itemCategory,
-      binLocation: item.binLocation,
-      deviceType: item.deviceType,
-      itemNature: item.itemNature,
-      itemCode: item.itemCode,
-      itemDescription: item.itemDescription,
-      quantity: item.quantity,
-      manufactureSerialNumber: item.manufactureSerialNumber,
-      qrCodeSerialNumber: item.qrCodeSerialNumber,
-      xlinkSerialNumber: item.xlinkSerialNumber,
-      cradleSerialNumber: item.cradleSerialNumber,
-      chargerSerialNumber: item.chargerSerialNumber,
-      itemStatus: item.itemStatus,
-      faultReason: item.faultReason,
-      overallCondition: item.overallCondition,
-      xliCaseRef: item.xliCaseRef,
-      contractorCompany: item.contractorCompany,
-      contractorRegion: item.contractorRegion,
-      technicianName: item.technicianName,
-      techId: item.techId,
-    });
-    setEditingId(item.id);
-    setIsFormOpen(true);
-  };
-
-  // Get unique categories for filter
-  const categories = [...new Set(stockItems.map(item => item.itemCategory))];
-
-  if (isLoading) {
+  if (loadingItems) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading stock items...</span>
+        <span className="ml-2">Loading...</span>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="container mx-auto p-4 space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <ClipboardList className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Stock Counts</h1>
+          <h1 className="text-2xl font-bold">Stock Count</h1>
         </div>
-        <Button onClick={() => {
-          resetForm();
-          setIsFormOpen(true);
-        }}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Count
-        </Button>
+        {cart.length > 0 && (
+          <Badge variant="secondary" className="text-sm">
+            <ShoppingCart className="h-4 w-4 mr-1" />
+            {cart.length} items in cart
+          </Badge>
+        )}
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="search">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Search items..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Panel - Stock Details Form */}
+        <Card>
+          <CardHeader className="bg-primary text-primary-foreground rounded-t-lg">
+            <CardTitle className="text-sm">Enter Stock Details</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <Form {...form}>
+              <form className="space-y-4">
+                {/* Count Type - Radio Buttons */}
+                <FormField
+                  control={form.control}
+                  name="countType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Select the Cycle *</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          className="flex gap-4"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Monthly" id="monthly" />
+                            <Label htmlFor="monthly" className="text-sm">Monthly</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Mid-Month" id="midmonth" />
+                            <Label htmlFor="midmonth" className="text-sm">Mid-Month</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Daily" id="daily" />
+                            <Label htmlFor="daily" className="text-sm">Daily</Label>
+                          </div>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="itemCategory">Category</Label>
-              <Select
-                value={itemCategory}
-                onValueChange={(value) => setItemCategory(value === 'all' ? '' : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div className="space-y-2">
-              <Label>Item Nature</Label>
-              <Select
-                value={isSerialized === undefined ? 'all' : isSerialized ? 'serialized' : 'non-serialized'}
-                onValueChange={(value) => {
-                  if (value === 'all') setIsSerialized(undefined);
-                  else setIsSerialized(value === 'serialized');
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="serialized">Serialized</SelectItem>
-                  <SelectItem value="non-serialized">Non-serialized</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                {/* Stock Holder */}
+                <FormField
+                  control={form.control}
+                  name="stockHolder"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stock Holder *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select stock holder" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {STOCK_HOLDERS.map((holder) => (
+                            <SelectItem key={holder} value={holder}>
+                              {holder}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <div className="flex items-end">
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => {
-                  setSearchTerm('');
-                  setItemCategory('');
-                  setIsSerialized(undefined);
-                }}
+                {/* Name or Location - Visible when NOT Technician */}
+                {watchStockHolder && watchStockHolder !== 'Technician' && (
+                  <FormField
+                    control={form.control}
+                    name="nameOrLocation"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name or Location</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select location" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {warehouses.map((wh) => (
+                              <SelectItem key={wh} value={wh}>
+                                {wh}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* Contractor Company - Visible when Technician */}
+                {watchStockHolder === 'Technician' && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="contractorCompany"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contractor Company *</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select contractor" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {contractors.map((contractor) => (
+                                <SelectItem key={contractor} value={contractor}>
+                                  {contractor}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Technician */}
+                    <FormField
+                      control={form.control}
+                      name="technician"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Technician *</FormLabel>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled={!watchContractorCompany}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select technician" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {technicians.map((tech) => (
+                                <SelectItem key={tech.id} value={tech.email_address || tech.name_surname}>
+                                  {tech.name_surname}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+
+                <Separator />
+
+                {/* Item Category */}
+                <FormField
+                  control={form.control}
+                  name="itemCategory"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Item Category *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {CATEGORIES.map((cat) => (
+                            <SelectItem key={cat.value} value={cat.value}>
+                              {cat.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Item Nature */}
+                <FormField
+                  control={form.control}
+                  name="itemNature"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Is this product serialised? *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Serialised">Serialised</SelectItem>
+                          <SelectItem value="Non-serialised">Non-serialised</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Bin Location */}
+                <FormField
+                  control={form.control}
+                  name="binLocation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bin Location</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Optional" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        {/* Right Panel - Device Gallery */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="bg-primary text-primary-foreground rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Add Items to Order</CardTitle>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowScanner(true)}
               >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Reset Filters
+                <Camera className="h-4 w-4 mr-1" />
+                Scan
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stock Items Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle>Stock Items</CardTitle>
-            <div className="text-sm text-muted-foreground">
-              {stockItems.length} {stockItems.length === 1 ? 'item' : 'items'} found
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[500px] rounded-md border">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead>Device Type</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Bin Location</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stockItems.length > 0 ? (
-                  stockItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.deviceType}</TableCell>
-                      <TableCell>{item.itemDescription}</TableCell>
-                      <TableCell>{item.itemCategory}</TableCell>
-                      <TableCell>{item.binLocation || '-'}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          item.itemStatus === 'In Stock' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {item.itemStatus}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleEdit(item)}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No stock items found. Try adjusting your filters.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </CardContent>
-      </Card>
-
-      {/* Add/Edit Stock Count Form */}
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-3xl">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>
-                  {editingId ? 'Edit Stock Count' : 'New Stock Count'}
-                </CardTitle>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={resetForm}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {!watchStockHolder || !watchItemCategory ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Please enter Order Details to activate device gallery</p>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            ) : (
+              <>
+                {/* Search */}
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search Devices using Item Code or Item Description"
+                    className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                {/* Device Gallery */}
+                <ScrollArea className="h-[400px]">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="countType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Count Type</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select count type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Monthly">Monthly</SelectItem>
-                              <SelectItem value="Mid-Month">Mid-Month</SelectItem>
-                              <SelectItem value="Daily">Daily</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="stockHolder"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Stock Holder</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="nameOrLocation"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Name or Location</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="itemCategory"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Item Category</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="deviceType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Device Type</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="itemNature"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Item Nature</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select item nature" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Serialised">Serialised</SelectItem>
-                              <SelectItem value="Non-serialised">Non-serialised</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="quantity"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Quantity</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min="0" 
-                              {...field} 
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="itemStatus"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Item Status</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {form.watch('itemNature') === 'Serialised' && (
-                      <>
-                        <div className="col-span-2">
-                          <Separator className="my-2" />
-                          <p className="text-sm font-semibold text-center mb-4">
-                            {isCashConnect(form.watch('itemCategory'))
-                              ? 'Scan QR Code / Capture Item details separated by a comma (,)'
-                              : 'Scan Device Serial Numbers'}
-                          </p>
-                        </div>
-
-                        {/* Duplicate Error Display */}
-                        {duplicateError && (
-                          <div className="col-span-2 flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive">
-                            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                            <span className="text-sm">{duplicateError}</span>
-                          </div>
-                        )}
-
-                        {/* Cash Connect: QR Code Scanning */}
-                        {isCashConnect(form.watch('itemCategory')) ? (
-                          <>
-                            <div className="col-span-2 space-y-2">
-                              <Label htmlFor="qrScan">QR Code Scan Input</Label>
-                              <Input
-                                id="qrScan"
-                                value={qrScanInput}
-                                onChange={(e) => handleQrScanChange(e.target.value)}
-                                placeholder="Scan QR code or enter: ItemCode,SerialNumber"
-                                className="font-mono"
-                              />
-                              <p className="text-xs text-muted-foreground">
-                                Format: ItemCode,CashConnectSerial (e.g., ABC123,SN456789)
-                              </p>
-                            </div>
-
-                            <FormField
-                              control={form.control}
-                              name="qrCodeSerialNumber"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>CashConnect Serial Number</FormLabel>
-                                  <FormControl>
-                                    <div className="relative">
-                                      <Input {...field} placeholder="Auto-populated from scan" />
-                                      {field.value && (
-                                        <button
-                                          type="button"
-                                          onClick={() => form.setValue('qrCodeSerialNumber', '')}
-                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                        >
-                                          <X className="h-4 w-4" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </>
-                        ) : (
-                          <>
-                            {/* All other business lines: Individual serial number fields */}
-                            <FormField
-                              control={form.control}
-                              name="manufactureSerialNumber"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <div className="flex items-center justify-between">
-                                    <FormLabel>Manufacture S/N (Terminal)</FormLabel>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 px-2 text-xs"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        openScanner('manufactureSerialNumber');
-                                      }}
-                                    >
-                                      <Camera className="h-3 w-3 mr-1" />
-                                      Scan
-                                    </Button>
-                                  </div>
-                                  <FormControl>
-                                    <div className="relative">
-                                      <Input {...field} placeholder="Scan or enter serial number" />
-                                      {field.value && (
-                                        <button
-                                          type="button"
-                                          onClick={() => form.setValue('manufactureSerialNumber', '')}
-                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                        >
-                                          <X className="h-4 w-4" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name="cradleSerialNumber"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <div className="flex items-center justify-between">
-                                    <FormLabel>Cradle S/N</FormLabel>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 px-2 text-xs"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        openScanner('cradleSerialNumber');
-                                      }}
-                                    >
-                                      <Camera className="h-3 w-3 mr-1" />
-                                      Scan
-                                    </Button>
-                                  </div>
-                                  <FormControl>
-                                    <div className="relative">
-                                      <Input {...field} placeholder="Scan or enter cradle serial" />
-                                      {field.value && (
-                                        <button
-                                          type="button"
-                                          onClick={() => form.setValue('cradleSerialNumber', '')}
-                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                        >
-                                          <X className="h-4 w-4" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name="chargerSerialNumber"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <div className="flex items-center justify-between">
-                                    <FormLabel>Charger S/N</FormLabel>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 px-2 text-xs"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        openScanner('chargerSerialNumber');
-                                      }}
-                                    >
-                                      <Camera className="h-3 w-3 mr-1" />
-                                      Scan
-                                    </Button>
-                                  </div>
-                                  <FormControl>
-                                    <div className="relative">
-                                      <Input {...field} placeholder="Scan or enter charger serial" />
-                                      {field.value && (
-                                        <button
-                                          type="button"
-                                          onClick={() => form.setValue('chargerSerialNumber', '')}
-                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                        >
-                                          <X className="h-4 w-4" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </>
-                        )}
-                      </>
+                    {filteredItems.length === 0 ? (
+                      <div className="col-span-2 text-center py-8 text-muted-foreground">
+                        No items found matching your criteria
+                      </div>
+                    ) : (
+                      filteredItems.map((item) => (
+                        <DeviceCard
+                          key={item.id}
+                          item={item}
+                          onAddToCart={addToCart}
+                        />
+                      ))
                     )}
                   </div>
+                </ScrollArea>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={resetForm}
-                      disabled={mutation.isPending}
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      disabled={mutation.isPending}
-                    >
-                      {mutation.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {editingId ? 'Updating...' : 'Creating...'}
-                        </>
-                      ) : editingId ? (
-                        'Update Count'
-                      ) : (
-                        'Create Count'
-                      )}
-                    </Button>
+      {/* Cart Summary */}
+      {cart.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Cart ({cart.length} items)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {cart.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-2 bg-muted rounded">
+                  <div>
+                    <span className="font-medium">{item.deviceType}</span>
+                    <span className="text-muted-foreground ml-2">x {item.quantity}</span>
                   </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFromCart(item.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button onClick={submitStockCount} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Stock Count'
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Barcode Scanner Modal */}
+      {/* Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-center text-primary">
+              <Check className="h-8 w-8 mx-auto mb-2" />
+              Action successful!
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Item added to cart successfully
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-center">
+            <Button variant="outline" onClick={() => setShowSuccessModal(false)}>
+              Add more items
+            </Button>
+            <Button onClick={() => {
+              setShowSuccessModal(false);
+              // Scroll to cart
+              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }}>
+              View Cart
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Barcode Scanner */}
       {showScanner && (
         <BarcodeScanner
           onScan={handleBarcodeScanned}
-          onClose={() => {
-            setShowScanner(false);
-            setCurrentScanField(null);
-          }}
+          onClose={() => setShowScanner(false)}
           ref={scannerRef}
         />
       )}
+    </div>
+  );
+};
+
+// Device Card Component
+interface DeviceCardProps {
+  item: InventoryItem;
+  onAddToCart: (item: InventoryItem, quantity: number) => void;
+}
+
+const DeviceCard = ({ item, onAddToCart }: DeviceCardProps) => {
+  const [quantity, setQuantity] = useState(0);
+
+  return (
+    <div className="border rounded-lg p-3 space-y-2">
+      <div className="flex items-start gap-3">
+        {item.item_url ? (
+          <img
+            src={item.item_url}
+            alt={item.item_name}
+            className="h-16 w-16 object-cover rounded"
+          />
+        ) : (
+          <div className="h-16 w-16 bg-muted rounded flex items-center justify-center">
+            <ImageIcon className="h-8 w-8 text-muted-foreground" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm truncate">
+            Item code: {item.item_name}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Item category: {item.item_category}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div className="flex-1">
+          <Label className="text-xs">Quantity</Label>
+          <Input
+            type="number"
+            min="0"
+            max="999"
+            value={quantity}
+            onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+            className="h-8"
+          />
+        </div>
+        <Button
+          size="sm"
+          className="mt-4"
+          disabled={quantity <= 0}
+          onClick={() => {
+            onAddToCart(item, quantity);
+            setQuantity(0);
+          }}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 };
