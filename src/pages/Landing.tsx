@@ -47,15 +47,6 @@ const fieldOperationModules: ModuleCard[] = [
     testId: "card-stock-counts",
   },
   {
-    title: "Stock Ingestion",
-    description: "Register new devices into inventory with batch tracking and serial number validation.",
-    icon: PackagePlus,
-    path: "/stock-ingestion",
-    color: "from-teal-500 to-cyan-600",
-    status: "active",
-    testId: "card-stock-ingestion",
-  },
-  {
     title: "Asset Management",
     description: "Track serialized hardware across lifecycles, repairs, and redeployments.",
     icon: Boxes,
@@ -120,6 +111,15 @@ const adminWorkspaceModules: ModuleCard[] = [
     color: "from-amber-500 to-orange-600",
     status: "active",
     testId: "card-product-catalog",
+  },
+  {
+    title: "Stock Ingestion",
+    description: "Register new devices into inventory with batch tracking and serial number validation.",
+    icon: PackagePlus,
+    path: "/stock-ingestion",
+    color: "from-teal-500 to-cyan-600",
+    status: "active",
+    testId: "card-stock-ingestion",
   },
 ];
 
