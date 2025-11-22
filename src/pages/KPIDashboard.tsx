@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format, parseISO, differenceInHours, differenceInDays, isAfter, setHours, setMinutes } from 'date-fns';
+import { format, parseISO, differenceInHours, differenceInDays, isAfter, setHours, setMinutes, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { Link } from 'react-router-dom';
 import {
   Menu,
@@ -19,6 +19,12 @@ import {
   Timer,
   Target,
   AlertCircle,
+  Calendar,
+  Filter,
+  Wrench,
+  ThumbsUp,
+  Bell,
+  PackageX,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -33,6 +39,14 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import { useUniqueOrders, usePickingQueue, useDispatchQueue } from '@/hooks/useSupabase';
 import { supabase } from '@/integrations/supabase/client';
@@ -99,6 +113,38 @@ const getAgingBucket = (dateOrdered?: string): string => {
 const KPIDashboard = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Date filter state
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth.toString());
+  const [filterMode, setFilterMode] = useState<'all' | 'year' | 'month'>('all');
+
+  // Generate year options (last 5 years)
+  const yearOptions = useMemo(() => {
+    const years = [];
+    for (let i = currentYear; i >= currentYear - 4; i--) {
+      years.push(i.toString());
+    }
+    return years;
+  }, [currentYear]);
+
+  // Month options
+  const monthOptions = [
+    { value: '1', label: 'January' },
+    { value: '2', label: 'February' },
+    { value: '3', label: 'March' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'May' },
+    { value: '6', label: 'June' },
+    { value: '7', label: 'July' },
+    { value: '8', label: 'August' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' },
+  ];
+
   // Fetch all data
   const { data: allOrders = [], isLoading: ordersLoading, refetch: refetchOrders, isFetching: ordersFetching } = useUniqueOrders();
 
@@ -130,31 +176,110 @@ const KPIDashboard = () => {
     staleTime: 60 * 1000,
   });
 
+  // Fetch stock levels for device condition analysis
+  const { data: stockLevels = [], isLoading: stockLevelsLoading } = useQuery({
+    queryKey: ['stockLevelsKPI'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_levels')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60 * 1000,
+  });
+
   const { data: pickingQueue = [], isLoading: pickingLoading } = usePickingQueue();
   const { data: dispatchQueue = [], isLoading: dispatchQueueLoading } = useDispatchQueue();
 
-  const isLoading = ordersLoading || stockLoading || dispatchLoading || pickingLoading || dispatchQueueLoading;
+  const isLoading = ordersLoading || stockLoading || dispatchLoading || stockLevelsLoading || pickingLoading || dispatchQueueLoading;
   const isFetching = ordersFetching;
+
+  // Filter orders based on date selection
+  const filteredOrders = useMemo(() => {
+    if (filterMode === 'all') return allOrders;
+
+    return allOrders.filter(order => {
+      if (!order.date_ordered) return false;
+      try {
+        const orderDate = parseISO(order.date_ordered);
+        const year = parseInt(selectedYear);
+        const month = parseInt(selectedMonth);
+
+        if (filterMode === 'year') {
+          const yearStart = startOfYear(new Date(year, 0, 1));
+          const yearEnd = endOfYear(new Date(year, 0, 1));
+          return isWithinInterval(orderDate, { start: yearStart, end: yearEnd });
+        } else if (filterMode === 'month') {
+          const monthStart = startOfMonth(new Date(year, month - 1, 1));
+          const monthEnd = endOfMonth(new Date(year, month - 1, 1));
+          return isWithinInterval(orderDate, { start: monthStart, end: monthEnd });
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  }, [allOrders, filterMode, selectedYear, selectedMonth]);
+
+  // Filter dispatch logs based on date selection
+  const filteredDispatchLogs = useMemo(() => {
+    if (filterMode === 'all') return dispatchLogs;
+
+    return dispatchLogs.filter(log => {
+      if (!log.date_dispatched) return false;
+      try {
+        const dispatchDate = parseISO(log.date_dispatched);
+        const year = parseInt(selectedYear);
+        const month = parseInt(selectedMonth);
+
+        if (filterMode === 'year') {
+          const yearStart = startOfYear(new Date(year, 0, 1));
+          const yearEnd = endOfYear(new Date(year, 0, 1));
+          return isWithinInterval(dispatchDate, { start: yearStart, end: yearEnd });
+        } else if (filterMode === 'month') {
+          const monthStart = startOfMonth(new Date(year, month - 1, 1));
+          const monthEnd = endOfMonth(new Date(year, month - 1, 1));
+          return isWithinInterval(dispatchDate, { start: monthStart, end: monthEnd });
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  }, [dispatchLogs, filterMode, selectedYear, selectedMonth]);
+
+  // Get filter description for display
+  const filterDescription = useMemo(() => {
+    if (filterMode === 'all') return 'All Time';
+    if (filterMode === 'year') return selectedYear;
+    if (filterMode === 'month') {
+      const monthName = monthOptions.find(m => m.value === selectedMonth)?.label || '';
+      return `${monthName} ${selectedYear}`;
+    }
+    return '';
+  }, [filterMode, selectedYear, selectedMonth, monthOptions]);
 
   // Calculate KPIs
   const kpis = useMemo(() => {
-    if (!allOrders.length) return null;
+    if (!filteredOrders.length) return null;
 
     // Order Lifecycle KPIs
-    const totalOrders = allOrders.length;
-    const dispatchedOrders = allOrders.filter(o => o.dispatch_status === 'Dispatched').length;
-    const partialOrders = allOrders.filter(o => o.dispatch_status === 'Partial').length;
-    const pendingOrders = allOrders.filter(o => o.dispatch_status === 'Pending').length;
-    const cancelledOrders = allOrders.filter(o => o.dispatch_status === 'Cancelled').length;
+    const totalOrders = filteredOrders.length;
+    const dispatchedOrders = filteredOrders.filter(o => o.dispatch_status === 'Dispatched').length;
+    const partialOrders = filteredOrders.filter(o => o.dispatch_status === 'Partial').length;
+    const pendingOrders = filteredOrders.filter(o => o.dispatch_status === 'Pending').length;
+    const cancelledOrders = filteredOrders.filter(o => o.dispatch_status === 'Cancelled').length;
 
     const fulfillmentRate = totalOrders > 0 ? (dispatchedOrders / totalOrders) * 100 : 0;
     const partialFulfillmentRate = totalOrders > 0 ? (partialOrders / totalOrders) * 100 : 0;
     const cancellationRate = totalOrders > 0 ? (cancelledOrders / totalOrders) * 100 : 0;
 
     // Cycle times (using dispatch logs)
-    const cycleTimesHours = dispatchLogs
+    const cycleTimesHours = filteredDispatchLogs
       .map(log => {
-        const order = allOrders.find(o => o.order_id === log.order_id);
+        const order = filteredOrders.find(o => o.order_id === log.order_id);
         return calculateCycleTime(order?.date_ordered, log.date_dispatched);
       })
       .filter((ct): ct is number => ct !== null);
@@ -164,51 +289,51 @@ const KPIDashboard = () => {
       : 0;
 
     // Stock Availability KPIs
-    const stockAvailable = allOrders.filter(o => o.stock_availability === 'Available').length;
-    const stockNotAvailable = allOrders.filter(o => o.stock_availability === 'Not Available').length;
-    const stockBackordered = allOrders.filter(o => o.stock_availability === 'Backordered').length;
-    const stockPartial = allOrders.filter(o => o.stock_availability === 'Partial').length;
+    const stockAvailable = filteredOrders.filter(o => o.stock_availability === 'Available').length;
+    const stockNotAvailable = filteredOrders.filter(o => o.stock_availability === 'Not Available').length;
+    const stockBackordered = filteredOrders.filter(o => o.stock_availability === 'Backordered').length;
+    const stockPartial = filteredOrders.filter(o => o.stock_availability === 'Partial').length;
 
     const stockOutRate = totalOrders > 0 ? (stockNotAvailable / totalOrders) * 100 : 0;
     const backorderRate = totalOrders > 0 ? (stockBackordered / totalOrders) * 100 : 0;
     const fillRate = totalOrders > 0 ? (stockAvailable / totalOrders) * 100 : 0;
 
     // Pick Status KPIs
-    const pickedOrders = allOrders.filter(o => o.pick_status === 'Picked').length;
-    const pendingPick = allOrders.filter(o => o.pick_status === 'Pending').length;
-    const partiallyPicked = allOrders.filter(o => o.pick_status === 'Partially Picked').length;
-    const notPicked = allOrders.filter(o => o.pick_status === 'Not Picked').length;
+    const pickedOrders = filteredOrders.filter(o => o.pick_status === 'Picked').length;
+    const pendingPick = filteredOrders.filter(o => o.pick_status === 'Pending').length;
+    const partiallyPicked = filteredOrders.filter(o => o.pick_status === 'Partially Picked').length;
+    const notPicked = filteredOrders.filter(o => o.pick_status === 'Not Picked').length;
 
     // Regional Distribution
-    const ordersByRegion = allOrders.reduce((acc, order) => {
+    const ordersByRegion = filteredOrders.reduce((acc, order) => {
       const region = order.region || 'Unknown';
       acc[region] = (acc[region] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Category Distribution
-    const ordersByCategory = allOrders.reduce((acc, order) => {
+    const ordersByCategory = filteredOrders.reduce((acc, order) => {
       const category = order.item_category || 'Unknown';
       acc[category] = (acc[category] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Dispatch Method Distribution
-    const ordersByDispatchMethod = allOrders.reduce((acc, order) => {
+    const ordersByDispatchMethod = filteredOrders.reduce((acc, order) => {
       const method = order.dispatch_method || 'Not Set';
       acc[method] = (acc[method] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Contractor Performance
-    const ordersByContractor = allOrders.reduce((acc, order) => {
+    const ordersByContractor = filteredOrders.reduce((acc, order) => {
       const contractor = order.contractor_company || 'Unknown';
       acc[contractor] = (acc[contractor] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // Pipeline & Aging
-    const agingBuckets = allOrders
+    const agingBuckets = filteredOrders
       .filter(o => o.dispatch_status !== 'Dispatched' && o.dispatch_status !== 'Cancelled')
       .reduce((acc, order) => {
         const bucket = getAgingBucket(order.date_ordered);
@@ -217,21 +342,91 @@ const KPIDashboard = () => {
       }, {} as Record<string, number>);
 
     // SLA Breaches
-    const slaBreaches = allOrders.filter(isOrderSLABreached).length;
+    const slaBreaches = filteredOrders.filter(isOrderSLABreached).length;
     const slaComplianceRate = pendingOrders > 0
       ? ((pendingOrders - slaBreaches) / pendingOrders) * 100
       : 100;
 
     // Total quantities
-    const totalUnitsOrdered = allOrders.reduce((sum, o) => sum + (o.quantity_ordered || 0), 0);
-    const totalUnitsDispatched = dispatchLogs.reduce((sum, l) => sum + (l.quantity || 0), 0);
+    const totalUnitsOrdered = filteredOrders.reduce((sum, o) => sum + (o.quantity_ordered || 0), 0);
+    const totalUnitsDispatched = filteredDispatchLogs.reduce((sum, l) => sum + (l.quantity || 0), 0);
 
     // Warehouse performance
-    const ordersByWarehouse = allOrders.reduce((acc, order) => {
+    const ordersByWarehouse = filteredOrders.reduce((acc, order) => {
       const warehouse = order.warehouse_fulfilling || 'Not Assigned';
       acc[warehouse] = (acc[warehouse] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
+
+    // Device Condition Analysis (from stock_levels)
+    const totalDevices = stockLevels.length;
+    const functionalDevices = stockLevels.filter(s =>
+      s.item_status !== 'Faulty' && s.overall_condition !== 'Faulty' && s.overall_condition !== 'Damaged'
+    ).length;
+    const faultyDevices = stockLevels.filter(s =>
+      s.item_status === 'Faulty' || s.overall_condition === 'Faulty' || s.overall_condition === 'Damaged'
+    ).length;
+
+    // Device status breakdown
+    const devicesByStatus = stockLevels.reduce((acc, item) => {
+      const status = item.item_status || 'Unknown';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Device condition breakdown
+    const devicesByCondition = stockLevels.reduce((acc, item) => {
+      const condition = item.overall_condition || 'Unknown';
+      acc[condition] = (acc[condition] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Fault reasons breakdown (only for faulty devices)
+    const faultReasons = stockLevels
+      .filter(s => s.fault_reason)
+      .reduce((acc, item) => {
+        const reason = item.fault_reason || 'Unspecified';
+        acc[reason] = (acc[reason] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+    // Device health rate
+    const deviceHealthRate = totalDevices > 0 ? (functionalDevices / totalDevices) * 100 : 100;
+
+    // Stock Alerts - Aggregate by item_code and category/warehouse
+    const stockAggregation = stockLevels.reduce((acc, item) => {
+      const key = `${item.item_code || 'Unknown'}-${item.item_category || 'Unknown'}-${item.warehouse || 'Unknown'}`;
+      if (!acc[key]) {
+        acc[key] = {
+          item_code: item.item_code || 'Unknown',
+          item_category: item.item_category || 'Unknown',
+          warehouse: item.warehouse || 'Unknown',
+          quantity: 0,
+        };
+      }
+      acc[key].quantity += 1;
+      return acc;
+    }, {} as Record<string, { item_code: string; item_category: string; warehouse: string; quantity: number }>);
+
+    // Calculate alerts based on thresholds: 0 = Out of Stock, ≤5 = Critical, ≤10 = Warning
+    const stockAlerts = Object.values(stockAggregation).map((item) => {
+      let severity: 'outOfStock' | 'critical' | 'warning' | 'ok' = 'ok';
+      if (item.quantity === 0) {
+        severity = 'outOfStock';
+      } else if (item.quantity <= 5) {
+        severity = 'critical';
+      } else if (item.quantity <= 10) {
+        severity = 'warning';
+      }
+      return { ...item, severity };
+    }).filter(item => item.severity !== 'ok');
+
+    const alertCounts = {
+      outOfStock: stockAlerts.filter(a => a.severity === 'outOfStock').length,
+      critical: stockAlerts.filter(a => a.severity === 'critical').length,
+      warning: stockAlerts.filter(a => a.severity === 'warning').length,
+      total: stockAlerts.length,
+    };
 
     return {
       // Summary
@@ -277,8 +472,21 @@ const KPIDashboard = () => {
       slaComplianceRate,
       pickingQueueDepth: pickingQueue.length,
       dispatchQueueDepth: dispatchQueue.length,
+
+      // Device Condition
+      totalDevices,
+      functionalDevices,
+      faultyDevices,
+      deviceHealthRate,
+      devicesByStatus,
+      devicesByCondition,
+      faultReasons,
+
+      // Stock Alerts
+      stockAlerts,
+      alertCounts,
     };
-  }, [allOrders, dispatchLogs, pickingQueue, dispatchQueue]);
+  }, [filteredOrders, filteredDispatchLogs, pickingQueue, dispatchQueue, stockLevels]);
 
   const handleRefresh = () => {
     refetchOrders();
@@ -364,16 +572,108 @@ const KPIDashboard = () => {
       </header>
 
       <main className="container px-4 py-6">
+        {/* Date Filters */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Date Filter
+              </CardTitle>
+              <Badge variant="secondary">{filterDescription}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label>Filter Mode</Label>
+                <Select value={filterMode} onValueChange={(value: 'all' | 'year' | 'month') => setFilterMode(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select filter mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="year">By Year</SelectItem>
+                    <SelectItem value="month">By Month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(filterMode === 'year' || filterMode === 'month') && (
+                <div className="space-y-2">
+                  <Label>Year</Label>
+                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {yearOptions.map((year) => (
+                        <SelectItem key={year} value={year}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {filterMode === 'month' && (
+                <div className="space-y-2">
+                  <Label>Month</Label>
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthOptions.map((month) => (
+                        <SelectItem key={month.value} value={month.value}>
+                          {month.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setFilterMode('all');
+                    setSelectedYear(currentYear.toString());
+                    setSelectedMonth(currentMonth.toString());
+                  }}
+                >
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Reset
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {!kpis ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No data available</p>
+            <p className="text-muted-foreground">No data available for selected period</p>
           </div>
         ) : (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+            <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 lg:w-auto lg:inline-flex">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
               <TabsTrigger value="performance">Performance</TabsTrigger>
+              <TabsTrigger value="devices">Devices</TabsTrigger>
+              <TabsTrigger value="alerts" className="relative">
+                Alerts
+                {kpis.alertCounts.total > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
+                    {kpis.alertCounts.total > 9 ? '9+' : kpis.alertCounts.total}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="distribution">Distribution</TabsTrigger>
             </TabsList>
 
@@ -719,6 +1019,338 @@ const KPIDashboard = () => {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            {/* Devices Tab */}
+            <TabsContent value="devices" className="space-y-6">
+              {/* Device Health Summary */}
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Devices</CardTitle>
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{kpis.totalDevices}</div>
+                    <p className="text-xs text-muted-foreground">In inventory</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Functional</CardTitle>
+                    <ThumbsUp className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">{kpis.functionalDevices}</div>
+                    <p className="text-xs text-muted-foreground">Ready for use</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Faulty</CardTitle>
+                    <Wrench className="h-4 w-4 text-red-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-600">{kpis.faultyDevices}</div>
+                    <p className="text-xs text-muted-foreground">Need attention</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Health Rate</CardTitle>
+                    <Target className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold ${kpis.deviceHealthRate < 80 ? 'text-red-600' : kpis.deviceHealthRate < 95 ? 'text-amber-600' : 'text-green-600'}`}>
+                      {kpis.deviceHealthRate.toFixed(1)}%
+                    </div>
+                    <Progress value={kpis.deviceHealthRate} className="mt-2" />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Device Status & Condition Breakdown */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Package className="h-5 w-5" />
+                      Device Status
+                    </CardTitle>
+                    <CardDescription>Breakdown by inventory status</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {Object.entries(kpis.devicesByStatus)
+                        .sort(([,a], [,b]) => b - a)
+                        .map(([status, count]) => (
+                          <div key={status} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {status === 'In Stock' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                              {status === 'Faulty' && <XCircle className="h-4 w-4 text-red-500" />}
+                              {status === 'Allocated' && <Clock className="h-4 w-4 text-blue-500" />}
+                              {status === 'Dispatched' && <Truck className="h-4 w-4 text-purple-500" />}
+                              {status === 'Missing' && <AlertTriangle className="h-4 w-4 text-orange-500" />}
+                              {status === 'Returned' && <RefreshCcw className="h-4 w-4 text-gray-500" />}
+                              {!['In Stock', 'Faulty', 'Allocated', 'Dispatched', 'Missing', 'Returned'].includes(status) &&
+                                <Package className="h-4 w-4 text-muted-foreground" />}
+                              <span className="text-sm">{status}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Progress value={(count / kpis.totalDevices) * 100} className="w-20" />
+                              <span className="font-medium w-8 text-right">{count}</span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      Overall Condition
+                    </CardTitle>
+                    <CardDescription>Breakdown by physical condition</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {Object.entries(kpis.devicesByCondition)
+                        .sort(([,a], [,b]) => b - a)
+                        .map(([condition, count]) => (
+                          <div key={condition} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {condition === 'Good' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                              {condition === 'Fair' && <AlertCircle className="h-4 w-4 text-yellow-500" />}
+                              {condition === 'Poor' && <AlertTriangle className="h-4 w-4 text-orange-500" />}
+                              {condition === 'Damaged' && <XCircle className="h-4 w-4 text-red-500" />}
+                              {condition === 'Faulty' && <Wrench className="h-4 w-4 text-red-500" />}
+                              {!['Good', 'Fair', 'Poor', 'Damaged', 'Faulty'].includes(condition) &&
+                                <Package className="h-4 w-4 text-muted-foreground" />}
+                              <span className="text-sm">{condition}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Progress value={(count / kpis.totalDevices) * 100} className="w-20" />
+                              <span className="font-medium w-8 text-right">{count}</span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Fault Reasons Breakdown */}
+              {Object.keys(kpis.faultReasons).length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-red-600">
+                      <Wrench className="h-5 w-5" />
+                      Fault Reasons
+                    </CardTitle>
+                    <CardDescription>Breakdown of issues affecting devices</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {Object.entries(kpis.faultReasons)
+                        .sort(([,a], [,b]) => b - a)
+                        .map(([reason, count]) => (
+                          <div key={reason} className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                            <span className="text-sm font-medium truncate mr-2">{reason}</span>
+                            <Badge variant="destructive">{count}</Badge>
+                          </div>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {Object.keys(kpis.faultReasons).length === 0 && kpis.faultyDevices === 0 && (
+                <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+                  <CardContent className="pt-6 text-center">
+                    <ThumbsUp className="h-12 w-12 mx-auto text-green-500 mb-4" />
+                    <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">All Devices Functional</h3>
+                    <p className="text-sm text-green-600 dark:text-green-500 mt-1">No faulty devices reported</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Alerts Tab */}
+            <TabsContent value="alerts" className="space-y-6">
+              {/* Alert Summary Cards */}
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Alerts</CardTitle>
+                    <Bell className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{kpis.alertCounts.total}</div>
+                    <p className="text-xs text-muted-foreground">Items need attention</p>
+                  </CardContent>
+                </Card>
+
+                <Card className={kpis.alertCounts.outOfStock > 0 ? 'border-red-200 bg-red-50 dark:bg-red-950/20' : ''}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
+                    <PackageX className="h-4 w-4 text-red-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-600">{kpis.alertCounts.outOfStock}</div>
+                    <p className="text-xs text-muted-foreground">Quantity = 0</p>
+                  </CardContent>
+                </Card>
+
+                <Card className={kpis.alertCounts.critical > 0 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : ''}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Critical</CardTitle>
+                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-600">{kpis.alertCounts.critical}</div>
+                    <p className="text-xs text-muted-foreground">Quantity 1-5</p>
+                  </CardContent>
+                </Card>
+
+                <Card className={kpis.alertCounts.warning > 0 ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20' : ''}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Warning</CardTitle>
+                    <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-yellow-600">{kpis.alertCounts.warning}</div>
+                    <p className="text-xs text-muted-foreground">Quantity 6-10</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Alert List */}
+              {kpis.stockAlerts.length > 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Bell className="h-5 w-5" />
+                      Stock Alerts
+                    </CardTitle>
+                    <CardDescription>Items with low stock levels requiring attention</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {kpis.stockAlerts
+                        .sort((a, b) => {
+                          // Sort by severity: outOfStock > critical > warning
+                          const severityOrder = { outOfStock: 0, critical: 1, warning: 2, ok: 3 };
+                          return severityOrder[a.severity] - severityOrder[b.severity];
+                        })
+                        .map((alert, index) => (
+                          <div
+                            key={`${alert.item_code}-${alert.warehouse}-${index}`}
+                            className="flex items-center justify-between p-3 rounded-lg border"
+                          >
+                            <div className="flex items-center gap-3">
+                              {alert.severity === 'outOfStock' && <PackageX className="h-5 w-5 text-red-500" />}
+                              {alert.severity === 'critical' && <AlertTriangle className="h-5 w-5 text-orange-500" />}
+                              {alert.severity === 'warning' && <AlertCircle className="h-5 w-5 text-yellow-500" />}
+                              <div>
+                                <div className="font-medium">{alert.item_code}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {alert.item_category} • {alert.warehouse}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <div className="font-medium">{alert.quantity}</div>
+                                <div className="text-xs text-muted-foreground">in stock</div>
+                              </div>
+                              {alert.severity === 'outOfStock' && (
+                                <Badge variant="destructive">Out of Stock</Badge>
+                              )}
+                              {alert.severity === 'critical' && (
+                                <Badge className="bg-orange-500 hover:bg-orange-600">Critical</Badge>
+                              )}
+                              {alert.severity === 'warning' && (
+                                <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black">Warning</Badge>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+                  <CardContent className="pt-6 text-center">
+                    <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-4" />
+                    <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">Stock Levels Healthy</h3>
+                    <p className="text-sm text-green-600 dark:text-green-500 mt-1">
+                      All items have sufficient stock (above 10 units)
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Alerts by Category */}
+              {kpis.stockAlerts.length > 0 && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Package className="h-5 w-5" />
+                        Alerts by Category
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {Object.entries(
+                          kpis.stockAlerts.reduce((acc, alert) => {
+                            acc[alert.item_category] = (acc[alert.item_category] || 0) + 1;
+                            return acc;
+                          }, {} as Record<string, number>)
+                        )
+                          .sort(([, a], [, b]) => b - a)
+                          .map(([category, count]) => (
+                            <div key={category} className="flex items-center justify-between">
+                              <span className="text-sm truncate">{category}</span>
+                              <Badge variant="secondary">{count}</Badge>
+                            </div>
+                          ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <MapPin className="h-5 w-5" />
+                        Alerts by Warehouse
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {Object.entries(
+                          kpis.stockAlerts.reduce((acc, alert) => {
+                            acc[alert.warehouse] = (acc[alert.warehouse] || 0) + 1;
+                            return acc;
+                          }, {} as Record<string, number>)
+                        )
+                          .sort(([, a], [, b]) => b - a)
+                          .map(([warehouse, count]) => (
+                            <div key={warehouse} className="flex items-center justify-between">
+                              <span className="text-sm truncate">{warehouse}</span>
+                              <Badge variant="secondary">{count}</Badge>
+                            </div>
+                          ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </TabsContent>
 
             {/* Distribution Tab */}

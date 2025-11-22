@@ -3,9 +3,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  Search, Filter, Plus, RefreshCw, Check, X, ClipboardList, Loader2, Barcode, Camera
+import {
+  Search, Filter, Plus, RefreshCw, Check, X, ClipboardList, Loader2, Barcode, Camera, AlertTriangle
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,35 @@ import { stockCountSupabaseService as stockCountService } from '@/services/stock
 import { StockItem, StockCountFormData } from '@/types/stock';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
 import { useAuth } from '@/hooks/useAuth';
+import { Separator } from '@/components/ui/separator';
+
+// Helper to check if item is Cash Connect
+const isCashConnect = (itemCategory: string | undefined) =>
+  itemCategory?.includes('Cash Connect') ?? false;
+
+// Parse comma-separated QR code input for Cash Connect
+const parseQrCodeInput = (input: string) => {
+  const commaCount = (input.match(/,/g) || []).length;
+
+  if (commaCount >= 1) {
+    const firstCommaIndex = input.indexOf(',');
+    const itemCode = input.substring(0, firstCommaIndex).trim();
+
+    let cashConnectSerial = '';
+    if (commaCount > 1) {
+      // More than 1 comma: extract characters 14-18 (positions 13-17 in 0-based index)
+      cashConnectSerial = input.substring(13, 18);
+    } else if (commaCount === 1) {
+      // Exactly 1 comma: extract everything after the first comma
+      cashConnectSerial = input.substring(firstCommaIndex + 1).trim();
+    }
+
+    return { itemCode, cashConnectSerial };
+  }
+
+  // No comma: use entire input as item code
+  return { itemCode: input.trim(), cashConnectSerial: '' };
+};
 
 // Form validation schema
 const formSchema = z.object({
@@ -83,6 +113,8 @@ const StockCounts = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [currentScanField, setCurrentScanField] = useState<string | null>(null);
   const scannerRef = useRef<{ closeScanner: () => void }>(null);
+  const [qrScanInput, setQrScanInput] = useState('');
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   // Initialize form
   const form = useForm<FormValues>({
@@ -97,13 +129,98 @@ const StockCounts = () => {
   // Fetch stock items
   const { data: stockItems = [], isLoading, refetch } = useQuery({
     queryKey: ['stockItems', { searchTerm, itemCategory, isSerialized }],
-    queryFn: () => 
+    queryFn: () =>
       stockCountService.getStockItems({
         searchTerm,
         itemCategory: itemCategory || undefined,
         isSerialized,
       }),
   });
+
+  // Fetch existing stock levels for duplicate checking
+  const { data: existingStockLevels = [] } = useQuery({
+    queryKey: ['stockLevelsForDuplicateCheck'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_levels')
+        .select('id, manufacture_serial_number, qr_code_serial_number, xlink_serial_number, cradle_serial_number, charger_serial_number, item_category');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  // Handle QR code scan input change for Cash Connect
+  const handleQrScanChange = (value: string) => {
+    setQrScanInput(value);
+
+    if (value && isCashConnect(form.watch('itemCategory'))) {
+      const { itemCode, cashConnectSerial } = parseQrCodeInput(value);
+      form.setValue('itemCode', itemCode);
+      form.setValue('qrCodeSerialNumber', cashConnectSerial);
+    }
+  };
+
+  // Check for duplicate serial numbers
+  const checkDuplicateSerials = (data: FormValues): string | null => {
+    if (data.itemNature !== 'Serialised') return null;
+
+    const isCashConnectItem = isCashConnect(data.itemCategory);
+
+    if (isCashConnectItem) {
+      // Cash Connect: Check only QR Code Serial Number (CashConnect Serial)
+      if (data.qrCodeSerialNumber) {
+        const duplicate = existingStockLevels.find(
+          (item) =>
+            item.id !== editingId &&
+            item.qr_code_serial_number &&
+            item.qr_code_serial_number.toUpperCase() === data.qrCodeSerialNumber!.toUpperCase()
+        );
+        if (duplicate) {
+          return `Duplicate CashConnect Serial Number detected: "${data.qrCodeSerialNumber}" already exists in inventory.`;
+        }
+      }
+    } else {
+      // All other business lines: Check Manufacture OR Cradle OR Charger serial numbers
+      if (data.manufactureSerialNumber) {
+        const duplicate = existingStockLevels.find(
+          (item) =>
+            item.id !== editingId &&
+            item.manufacture_serial_number &&
+            item.manufacture_serial_number.toUpperCase() === data.manufactureSerialNumber!.toUpperCase()
+        );
+        if (duplicate) {
+          return `Duplicate Manufacture Serial Number detected: "${data.manufactureSerialNumber}" already exists in inventory.`;
+        }
+      }
+
+      if (data.cradleSerialNumber) {
+        const duplicate = existingStockLevels.find(
+          (item) =>
+            item.id !== editingId &&
+            item.cradle_serial_number &&
+            item.cradle_serial_number.toUpperCase() === data.cradleSerialNumber!.toUpperCase()
+        );
+        if (duplicate) {
+          return `Duplicate Cradle Serial Number detected: "${data.cradleSerialNumber}" already exists in inventory.`;
+        }
+      }
+
+      if (data.chargerSerialNumber) {
+        const duplicate = existingStockLevels.find(
+          (item) =>
+            item.id !== editingId &&
+            item.charger_serial_number &&
+            item.charger_serial_number.toUpperCase() === data.chargerSerialNumber!.toUpperCase()
+        );
+        if (duplicate) {
+          return `Duplicate Charger Serial Number detected: "${data.chargerSerialNumber}" already exists in inventory.`;
+        }
+      }
+    }
+
+    return null;
+  };
 
   // Create or update stock count
   const mutation = useMutation({
@@ -135,6 +252,19 @@ const StockCounts = () => {
 
   // Handle form submission
   const onSubmit = (data: FormValues) => {
+    // Check for duplicate serial numbers before submission
+    const duplicateErrorMsg = checkDuplicateSerials(data);
+    if (duplicateErrorMsg) {
+      setDuplicateError(duplicateErrorMsg);
+      toast({
+        title: 'Duplicate Serial Number Detected',
+        description: duplicateErrorMsg,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setDuplicateError(null);
     mutation.mutate(data as StockCountFormData);
   };
 
@@ -160,6 +290,8 @@ const StockCounts = () => {
     setIsFormOpen(false);
     setShowScanner(false);
     setCurrentScanField(null);
+    setQrScanInput('');
+    setDuplicateError(null);
   };
 
   // Edit stock count
@@ -530,85 +662,189 @@ const StockCounts = () => {
 
                     {form.watch('itemNature') === 'Serialised' && (
                       <>
-                        <FormField
-                          control={form.control}
-                          name="manufactureSerialNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <div className="flex items-center justify-between">
-                                <FormLabel>Manufacture S/N</FormLabel>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 px-2 text-xs"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    openScanner('manufactureSerialNumber');
-                                  }}
-                                >
-                                  <Camera className="h-3 w-3 mr-1" />
-                                  Scan
-                                </Button>
-                              </div>
-                              <FormControl>
-                                <div className="relative">
-                                  <Input {...field} />
-                                  {field.value && (
-                                    <button
-                                      type="button"
-                                      onClick={() => form.setValue('manufactureSerialNumber', '')}
-                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </button>
-                                  )}
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        <div className="col-span-2">
+                          <Separator className="my-2" />
+                          <p className="text-sm font-semibold text-center mb-4">
+                            {isCashConnect(form.watch('itemCategory'))
+                              ? 'Scan QR Code / Capture Item details separated by a comma (,)'
+                              : 'Scan Device Serial Numbers'}
+                          </p>
+                        </div>
 
-                        <FormField
-                          control={form.control}
-                          name="qrCodeSerialNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <div className="flex items-center justify-between">
-                                <FormLabel>QR Code S/N</FormLabel>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 px-2 text-xs"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    openScanner('qrCodeSerialNumber');
-                                  }}
-                                >
-                                  <Camera className="h-3 w-3 mr-1" />
-                                  Scan
-                                </Button>
-                              </div>
-                              <FormControl>
-                                <div className="relative">
-                                  <Input {...field} />
-                                  {field.value && (
-                                    <button
+                        {/* Duplicate Error Display */}
+                        {duplicateError && (
+                          <div className="col-span-2 flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive">
+                            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                            <span className="text-sm">{duplicateError}</span>
+                          </div>
+                        )}
+
+                        {/* Cash Connect: QR Code Scanning */}
+                        {isCashConnect(form.watch('itemCategory')) ? (
+                          <>
+                            <div className="col-span-2 space-y-2">
+                              <Label htmlFor="qrScan">QR Code Scan Input</Label>
+                              <Input
+                                id="qrScan"
+                                value={qrScanInput}
+                                onChange={(e) => handleQrScanChange(e.target.value)}
+                                placeholder="Scan QR code or enter: ItemCode,SerialNumber"
+                                className="font-mono"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Format: ItemCode,CashConnectSerial (e.g., ABC123,SN456789)
+                              </p>
+                            </div>
+
+                            <FormField
+                              control={form.control}
+                              name="qrCodeSerialNumber"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>CashConnect Serial Number</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <Input {...field} placeholder="Auto-populated from scan" />
+                                      {field.value && (
+                                        <button
+                                          type="button"
+                                          onClick={() => form.setValue('qrCodeSerialNumber', '')}
+                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            {/* All other business lines: Individual serial number fields */}
+                            <FormField
+                              control={form.control}
+                              name="manufactureSerialNumber"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex items-center justify-between">
+                                    <FormLabel>Manufacture S/N (Terminal)</FormLabel>
+                                    <Button
                                       type="button"
-                                      onClick={() => form.setValue('qrCodeSerialNumber', '')}
-                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        openScanner('manufactureSerialNumber');
+                                      }}
                                     >
-                                      <X className="h-4 w-4" />
-                                    </button>
-                                  )}
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                                      <Camera className="h-3 w-3 mr-1" />
+                                      Scan
+                                    </Button>
+                                  </div>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <Input {...field} placeholder="Scan or enter serial number" />
+                                      {field.value && (
+                                        <button
+                                          type="button"
+                                          onClick={() => form.setValue('manufactureSerialNumber', '')}
+                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="cradleSerialNumber"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex items-center justify-between">
+                                    <FormLabel>Cradle S/N</FormLabel>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        openScanner('cradleSerialNumber');
+                                      }}
+                                    >
+                                      <Camera className="h-3 w-3 mr-1" />
+                                      Scan
+                                    </Button>
+                                  </div>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <Input {...field} placeholder="Scan or enter cradle serial" />
+                                      {field.value && (
+                                        <button
+                                          type="button"
+                                          onClick={() => form.setValue('cradleSerialNumber', '')}
+                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="chargerSerialNumber"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex items-center justify-between">
+                                    <FormLabel>Charger S/N</FormLabel>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        openScanner('chargerSerialNumber');
+                                      }}
+                                    >
+                                      <Camera className="h-3 w-3 mr-1" />
+                                      Scan
+                                    </Button>
+                                  </div>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <Input {...field} placeholder="Scan or enter charger serial" />
+                                      {field.value && (
+                                        <button
+                                          type="button"
+                                          onClick={() => form.setValue('chargerSerialNumber', '')}
+                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </>
+                        )}
                       </>
                     )}
                   </div>
