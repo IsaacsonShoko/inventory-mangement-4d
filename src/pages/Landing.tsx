@@ -79,7 +79,7 @@ const fieldOperationModules: ModuleCard[] = [
     icon: MapPin,
     path: "/tracking",
     color: "from-indigo-500 to-blue-600",
-    status: "soon",
+    status: "active",
     testId: "card-tracking",
   },
 ];
