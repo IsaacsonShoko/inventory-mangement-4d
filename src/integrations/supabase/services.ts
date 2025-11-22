@@ -771,6 +771,239 @@ export const orderService = {
   }
 };
 
+// ============================================
+// SLA SERVICE
+// ============================================
+export type SlaStatus = 'on_track' | 'at_risk' | 'breached' | 'met';
+
+export interface SlaAtRiskOrder {
+  id: number;
+  order_id: number;
+  date_ordered: string;
+  sla_deadline: string;
+  sla_status: SlaStatus;
+  dispatch_status: string;
+  pick_status: string;
+  technician: string | null;
+  recipient_name: string | null;
+  item_category: string | null;
+  hours_remaining: number;
+}
+
+export interface SlaPerformanceSummary {
+  order_date: string;
+  total_orders: number;
+  sla_met: number;
+  sla_breached: number;
+  sla_compliance_rate: number;
+}
+
+export const slaService = {
+  // Calculate SLA deadline based on order time
+  // Rule: Before 12 noon = same day 5pm, After 12 noon = next business day 3pm
+  calculateDeadline(orderTime: Date): Date {
+    const orderHour = orderTime.getHours();
+    let deadline: Date;
+
+    if (orderHour < 12) {
+      deadline = new Date(orderTime);
+      deadline.setHours(17, 0, 0, 0);
+    } else {
+      deadline = new Date(orderTime);
+      deadline.setDate(deadline.getDate() + 1);
+      deadline.setHours(15, 0, 0, 0);
+
+      const dayOfWeek = deadline.getDay();
+      if (dayOfWeek === 0) deadline.setDate(deadline.getDate() + 1);
+      else if (dayOfWeek === 6) deadline.setDate(deadline.getDate() + 2);
+    }
+
+    return deadline;
+  },
+
+  async getAtRiskOrders(): Promise<SlaAtRiskOrder[]> {
+    try {
+      const { data, error } = await supabase
+        .from('unique_orders')
+        .select('id, order_id, date_ordered, sla_deadline, sla_status, dispatch_status, pick_status, technician, recipient_name, item_category')
+        .in('sla_status', ['at_risk', 'breached'])
+        .in('dispatch_status', ['Pending', 'Partial'])
+        .order('sla_deadline', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map(order => {
+        const deadline = new Date(order.sla_deadline);
+        const hoursRemaining = (deadline.getTime() - Date.now()) / (1000 * 60 * 60);
+        return { ...order, hours_remaining: Math.round(hoursRemaining * 10) / 10 } as SlaAtRiskOrder;
+      });
+    } catch (error) {
+      console.error('Error fetching at-risk orders:', error);
+      throw formatSupabaseError(error, 'at-risk orders fetch');
+    }
+  },
+
+  async getMetrics(): Promise<{ totalOrders: number; onTrack: number; atRisk: number; breached: number; met: number; complianceRate: number }> {
+    try {
+      const { data, error } = await supabase.from('unique_orders').select('sla_status').not('sla_status', 'is', null);
+      if (error) throw error;
+
+      const metrics = { totalOrders: 0, onTrack: 0, atRisk: 0, breached: 0, met: 0, complianceRate: 0 };
+      (data || []).forEach(order => {
+        metrics.totalOrders++;
+        if (order.sla_status === 'on_track') metrics.onTrack++;
+        else if (order.sla_status === 'at_risk') metrics.atRisk++;
+        else if (order.sla_status === 'breached') metrics.breached++;
+        else if (order.sla_status === 'met') metrics.met++;
+      });
+
+      const completed = metrics.met + metrics.breached;
+      metrics.complianceRate = completed > 0 ? Math.round((metrics.met / completed) * 10000) / 100 : 0;
+      return metrics;
+    } catch (error) {
+      console.error('Error fetching SLA metrics:', error);
+      throw formatSupabaseError(error, 'SLA metrics fetch');
+    }
+  }
+};
+
+// ============================================
+// BACKORDER SERVICE
+// ============================================
+export type BackorderStatus = 'none' | 'backordered' | 'reactivated' | 'fulfilled';
+
+export interface BackorderItem {
+  stock_order_id: number;
+  order_id: number;
+  device_type: string;
+  quantity_ordered: number;
+  qty_dispatched: number;
+  qty_backordered: number;
+  backorder_created_at: string | null;
+  technician: string | null;
+  recipient_name: string | null;
+  date_ordered: string;
+}
+
+export const backorderService = {
+  async getBackorderQueue(): Promise<BackorderItem[]> {
+    try {
+      const { data, error } = await supabase
+        .from('stock_order')
+        .select(`id, order_id, device_type, quantity_ordered, qty_dispatched, qty_backordered, backorder_created_at, technician, unique_orders!inner (recipient_name, date_ordered)`)
+        .eq('backorder_status', 'backordered')
+        .order('backorder_created_at', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map((item: any) => ({
+        stock_order_id: item.id,
+        order_id: item.order_id,
+        device_type: item.device_type,
+        quantity_ordered: item.quantity_ordered,
+        qty_dispatched: item.qty_dispatched || 0,
+        qty_backordered: item.qty_backordered || 0,
+        backorder_created_at: item.backorder_created_at,
+        technician: item.technician,
+        recipient_name: item.unique_orders?.recipient_name || null,
+        date_ordered: item.unique_orders?.date_ordered || ''
+      }));
+    } catch (error) {
+      console.error('Error fetching backorder queue:', error);
+      throw formatSupabaseError(error, 'backorder queue fetch');
+    }
+  },
+
+  async markAsBackordered(stockOrderId: number, qtyBackordered: number, notes?: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('stock_order')
+        .update({
+          backorder_status: 'backordered',
+          qty_backordered: qtyBackordered,
+          backorder_created_at: new Date().toISOString(),
+          backorder_notes: notes || null,
+          stock_availability: 'Backordered'
+        })
+        .eq('id', stockOrderId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error marking item as backordered:', error);
+      throw formatSupabaseError(error, 'backorder marking');
+    }
+  },
+
+  async reactivateBackorder(stockOrderId: number, notes?: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('stock_order')
+        .update({
+          backorder_status: 'reactivated',
+          backorder_reactivated_at: new Date().toISOString(),
+          backorder_notes: notes || null,
+          stock_availability: 'Available',
+          pick_status: 'Pending'
+        })
+        .eq('id', stockOrderId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error reactivating backorder:', error);
+      throw formatSupabaseError(error, 'backorder reactivation');
+    }
+  },
+
+  async bulkReactivate(stockOrderIds: number[], notes?: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('stock_order')
+        .update({
+          backorder_status: 'reactivated',
+          backorder_reactivated_at: new Date().toISOString(),
+          backorder_notes: notes || null,
+          stock_availability: 'Available',
+          pick_status: 'Pending'
+        })
+        .in('id', stockOrderIds);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error bulk reactivating backorders:', error);
+      throw formatSupabaseError(error, 'bulk backorder reactivation');
+    }
+  },
+
+  async findByDeviceType(deviceType: string): Promise<BackorderItem[]> {
+    try {
+      const { data, error } = await supabase
+        .from('stock_order')
+        .select(`id, order_id, device_type, quantity_ordered, qty_dispatched, qty_backordered, backorder_created_at, technician, unique_orders!inner (recipient_name, date_ordered)`)
+        .eq('backorder_status', 'backordered')
+        .ilike('device_type', `%${deviceType}%`)
+        .order('backorder_created_at', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map((item: any) => ({
+        stock_order_id: item.id,
+        order_id: item.order_id,
+        device_type: item.device_type,
+        quantity_ordered: item.quantity_ordered,
+        qty_dispatched: item.qty_dispatched || 0,
+        qty_backordered: item.qty_backordered || 0,
+        backorder_created_at: item.backorder_created_at,
+        technician: item.technician,
+        recipient_name: item.unique_orders?.recipient_name || null,
+        date_ordered: item.unique_orders?.date_ordered || ''
+      }));
+    } catch (error) {
+      console.error('Error finding backorders by device type:', error);
+      throw formatSupabaseError(error, 'backorder search');
+    }
+  }
+};
+
 // Input types for updates
 export type StockOrderPickedUpdateInput = {
   stockOrderId: number;
