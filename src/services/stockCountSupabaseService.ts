@@ -1,0 +1,351 @@
+import { supabase } from '@/integrations/supabase/client';
+import { StockItem, StockCountFormData, CountType } from '@/types/stock';
+
+// Supabase row types
+interface StockLevelRow {
+  id: string;
+  device_type: string;
+  item_description: string | null;
+  item_category: string | null;
+  item_nature: string | null;
+  item_code: string | null;
+  bin_location: string | null;
+  quantity: number;
+  manufacture_serial_number: string | null;
+  qr_code_serial_number: string | null;
+  xlink_serial_number: string | null;
+  cradle_serial_number: string | null;
+  charger_serial_number: string | null;
+  stock_holder: string | null;
+  name_or_location: string | null;
+  contractor_company: string | null;
+  contractor_region: string | null;
+  technician_name: string | null;
+  tech_id: string | null;
+  item_status: string | null;
+  fault_reason: string | null;
+  overall_condition: string | null;
+  xli_case_ref: string | null;
+  count_type: string | null;
+  count_id: string | null;
+  user_email: string | null;
+  count_period: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+// Helper to calculate count period based on count type
+function getCountPeriod(countType: CountType): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+
+  switch (countType) {
+    case 'Daily':
+      return `${year}-${month}-${day}`;
+    case 'Mid-Month':
+      // First half (1-15) or second half (16-end)
+      const half = now.getDate() <= 15 ? '1' : '2';
+      return `${year}-${month}-H${half}`;
+    case 'Monthly':
+    default:
+      return `${year}-${month}`;
+  }
+}
+
+// Transform Supabase row to StockItem
+function transformToStockItem(row: StockLevelRow): StockItem {
+  return {
+    id: row.id,
+    deviceType: row.device_type,
+    itemDescription: row.item_description || '',
+    itemCategory: row.item_category || '',
+    itemNature: (row.item_nature as 'Serialised' | 'Non-serialised') || 'Non-serialised',
+    itemCode: row.item_code || '',
+    binLocation: row.bin_location || '',
+    quantity: row.quantity || 0,
+    manufactureSerialNumber: row.manufacture_serial_number || undefined,
+    qrCodeSerialNumber: row.qr_code_serial_number || undefined,
+    xlinkSerialNumber: row.xlink_serial_number || undefined,
+    cradleSerialNumber: row.cradle_serial_number || undefined,
+    chargerSerialNumber: row.charger_serial_number || undefined,
+    stockHolder: row.stock_holder || '',
+    nameOrLocation: row.name_or_location || '',
+    contractorCompany: row.contractor_company || '',
+    contractorRegion: row.contractor_region || '',
+    technicianName: row.technician_name || '',
+    techId: row.tech_id || '',
+    itemStatus: row.item_status || '',
+    faultReason: row.fault_reason || undefined,
+    overallCondition: row.overall_condition || undefined,
+    xliCaseRef: row.xli_case_ref || undefined,
+    countType: (row.count_type as CountType) || 'Monthly',
+    countId: row.count_id || undefined,
+    createdAt: row.created_at || undefined,
+    updatedAt: row.updated_at || undefined,
+  };
+}
+
+export const stockCountSupabaseService = {
+  // Fetch stock items with optional filters
+  async getStockItems(filters: {
+    searchTerm?: string;
+    itemCategory?: string;
+    isSerialized?: boolean;
+  } = {}): Promise<StockItem[]> {
+    const { searchTerm, itemCategory, isSerialized } = filters;
+
+    let query = supabase
+      .from('stock_levels')
+      .select('*')
+      .order('device_type', { ascending: true });
+
+    if (itemCategory) {
+      query = query.eq('item_category', itemCategory);
+    }
+
+    if (isSerialized !== undefined) {
+      query = query.eq('item_nature', isSerialized ? 'Serialised' : 'Non-serialised');
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching stock items:', error);
+      throw error;
+    }
+
+    let items = (data || []).map(transformToStockItem);
+
+    // Apply search filter in-memory (for better UX with partial matches)
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      items = items.filter(item =>
+        item.deviceType.toLowerCase().includes(term) ||
+        item.itemDescription.toLowerCase().includes(term)
+      );
+    }
+
+    return items;
+  },
+
+  // Create or update a stock count (upsert based on user + device + type + period)
+  // Also updates stock_levels with the new count as the source of truth
+  async createStockCount(data: StockCountFormData, userEmail: string): Promise<StockItem> {
+    const countPeriod = getCountPeriod(data.countType);
+
+    const countData = {
+      count_type: data.countType,
+      stock_holder: data.stockHolder,
+      name_or_location: data.nameOrLocation,
+      item_category: data.itemCategory,
+      bin_location: data.binLocation,
+      device_type: data.deviceType,
+      item_nature: data.itemNature,
+      item_code: data.itemCode,
+      item_description: data.itemDescription,
+      quantity: data.quantity,
+      manufacture_serial_number: data.manufactureSerialNumber,
+      qr_code_serial_number: data.qrCodeSerialNumber,
+      xlink_serial_number: data.xlinkSerialNumber,
+      cradle_serial_number: data.cradleSerialNumber,
+      charger_serial_number: data.chargerSerialNumber,
+      item_status: data.itemStatus,
+      fault_reason: data.faultReason,
+      overall_condition: data.overallCondition,
+      xli_case_ref: data.xliCaseRef,
+      contractor_company: data.contractorCompany,
+      contractor_region: data.contractorRegion,
+      technician_name: data.technicianName,
+      tech_id: data.techId,
+      user_email: userEmail,
+      count_period: countPeriod,
+    };
+
+    // 1. Upsert to stock_counts (historical record)
+    const { data: inserted, error: countError } = await supabase
+      .from('stock_counts')
+      .upsert(countData, {
+        onConflict: 'user_email,device_type,count_type,count_period',
+        ignoreDuplicates: false,
+      })
+      .select()
+      .single();
+
+    if (countError) {
+      console.error('Error creating/updating stock count:', countError);
+      throw countError;
+    }
+
+    // 2. Update stock_levels with the new count (source of truth)
+    const stockLevelData = {
+      device_type: data.deviceType,
+      item_description: data.itemDescription,
+      item_category: data.itemCategory,
+      item_nature: data.itemNature,
+      item_code: data.itemCode,
+      bin_location: data.binLocation,
+      quantity: data.quantity,
+      manufacture_serial_number: data.manufactureSerialNumber,
+      qr_code_serial_number: data.qrCodeSerialNumber,
+      xlink_serial_number: data.xlinkSerialNumber,
+      cradle_serial_number: data.cradleSerialNumber,
+      charger_serial_number: data.chargerSerialNumber,
+      stock_holder: data.stockHolder,
+      name_or_location: data.nameOrLocation,
+      contractor_company: data.contractorCompany,
+      contractor_region: data.contractorRegion,
+      technician_name: data.technicianName,
+      tech_id: data.techId,
+      item_status: data.itemStatus,
+      fault_reason: data.faultReason,
+      overall_condition: data.overallCondition,
+      xli_case_ref: data.xliCaseRef,
+      count_type: data.countType,
+    };
+
+    // Upsert to stock_levels based on device_type + tech_id
+    const { error: levelError } = await supabase
+      .from('stock_levels')
+      .upsert(stockLevelData, {
+        onConflict: data.techId ? 'device_type,tech_id' : 'device_type,bin_location',
+        ignoreDuplicates: false,
+      });
+
+    if (levelError) {
+      console.error('Error updating stock level:', levelError);
+      // Don't throw - the count was saved, just log the level update failure
+    }
+
+    return transformToStockItem(inserted as StockLevelRow);
+  },
+
+  // Update an existing stock count
+  async updateStockCount(id: string, data: Partial<StockCountFormData>): Promise<StockItem> {
+    const updateData: Record<string, unknown> = {};
+
+    if (data.countType) updateData.count_type = data.countType;
+    if (data.stockHolder) updateData.stock_holder = data.stockHolder;
+    if (data.nameOrLocation) updateData.name_or_location = data.nameOrLocation;
+    if (data.itemCategory) updateData.item_category = data.itemCategory;
+    if (data.binLocation) updateData.bin_location = data.binLocation;
+    if (data.deviceType) updateData.device_type = data.deviceType;
+    if (data.itemNature) updateData.item_nature = data.itemNature;
+    if (data.itemCode) updateData.item_code = data.itemCode;
+    if (data.itemDescription) updateData.item_description = data.itemDescription;
+    if (data.quantity !== undefined) updateData.quantity = data.quantity;
+    if (data.manufactureSerialNumber !== undefined) updateData.manufacture_serial_number = data.manufactureSerialNumber;
+    if (data.qrCodeSerialNumber !== undefined) updateData.qr_code_serial_number = data.qrCodeSerialNumber;
+    if (data.xlinkSerialNumber !== undefined) updateData.xlink_serial_number = data.xlinkSerialNumber;
+    if (data.cradleSerialNumber !== undefined) updateData.cradle_serial_number = data.cradleSerialNumber;
+    if (data.chargerSerialNumber !== undefined) updateData.charger_serial_number = data.chargerSerialNumber;
+    if (data.itemStatus) updateData.item_status = data.itemStatus;
+    if (data.faultReason !== undefined) updateData.fault_reason = data.faultReason;
+    if (data.overallCondition !== undefined) updateData.overall_condition = data.overallCondition;
+    if (data.xliCaseRef !== undefined) updateData.xli_case_ref = data.xliCaseRef;
+    if (data.contractorCompany) updateData.contractor_company = data.contractorCompany;
+    if (data.contractorRegion) updateData.contractor_region = data.contractorRegion;
+    if (data.technicianName) updateData.technician_name = data.technicianName;
+    if (data.techId) updateData.tech_id = data.techId;
+
+    const { data: updated, error } = await supabase
+      .from('stock_counts')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating stock count:', error);
+      throw error;
+    }
+
+    return transformToStockItem(updated as StockLevelRow);
+  },
+
+  // Get stock count by ID
+  async getStockCount(id: string): Promise<StockItem | null> {
+    const { data, error } = await supabase
+      .from('stock_counts')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // Not found
+      }
+      console.error('Error fetching stock count:', error);
+      throw error;
+    }
+
+    return transformToStockItem(data as StockLevelRow);
+  },
+
+  // Get all stock counts (for reports) - RLS will filter based on user role
+  async getAllStockCounts(): Promise<StockItem[]> {
+    const { data, error } = await supabase
+      .from('stock_counts')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching stock counts:', error);
+      throw error;
+    }
+
+    return (data || []).map(row => transformToStockItem(row as StockLevelRow));
+  },
+
+  // Get stock counts for a specific user
+  async getStockCountsByUser(userEmail: string): Promise<StockItem[]> {
+    const { data, error } = await supabase
+      .from('stock_counts')
+      .select('*')
+      .eq('user_email', userEmail)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching user stock counts:', error);
+      throw error;
+    }
+
+    return (data || []).map(row => transformToStockItem(row as StockLevelRow));
+  },
+
+  // Get stock counts with extended info (including user_email for admin reports)
+  async getStockCountsForReport(filters?: {
+    countType?: CountType;
+    countPeriod?: string;
+    userEmail?: string;
+  }): Promise<(StockItem & { userEmail?: string; countPeriod?: string })[]> {
+    let query = supabase
+      .from('stock_counts')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (filters?.countType) {
+      query = query.eq('count_type', filters.countType);
+    }
+    if (filters?.countPeriod) {
+      query = query.eq('count_period', filters.countPeriod);
+    }
+    if (filters?.userEmail) {
+      query = query.eq('user_email', filters.userEmail);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching stock counts for report:', error);
+      throw error;
+    }
+
+    return (data || []).map(row => ({
+      ...transformToStockItem(row as StockLevelRow),
+      userEmail: (row as StockLevelRow).user_email || undefined,
+      countPeriod: (row as StockLevelRow).count_period || undefined,
+    }));
+  },
+};

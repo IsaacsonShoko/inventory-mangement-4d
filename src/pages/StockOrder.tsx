@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Menu, Search, ShoppingCart, Plus, Package, Trash2, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
+import { CalendarIcon, Menu, Search, ShoppingCart, Plus, Package, Trash2, CheckCircle2, Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +51,7 @@ import {
   useTechnicians,
   useCreateOrder
 } from "@/hooks/useAirtable";
-import type { CartItem, OrderFormData } from "@/types/airtable";
+import type { CartItem, OrderFormData } from "@/hooks/useAirtable";
 import { Skeleton } from "@/components/ui/skeleton";
 import ThemeToggle from "@/components/theme-toggle";
 
@@ -186,6 +189,43 @@ const StockOrder = () => {
   const isInventoryLoading = inventoryLoading || inventoryFetching;
   
   const createOrderMutation = useCreateOrder();
+
+  // Fetch stock levels to show availability
+  const { data: stockLevels = [] } = useQuery({
+    queryKey: ['stockLevelsForOrdering'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_levels')
+        .select('device_type, quantity, item_status')
+        .not('item_status', 'eq', 'Faulty');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Create a map of device type to total available quantity
+  const stockAvailabilityMap = useMemo(() => {
+    const map = new Map<string, number>();
+    stockLevels.forEach(level => {
+      if (level.device_type) {
+        const current = map.get(level.device_type) || 0;
+        map.set(level.device_type, current + (level.quantity || 0));
+      }
+    });
+    return map;
+  }, [stockLevels]);
+
+  // Helper to get stock status for an item
+  const getStockStatus = (itemName: string): { status: 'in_stock' | 'low_stock' | 'out_of_stock'; quantity: number } => {
+    const quantity = stockAvailabilityMap.get(itemName) || 0;
+    if (quantity === 0) {
+      return { status: 'out_of_stock', quantity };
+    } else if (quantity <= 5) {
+      return { status: 'low_stock', quantity };
+    }
+    return { status: 'in_stock', quantity };
+  };
 
   useEffect(() => {
     const errorContexts = [
@@ -1011,30 +1051,57 @@ const StockOrder = () => {
                 {filteredInventory.map((item) => {
                   const thumbnailUrl = null?.[0]?.url;
                   const imageUrl = thumbnailUrl ?? item.item_url;
+                  const stockStatus = getStockStatus(item.item_name);
 
                   return (
-                  <Card 
-                    key={item.id} 
-                    className="bg-card border border-border/60 hover:border-primary/60 transition-colors shadow-sm"
+                  <Card
+                    key={item.id}
+                    className={`bg-card border transition-colors shadow-sm ${
+                      stockStatus.status === 'out_of_stock'
+                        ? 'border-red-200 bg-red-50/30'
+                        : stockStatus.status === 'low_stock'
+                        ? 'border-amber-200 bg-amber-50/30'
+                        : 'border-border/60 hover:border-primary/60'
+                    }`}
                   >
                     <CardContent className="p-4">
                       <div className="flex gap-4">
-                        <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-primary/10 overflow-hidden">
+                        <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-primary/10 overflow-hidden relative">
                           {imageUrl ? (
-                            <img 
-                              src={imageUrl} 
+                            <img
+                              src={imageUrl}
                               alt={item.item_name}
                               className="h-full w-full object-cover"
                             />
                           ) : (
                             <Package className="h-12 w-12 text-primary" />
                           )}
+                          {stockStatus.status === 'out_of_stock' && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <AlertTriangle className="h-6 w-6 text-red-400" />
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1 space-y-2">
                           <div className="space-y-1">
-                            <p className="text-sm font-medium">
-                              Device Type: {item.item_name}
-                            </p>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium">
+                                Device Type: {item.item_name}
+                              </p>
+                              {stockStatus.status === 'out_of_stock' ? (
+                                <Badge variant="destructive" className="text-[10px]">
+                                  Out of Stock
+                                </Badge>
+                              ) : stockStatus.status === 'low_stock' ? (
+                                <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700">
+                                  Low Stock ({stockStatus.quantity})
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700">
+                                  In Stock ({stockStatus.quantity})
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground">
                               {item.item_description}
                             </p>
@@ -1059,11 +1126,21 @@ const StockOrder = () => {
                               size="sm"
                               onClick={() => addToCart(item)}
                               disabled={!isSearchEnabled || (quantities[item.id] || 0) <= 0}
-                              className="bg-green-600 hover:bg-green-700 h-8"
+                              className={`h-8 ${
+                                stockStatus.status === 'out_of_stock'
+                                  ? 'bg-amber-600 hover:bg-amber-700'
+                                  : 'bg-green-600 hover:bg-green-700'
+                              }`}
+                              title={stockStatus.status === 'out_of_stock' ? 'Item will be backordered' : undefined}
                             >
                               <Plus className="h-4 w-4" />
                             </Button>
                           </div>
+                          {stockStatus.status === 'out_of_stock' && (
+                            <p className="text-[10px] text-amber-600">
+                              Item will be backordered if added to cart
+                            </p>
+                          )}
                         </div>
                       </div>
                     </CardContent>

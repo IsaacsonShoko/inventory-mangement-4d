@@ -89,6 +89,77 @@ const PickingCartNew = () => {
     cables: '',
   });
 
+  // Cash Connect QR Code scanning state
+  const [qrScanInput, setQrScanInput] = useState('');
+
+  // Helper to check if item is Cash Connect
+  const isCashConnect = (item: StockOrderLineItem | null) =>
+    item?.item_category?.includes('Cash Connect') ?? false;
+
+  // Parse comma-separated QR code input for Cash Connect
+  const parseQrCodeInput = (input: string) => {
+    const commaCount = (input.match(/,/g) || []).length;
+
+    if (commaCount >= 1) {
+      const firstCommaIndex = input.indexOf(',');
+      const itemCode = input.substring(0, firstCommaIndex).trim();
+
+      let cashConnectSerial = '';
+      if (commaCount > 1) {
+        // More than 1 comma: extract characters 14-18 (positions 13-17 in 0-based index)
+        cashConnectSerial = input.substring(13, 18);
+      } else if (commaCount === 1) {
+        // Exactly 1 comma: extract everything after the first comma
+        cashConnectSerial = input.substring(firstCommaIndex + 1).trim();
+      }
+
+      return { itemCode, cashConnectSerial };
+    }
+
+    // No comma: use entire input as item code
+    return { itemCode: input.trim(), cashConnectSerial: '' };
+  };
+
+  // Handle QR code scan input change for Cash Connect
+  const handleQrScanChange = (value: string) => {
+    setQrScanInput(value);
+
+    if (value && isCashConnect(selectedLineItem)) {
+      const { itemCode, cashConnectSerial } = parseQrCodeInput(value);
+      setFormData(prev => ({
+        ...prev,
+        itemCode,
+        cashConnectSerialNumber: cashConnectSerial,
+      }));
+    }
+  };
+
+  // Validate that scanned item matches ordered item
+  const validateItemMatch = (scannedItemCode: string | undefined, orderedItem: StockOrderLineItem): { isValid: boolean; message: string } => {
+    if (!scannedItemCode || scannedItemCode.trim() === '') {
+      // Allow empty item codes for manual entry
+      return { isValid: true, message: '' };
+    }
+
+    const orderedItemCode = orderedItem.item_code?.trim().toUpperCase();
+    const scannedCode = scannedItemCode.trim().toUpperCase();
+
+    // If ordered item has no item code, allow any scan (fallback to device type)
+    if (!orderedItemCode) {
+      return { isValid: true, message: '' };
+    }
+
+    // Strict match on item code
+    if (scannedCode !== orderedItemCode) {
+      return {
+        isValid: false,
+        message: `Wrong item scanned! Expected item code "${orderedItem.item_code}" but scanned "${scannedItemCode}". Please scan the correct item for this order line.`
+      };
+    }
+
+    return { isValid: true, message: '' };
+  };
+
   const totalQuantity = useMemo(() => {
     return lineItems.reduce((sum, item) => sum + (item.quantity_ordered ?? 0), 0);
   }, [lineItems]);
@@ -109,6 +180,7 @@ const PickingCartNew = () => {
       cables: '',
       quantity: 1,
     });
+    setQrScanInput(''); // Reset QR scan input
     setShowPickDialog(true);
   };
 
@@ -124,17 +196,67 @@ const PickingCartNew = () => {
 
     const isSerialised = selectedLineItem.item_nature?.toLowerCase().includes('serial');
 
-    // Check for duplicate serial numbers
-    if (isSerialised && formData.terminalSerialNumber) {
-      const duplicate = pickedItems.find(
-        (item) =>
-          item.terminalSerialNumber &&
-          item.terminalSerialNumber.toUpperCase() === formData.terminalSerialNumber!.toUpperCase()
-      );
+    // Check for duplicate serial numbers based on business line
+    if (isSerialised) {
+      let duplicate: PickedItemData | undefined;
+
+      if (isCashConnect(selectedLineItem)) {
+        // Cash Connect: Check only CashConnect Serial Number
+        if (formData.cashConnectSerialNumber) {
+          duplicate = pickedItems.find(
+            (item) =>
+              item.cashConnectSerialNumber &&
+              item.cashConnectSerialNumber.toUpperCase() === formData.cashConnectSerialNumber!.toUpperCase()
+          );
+        }
+      } else {
+        // All other business lines: Check Terminal OR Cradle OR Charger serial numbers
+        duplicate = pickedItems.find((item) => {
+          // Check Terminal Serial Number
+          if (
+            formData.terminalSerialNumber &&
+            item.terminalSerialNumber &&
+            item.terminalSerialNumber.toUpperCase() === formData.terminalSerialNumber.toUpperCase()
+          ) {
+            return true;
+          }
+          // Check Cradle Serial Number
+          if (
+            formData.cradleSerialNumber &&
+            item.cradleSerialNumber &&
+            item.cradleSerialNumber.toUpperCase() === formData.cradleSerialNumber.toUpperCase()
+          ) {
+            return true;
+          }
+          // Check Charger Serial Number
+          if (
+            formData.chargerSerialNumber &&
+            item.chargerSerialNumber &&
+            item.chargerSerialNumber.toUpperCase() === formData.chargerSerialNumber.toUpperCase()
+          ) {
+            return true;
+          }
+          return false;
+        });
+      }
+
       if (duplicate) {
         toast({
-          title: 'Duplicate serial number',
-          description: 'This serial number has already been scanned',
+          title: 'Duplicate item detected',
+          description: 'Please scan a different item',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    // Validate that scanned item matches ordered item (for serialised items with item codes)
+    if (isSerialised && formData.itemCode) {
+      const itemMatchResult = validateItemMatch(formData.itemCode, selectedLineItem);
+      if (!itemMatchResult.isValid) {
+        toast({
+          title: 'Wrong item scanned',
+          description: itemMatchResult.message,
           variant: 'destructive',
         });
         return;
@@ -688,31 +810,96 @@ const PickingCartNew = () => {
             {selectedLineItem && isSerialised(selectedLineItem) && (
               <>
                 <Separator />
-                <p className="text-sm font-semibold text-center">Scan Device Serial Numbers</p>
 
-                <div className="space-y-2">
-                  <Label htmlFor="terminalSerial">Manufacture Serial Number</Label>
-                  <Input
-                    id="terminalSerial"
-                    value={formData.terminalSerialNumber}
-                    onChange={(e) => setFormData({ ...formData, terminalSerialNumber: e.target.value })}
-                    placeholder="Scan or enter serial number"
-                  />
-                </div>
+                {/* Cash Connect: QR Code Scanning with comma-separated values */}
+                {isCashConnect(selectedLineItem) ? (
+                  <>
+                    <p className="text-sm font-semibold text-center">
+                      Scan QR Code / Capture Item details separated by a comma (,)
+                    </p>
 
-                {/* Cash Connect Serial */}
-                {selectedLineItem.item_category?.includes('Cash Connect') && (
-                  <div className="space-y-2">
-                    <Label htmlFor="cashConnectSerial">CashConnect Serial Number</Label>
-                    <Input
-                      id="cashConnectSerial"
-                      value={formData.cashConnectSerialNumber}
-                      onChange={(e) => setFormData({ ...formData, cashConnectSerialNumber: e.target.value })}
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="qrScan">QR Code Scan Input</Label>
+                      <Input
+                        id="qrScan"
+                        value={qrScanInput}
+                        onChange={(e) => handleQrScanChange(e.target.value)}
+                        placeholder="Scan QR code or enter: ItemCode,SerialNumber"
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Format: ItemCode,CashConnectSerial (e.g., ABC123,SN456789)
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="itemCode">Item Code</Label>
+                        <Input
+                          id="itemCode"
+                          value={formData.itemCode || ''}
+                          onChange={(e) => setFormData({ ...formData, itemCode: e.target.value })}
+                          placeholder="Auto-populated from scan"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="cashConnectSerial">CashConnect Serial Number</Label>
+                        <Input
+                          id="cashConnectSerial"
+                          value={formData.cashConnectSerialNumber || ''}
+                          onChange={(e) => setFormData({ ...formData, cashConnectSerialNumber: e.target.value })}
+                          placeholder="Auto-populated from scan"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* All other business lines: Individual serial number fields */}
+                    <p className="text-sm font-semibold text-center">Scan Device Serial Numbers</p>
+
+                    {/* Item Code field for validation */}
+                    <div className="space-y-2">
+                      <Label htmlFor="itemCode">
+                        Item Code
+                        {selectedLineItem?.item_code && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            (Expected: {selectedLineItem.item_code})
+                          </span>
+                        )}
+                      </Label>
+                      <Input
+                        id="itemCode"
+                        value={formData.itemCode || ''}
+                        onChange={(e) => setFormData({ ...formData, itemCode: e.target.value })}
+                        placeholder="Scan barcode or enter item code"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="terminalSerial">Manufacture Serial Number (Terminal)</Label>
+                      <Input
+                        id="terminalSerial"
+                        value={formData.terminalSerialNumber || ''}
+                        onChange={(e) => setFormData({ ...formData, terminalSerialNumber: e.target.value })}
+                        placeholder="Scan or enter serial number"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cradleSerial">Cradle Serial Number</Label>
+                      <Input
+                        id="cradleSerial"
+                        value={formData.cradleSerialNumber || ''}
+                        onChange={(e) => setFormData({ ...formData, cradleSerialNumber: e.target.value })}
+                        placeholder="Scan or enter cradle serial"
+                      />
+                    </div>
+                  </>
                 )}
 
-                {/* Accessories */}
+                {/* Accessories - for all serialised items */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="charger">Charger</Label>
@@ -752,7 +939,7 @@ const PickingCartNew = () => {
                     <Label htmlFor="chargerSerial">Charger Serial Number</Label>
                     <Input
                       id="chargerSerial"
-                      value={formData.chargerSerialNumber}
+                      value={formData.chargerSerialNumber || ''}
                       onChange={(e) => setFormData({ ...formData, chargerSerialNumber: e.target.value })}
                     />
                   </div>
