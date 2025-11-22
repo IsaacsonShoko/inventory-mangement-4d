@@ -122,7 +122,7 @@ export function RepairsTab() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Tickets</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics.total}</div>
+              <div className="text-2xl font-bold">{metrics.total ?? 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -131,10 +131,10 @@ export function RepairsTab() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
-                {(metrics.byStatus['Reported'] || 0) +
-                  (metrics.byStatus['Assessing'] || 0) +
-                  (metrics.byStatus['In-Repair'] || 0) +
-                  (metrics.byStatus['Quality-Check'] || 0)}
+                {(metrics.byStatus?.['Reported'] ?? 0) +
+                  (metrics.byStatus?.['Assessing'] ?? 0) +
+                  (metrics.byStatus?.['In-Repair'] ?? 0) +
+                  (metrics.byStatus?.['Quality-Check'] ?? 0)}
               </div>
             </CardContent>
           </Card>
@@ -144,7 +144,7 @@ export function RepairsTab() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {metrics.byStatus['Returned'] || 0}
+                {metrics.byStatus?.['Returned'] ?? 0}
               </div>
             </CardContent>
           </Card>
@@ -154,7 +154,7 @@ export function RepairsTab() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {metrics.avgRepairTimeHours > 0
+                {(metrics.avgRepairTimeHours ?? 0) > 0
                   ? `${Math.round(metrics.avgRepairTimeHours)}h`
                   : 'N/A'}
               </div>

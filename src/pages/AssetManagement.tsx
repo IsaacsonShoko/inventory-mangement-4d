@@ -58,7 +58,7 @@ function AssetManagementContent() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{count}</div>
+                <div className="text-2xl font-bold">{count ?? 0}</div>
               </CardContent>
             </Card>
           ))}
