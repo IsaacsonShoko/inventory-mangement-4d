@@ -39,7 +39,6 @@ export interface PointOfPresenceRow {
   area_based: string | null;
   location_code: string | null;
   contact_number: string | null;
-  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -267,7 +266,6 @@ export const pointOfPresenceService = {
     const { data, error } = await supabase
       .from('point_of_presence')
       .select('*')
-      .eq('is_active', true)
       .order('name_surname', { ascending: true });
 
     if (error) throw error;
@@ -308,7 +306,6 @@ export const pointOfPresenceService = {
     let query = supabase
       .from('point_of_presence')
       .select('*')
-      .eq('is_active', true)
       .order('name_surname', { ascending: true });
 
     if (contractor) {
@@ -330,7 +327,6 @@ export const pointOfPresenceService = {
       .from('point_of_presence')
       .select('*')
       .eq('name_surname', name)
-      .eq('is_active', true)
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;

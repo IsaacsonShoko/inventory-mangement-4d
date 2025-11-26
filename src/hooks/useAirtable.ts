@@ -63,11 +63,11 @@ export const useInventoryItems = (filters?: { category?: string; serialized?: st
       // Map to legacy format for backward compatibility
       return data.map(item => ({
         id: item.id,
-        item_name: item.device_type,
+        item_name: item.item_name,
         item_description: item.item_description || '',
         item_category: item.item_category,
         item_nature: item.item_nature,
-        item_url: item.item_url || item.thumbnail_url,
+        item_url: item.item_url,
       }));
     },
     staleTime: 5 * 60 * 1000,
@@ -85,11 +85,11 @@ export const useInventorySearch = (query: string, filters?: { category?: string;
       });
       return data.map(item => ({
         id: item.id,
-        item_name: item.device_type,
+        item_name: item.item_name,
         item_description: item.item_description || '',
         item_category: item.item_category,
         item_nature: item.item_nature,
-        item_url: item.item_url || item.thumbnail_url,
+        item_url: item.item_url,
       }));
     },
     enabled: query.length >= 2,
