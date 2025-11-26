@@ -275,8 +275,7 @@ export const pointOfPresenceService = {
   async getContractors(): Promise<string[]> {
     const { data, error } = await supabase
       .from('point_of_presence')
-      .select('contractor')
-      .eq('is_active', true);
+      .select('contractor');
 
     if (error) throw error;
 
@@ -287,8 +286,7 @@ export const pointOfPresenceService = {
   async getRegions(contractor?: string): Promise<string[]> {
     let query = supabase
       .from('point_of_presence')
-      .select('region')
-      .eq('is_active', true);
+      .select('region');
 
     if (contractor) {
       query = query.eq('contractor', contractor);
