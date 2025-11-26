@@ -175,8 +175,14 @@ def forward_to_n8n(webhook_url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         Exception: If request fails
     """
     try:
+        # Wrap payload in {"body": ...} format to match n8n webhook expectations
+        # n8n workflows expect: $json.body.orderId, $json.body.items, etc.
+        wrapped_payload = {
+            'body': payload
+        }
+
         # Prepare request
-        data = json.dumps(payload).encode('utf-8')
+        data = json.dumps(wrapped_payload).encode('utf-8')
         req = urllib.request.Request(
             webhook_url,
             data=data,
