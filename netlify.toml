@@ -3,30 +3,17 @@
   command = "npm run build"
   publish = "dist"
 
-# Environment variables (set these in Netlify Dashboard → Site settings → Environment variables)
-# These are just documentation - actual values set in dashboard
+# Functions are auto-detected in netlify/functions/
+# No additional config needed for Python functions
 
-# [context.production.environment]
-#   N8N_ORDER_PLACED_URL = "http://your-n8n-server:5678/webhook/order-placed"
-#   N8N_ORDER_PICKED_URL = "http://your-n8n-server:5678/webhook/order-picked"
-#   N8N_ORDER_DISPATCHED_URL = "http://your-n8n-server:5678/webhook/order-dispatched"
-
-# Functions configuration
-[functions]
-  # Python runtime for Netlify Functions
-  python_version = "3.11"
-
-  # Increase timeout for n8n webhooks (default is 10s, max is 26s)
-  timeout = 26
-
-# Redirect rules (optional - if you want cleaner URLs)
+# Redirect rules (optional - for cleaner URLs)
 [[redirects]]
   from = "/api/notify/*"
   to = "/.netlify/functions/n8n-proxy/:splat"
   status = 200
   force = true
 
-# Headers for CORS (applied to all routes)
+# Headers for CORS
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
