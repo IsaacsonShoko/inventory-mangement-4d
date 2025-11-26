@@ -1,22 +1,36 @@
-# n8n Lambda Proxy Functions
+# n8n Lambda Proxy Function (Python)
 
 ## Overview
 
-These Lambda functions act as HTTPS bridges to your self-hosted n8n instance (HTTP). This allows your Netlify-hosted React app to securely communicate with n8n without HTTPS certificate issues.
+This single Lambda function acts as an intelligent HTTPS bridge to your self-hosted n8n instance (HTTP). It routes notifications to the appropriate n8n webhook based on the notification type.
 
 ## Architecture
 
 ```
-React App (HTTPS) → AWS Lambda (HTTPS) → n8n (HTTP self-hosted)
+React App (HTTPS)
+    ↓
+AWS Lambda (HTTPS) - Intelligent Router
+    ├─→ n8n /order-placed webhook (HTTP)
+    ├─→ n8n /order-picked webhook (HTTP)
+    └─→ n8n /order-dispatched webhook (HTTP)
 ```
+
+## Features
+
+✅ **Single Lambda function** - Routes all notification types
+✅ **Multiple routing methods** - Path, query param, or payload-based
+✅ **Auto-detection** - Infers notification type from payload structure
+✅ **Python 3.12** - Fast cold start, easy to maintain
+✅ **No external dependencies** - Uses built-in urllib3
 
 ## Deployment Options
 
 ### Option 1: Serverless Framework (Recommended)
 
-1. **Install Serverless Framework:**
+1. **Install Serverless Framework and Python plugin:**
    ```bash
    npm install -g serverless
+   npm install --save-dev serverless-python-requirements
    ```
 
 2. **Configure AWS credentials:**
@@ -24,27 +38,41 @@ React App (HTTPS) → AWS Lambda (HTTPS) → n8n (HTTP self-hosted)
    serverless config credentials --provider aws --key YOUR_KEY --secret YOUR_SECRET
    ```
 
-3. **Set environment variables:**
-   Create a `.env` file in the `lambda/` directory:
-   ```env
-   N8N_ORDER_PLACED_URL=http://your-n8n-ip:5678/webhook/order-placed
-   N8N_ORDER_PICKED_URL=http://your-n8n-ip:5678/webhook/order-picked
-   N8N_ORDER_DISPATCHED_URL=http://your-n8n-ip:5678/webhook/order-dispatched
+3. **Configure n8n webhook URLs:**
+
+   **IMPORTANT:** Environment variables in Lambda are configured via `serverless.yml`, NOT `.env` files.
+
+   **Edit `serverless.yml`** and update the `environment` section:
+   ```yaml
+   environment:
+     N8N_ORDER_PLACED_URL: http://192.168.1.100:5678/webhook/order-placed
+     N8N_ORDER_PICKED_URL: http://192.168.1.100:5678/webhook/order-picked
+     N8N_ORDER_DISPATCHED_URL: http://192.168.1.100:5678/webhook/order-dispatched
    ```
 
-4. **Deploy:**
+   **Replace `192.168.1.100`** with your n8n server IP address.
+
+   > **Note:** The `.env` file approach is only for local testing. Serverless Framework reads from `serverless.yml` when deploying to AWS.
+
+4. **Install Python plugin (in lambda/ directory):**
    ```bash
    cd lambda
+   npm install
+   ```
+
+5. **Deploy:**
+   ```bash
    serverless deploy
    ```
 
-5. **Get your endpoints:**
+6. **Get your endpoints:**
    After deployment, you'll see output like:
    ```
    endpoints:
      POST - https://abc123.execute-api.us-east-1.amazonaws.com/order-placed
      POST - https://abc123.execute-api.us-east-1.amazonaws.com/order-picked
      POST - https://abc123.execute-api.us-east-1.amazonaws.com/order-dispatched
+     POST - https://abc123.execute-api.us-east-1.amazonaws.com/notify
    ```
 
 ### Option 2: AWS Console (Manual)
@@ -78,11 +106,84 @@ See `template.yaml` (if you want to create one) for infrastructure as code deplo
 
 ## Environment Variables
 
-Each Lambda function needs:
+### How Environment Variables Work in Lambda
+
+Unlike local development where you use `.env` files, AWS Lambda gets environment variables from:
+
+1. **`serverless.yml`** - Defined during deployment
+2. **AWS Console** - Can be updated after deployment (Lambda → Configuration → Environment variables)
+3. **AWS Systems Manager (SSM)** - Secure parameter store (recommended for sensitive data)
+
+### Required Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `N8N_WEBHOOK_URL` | Full URL to your n8n webhook | `http://192.168.1.100:5678/webhook/order-placed` |
+| `N8N_ORDER_PLACED_URL` | n8n webhook for order placed | `http://192.168.1.100:5678/webhook/order-placed` |
+| `N8N_ORDER_PICKED_URL` | n8n webhook for order picked | `http://192.168.1.100:5678/webhook/order-picked` |
+| `N8N_ORDER_DISPATCHED_URL` | n8n webhook for order dispatched | `http://192.168.1.100:5678/webhook/order-dispatched` |
+
+### Configuration Methods
+
+#### Method 1: serverless.yml (Recommended for Non-Sensitive Data)
+
+Edit `serverless.yml`:
+```yaml
+provider:
+  environment:
+    N8N_ORDER_PLACED_URL: http://192.168.1.100:5678/webhook/order-placed
+    N8N_ORDER_PICKED_URL: http://192.168.1.100:5678/webhook/order-picked
+    N8N_ORDER_DISPATCHED_URL: http://192.168.1.100:5678/webhook/order-dispatched
+```
+
+Then deploy:
+```bash
+serverless deploy
+```
+
+#### Method 2: AWS Console (Quick Updates)
+
+1. Go to AWS Lambda Console
+2. Select your function: `inventory-n8n-proxy-prod`
+3. Configuration → Environment variables
+4. Add/Edit variables
+5. Save
+
+**Advantage:** No redeployment needed, changes take effect immediately.
+
+#### Method 3: AWS SSM Parameter Store (Most Secure)
+
+For sensitive values or shared configurations:
+
+1. **Store in SSM:**
+   ```bash
+   aws ssm put-parameter \
+     --name "/n8n/order-placed-url" \
+     --value "http://192.168.1.100:5678/webhook/order-placed" \
+     --type "String"
+   ```
+
+2. **Reference in serverless.yml:**
+   ```yaml
+   provider:
+     environment:
+       N8N_ORDER_PLACED_URL: ${ssm:/n8n/order-placed-url}
+       N8N_ORDER_PICKED_URL: ${ssm:/n8n/order-picked-url}
+       N8N_ORDER_DISPATCHED_URL: ${ssm:/n8n/order-dispatched-url}
+   ```
+
+3. **Add IAM permission:**
+   ```yaml
+   provider:
+     iam:
+       role:
+         statements:
+           - Effect: Allow
+             Action:
+               - ssm:GetParameter
+             Resource: arn:aws:ssm:*:*:parameter/n8n/*
+   ```
+
+**Advantage:** Encrypted, centralized, can be rotated without code changes.
 
 ## Security Considerations
 

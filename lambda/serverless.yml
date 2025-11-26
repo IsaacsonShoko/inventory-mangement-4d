@@ -1,11 +1,11 @@
-# Serverless Framework configuration for n8n proxy Lambda functions
+# Serverless Framework configuration for n8n proxy Lambda function (Python)
 # Deploy with: serverless deploy
 
 service: inventory-n8n-proxy
 
 provider:
   name: aws
-  runtime: nodejs20.x
+  runtime: python3.12
   stage: ${opt:stage, 'prod'}
   region: us-east-1  # Change to your preferred region
   memorySize: 256
@@ -22,20 +22,31 @@ provider:
             - logs:PutLogEvents
           Resource: arn:aws:logs:*:*:*
 
-  # Environment variables (set these in serverless.yml or use AWS Systems Manager Parameter Store)
+  # Environment variables
+  # IMPORTANT: Update these with your n8n server IP/domain
   environment:
-    # You can also use ${ssm:/n8n/webhook/order-placed} to fetch from AWS SSM
-    STAGE: ${self:provider.stage}
+    N8N_ORDER_PLACED_URL: ${env:N8N_ORDER_PLACED_URL, 'http://your-n8n-server:5678/webhook/order-placed'}
+    N8N_ORDER_PICKED_URL: ${env:N8N_ORDER_PICKED_URL, 'http://your-n8n-server:5678/webhook/order-picked'}
+    N8N_ORDER_DISPATCHED_URL: ${env:N8N_ORDER_DISPATCHED_URL, 'http://your-n8n-server:5678/webhook/order-dispatched'}
 
 functions:
-  # Order Placed Notification Proxy
-  orderPlacedProxy:
-    handler: n8n-proxy.handler
-    name: ${self:service}-order-placed-${self:provider.stage}
-    description: Proxy HTTPS requests to self-hosted n8n for order placed notifications
-    environment:
-      N8N_WEBHOOK_URL: ${env:N8N_ORDER_PLACED_URL, 'http://your-n8n-server:5678/webhook/order-placed'}
+  # Single Lambda function that routes to different n8n webhooks
+  n8nProxy:
+    handler: n8n_proxy.lambda_handler
+    name: ${self:service}-${self:provider.stage}
+    description: Intelligent router for n8n webhook notifications (order-placed/picked/dispatched)
     events:
+      # Root endpoint with query parameter routing
+      # Usage: POST /notify?type=order-placed
+      - httpApi:
+          path: /notify
+          method: post
+      - httpApi:
+          path: /notify
+          method: options
+
+      # Path-based routing endpoints
+      # Usage: POST /order-placed
       - httpApi:
           path: /order-placed
           method: post
@@ -43,14 +54,6 @@ functions:
           path: /order-placed
           method: options
 
-  # Order Picked Notification Proxy
-  orderPickedProxy:
-    handler: n8n-proxy.handler
-    name: ${self:service}-order-picked-${self:provider.stage}
-    description: Proxy HTTPS requests to self-hosted n8n for order picked notifications
-    environment:
-      N8N_WEBHOOK_URL: ${env:N8N_ORDER_PICKED_URL, 'http://your-n8n-server:5678/webhook/order-picked'}
-    events:
       - httpApi:
           path: /order-picked
           method: post
@@ -58,14 +61,6 @@ functions:
           path: /order-picked
           method: options
 
-  # Order Dispatched Notification Proxy
-  orderDispatchedProxy:
-    handler: n8n-proxy.handler
-    name: ${self:service}-order-dispatched-${self:provider.stage}
-    description: Proxy HTTPS requests to self-hosted n8n for order dispatched notifications
-    environment:
-      N8N_WEBHOOK_URL: ${env:N8N_ORDER_DISPATCHED_URL, 'http://your-n8n-server:5678/webhook/order-dispatched'}
-    events:
       - httpApi:
           path: /order-dispatched
           method: post
@@ -79,7 +74,20 @@ package:
   patterns:
     - '!node_modules/**'
     - '!.git/**'
-    - n8n-proxy.js
+    - '!*.md'
+    - '!*.json'
+    - n8n_proxy.py
+    - requirements.txt
+
+# Python plugins
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false  # Set to true if you need compiled dependencies
+    slim: true
+    strip: false
 
 # CloudFormation outputs
 resources:
@@ -88,6 +96,11 @@ resources:
       Description: "HTTP API Gateway URL"
       Value:
         Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+
+    NotifyEndpoint:
+      Description: "Main notification endpoint (use ?type= parameter)"
+      Value:
+        Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/notify"
 
     OrderPlacedEndpoint:
       Description: "Order Placed Notification Endpoint"
