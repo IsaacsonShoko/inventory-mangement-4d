@@ -1,0 +1,105 @@
+# Serverless Framework configuration for n8n proxy Lambda functions
+# Deploy with: serverless deploy
+
+service: inventory-n8n-proxy
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${opt:stage, 'prod'}
+  region: us-east-1  # Change to your preferred region
+  memorySize: 256
+  timeout: 30
+
+  # IAM role permissions
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: arn:aws:logs:*:*:*
+
+  # Environment variables (set these in serverless.yml or use AWS Systems Manager Parameter Store)
+  environment:
+    # You can also use ${ssm:/n8n/webhook/order-placed} to fetch from AWS SSM
+    STAGE: ${self:provider.stage}
+
+functions:
+  # Order Placed Notification Proxy
+  orderPlacedProxy:
+    handler: n8n-proxy.handler
+    name: ${self:service}-order-placed-${self:provider.stage}
+    description: Proxy HTTPS requests to self-hosted n8n for order placed notifications
+    environment:
+      N8N_WEBHOOK_URL: ${env:N8N_ORDER_PLACED_URL, 'http://your-n8n-server:5678/webhook/order-placed'}
+    events:
+      - httpApi:
+          path: /order-placed
+          method: post
+      - httpApi:
+          path: /order-placed
+          method: options
+
+  # Order Picked Notification Proxy
+  orderPickedProxy:
+    handler: n8n-proxy.handler
+    name: ${self:service}-order-picked-${self:provider.stage}
+    description: Proxy HTTPS requests to self-hosted n8n for order picked notifications
+    environment:
+      N8N_WEBHOOK_URL: ${env:N8N_ORDER_PICKED_URL, 'http://your-n8n-server:5678/webhook/order-picked'}
+    events:
+      - httpApi:
+          path: /order-picked
+          method: post
+      - httpApi:
+          path: /order-picked
+          method: options
+
+  # Order Dispatched Notification Proxy
+  orderDispatchedProxy:
+    handler: n8n-proxy.handler
+    name: ${self:service}-order-dispatched-${self:provider.stage}
+    description: Proxy HTTPS requests to self-hosted n8n for order dispatched notifications
+    environment:
+      N8N_WEBHOOK_URL: ${env:N8N_ORDER_DISPATCHED_URL, 'http://your-n8n-server:5678/webhook/order-dispatched'}
+    events:
+      - httpApi:
+          path: /order-dispatched
+          method: post
+      - httpApi:
+          path: /order-dispatched
+          method: options
+
+# Package configuration
+package:
+  individually: false
+  patterns:
+    - '!node_modules/**'
+    - '!.git/**'
+    - n8n-proxy.js
+
+# CloudFormation outputs
+resources:
+  Outputs:
+    HttpApiUrl:
+      Description: "HTTP API Gateway URL"
+      Value:
+        Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+
+    OrderPlacedEndpoint:
+      Description: "Order Placed Notification Endpoint"
+      Value:
+        Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/order-placed"
+
+    OrderPickedEndpoint:
+      Description: "Order Picked Notification Endpoint"
+      Value:
+        Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/order-picked"
+
+    OrderDispatchedEndpoint:
+      Description: "Order Dispatched Notification Endpoint"
+      Value:
+        Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/order-dispatched"

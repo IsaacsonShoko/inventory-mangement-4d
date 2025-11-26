@@ -1,0 +1,103 @@
+{
+  "name": "OrderPicked-Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-picked",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-400, 240],
+      "webhookId": "order-picked"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract order data from webhook payload\nconst input = items[0].json;\n\n// Build items HTML table\nlet itemsHtml = '';\nfor (const item of input.items || []) {\n  const serialNumbers = [];\n  \n  // Collect serial numbers if present\n  if (item.units && item.units.length > 0) {\n    item.units.forEach(unit => {\n      if (unit.serialNumber) {\n        serialNumbers.push(unit.serialNumber);\n      }\n    });\n  }\n  \n  const serialInfo = serialNumbers.length > 0 \n    ? `<br/><small style=\"color: #666;\">Serial: ${serialNumbers.join(', ')}</small>`\n    : '';\n  \n  itemsHtml += `\n    <tr>\n      <td style=\"padding: 15px 10px; border-bottom: 1px solid #eeeeee;\">\n        <strong>${item.deviceType}</strong>${serialInfo}\n      </td>\n      <td style=\"padding: 15px 10px; border-bottom: 1px solid #eeeeee; text-align: center;\">\n        ${item.quantityOrdered || item.units?.length || 1}\n      </td>\n    </tr>\n  `;\n}\n\nconst deliveryInfo = input.deliveryParty === 'Technician' \n  ? `Technician: ${input.technician || 'N/A'}<br/>Region: ${input.region || 'N/A'}`\n  : input.deliveryParty === 'Regional Warehouse'\n  ? `Regional Warehouse: ${input.region || 'N/A'}`\n  : `Recipient: ${input.recipientName || 'N/A'}<br/>Company: ${input.recipientCompanyName || 'N/A'}`;\n\nreturn [{\n  json: {\n    orderId: input.orderId,\n    dateOrdered: input.dateOrdered,\n    orderedBy: input.orderedBy,\n    orderedByEmail: input.onBehalfOf || input.orderedBy,\n    deliveryParty: input.deliveryParty,\n    totalItems: input.totalItems || input.items?.length || 0,\n    totalQuantity: input.totalQuantity,\n    itemsHtml: itemsHtml,\n    deliveryInfo: deliveryInfo,\n    pickedBy: input.metadata?.pickerEmail || 'Warehouse Team'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, 240],
+      "id": "format-data",
+      "name": "Format Email Data"
+    },
+    {
+      "parameters": {
+        "fromEmail": "admin@4danalytics.co.za",
+        "toEmail": "={{ $json.orderedByEmail }}",
+        "subject": "Order {{ $json.orderId }} - Picked and Ready",
+        "emailFormat": "html",
+        "html": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>\n</head>\n<body style=\"font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;\">\n  <table width=\"600\" style=\"background-color: #ffffff; border-radius: 8px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1);\">\n    <!-- Header -->\n    <tr>\n      <td style=\"background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; text-align: center; border-radius: 8px 8px 0 0;\">\n        <h1 style=\"margin: 0; color: #ffffff; font-size: 28px;\">✓ Order Picked</h1>\n      </td>\n    </tr>\n    \n    <!-- Body -->\n    <tr>\n      <td style=\"padding: 40px 30px;\">\n        <p style=\"font-size: 16px; color: #333; margin-top: 0;\">Hello,</p>\n        <p style=\"font-size: 16px; color: #333;\">Great news! Your order has been picked and is ready for dispatch.</p>\n        \n        <!-- Order Details Box -->\n        <table width=\"100%\" style=\"background-color: #f0fdf4; border-radius: 6px; margin: 25px 0; border-left: 4px solid #10b981;\">\n          <tr>\n            <td style=\"padding: 20px;\">\n              <p style=\"margin: 8px 0; color: #333; font-size: 14px;\"><strong>Order Number:</strong> {{ $json.orderId }}</p>\n              <p style=\"margin: 8px 0; color: #333; font-size: 14px;\"><strong>Date Ordered:</strong> {{ $json.dateOrdered }}</p>\n              <p style=\"margin: 8px 0; color: #333; font-size: 14px;\"><strong>Picked By:</strong> {{ $json.pickedBy }}</p>\n              <p style=\"margin: 8px 0; color: #333; font-size: 14px;\"><strong>Total Items:</strong> {{ $json.totalItems }}</p>\n            </td>\n          </tr>\n        </table>\n        \n        <!-- Items Section -->\n        <h3 style=\"color: #333; margin-top: 30px; margin-bottom: 15px;\">Picked Items</h3>\n        <table width=\"100%\" style=\"background-color: #f8f9fa; border-radius: 6px; overflow: hidden;\">\n          <thead>\n            <tr style=\"background-color: #e5e7eb;\">\n              <th style=\"padding: 12px 10px; text-align: left; color: #374151; font-size: 13px;\">Item</th>\n              <th style=\"padding: 12px 10px; text-align: center; color: #374151; font-size: 13px;\">Quantity</th>\n            </tr>\n          </thead>\n          <tbody>\n            {{ $json.itemsHtml }}\n          </tbody>\n        </table>\n        \n        <!-- Delivery Info -->\n        <h3 style=\"color: #333; margin-top: 30px; margin-bottom: 15px;\">Delivery Information</h3>\n        <div style=\"background-color: #f8f9fa; border-radius: 6px; padding: 20px;\">\n          <p style=\"margin: 0; font-size: 14px; color: #555; line-height: 1.6;\">{{ $json.deliveryInfo }}</p>\n        </div>\n        \n        <p style=\"font-size: 14px; color: #666; margin-top: 30px; margin-bottom: 0;\">Your order will be dispatched shortly. You'll receive another notification with tracking information.</p>\n      </td>\n    </tr>\n    \n    <!-- Footer -->\n    <tr>\n      <td style=\"background-color: #f8f9fa; padding: 25px; text-align: center; border-radius: 0 0 8px 8px;\">\n        <p style=\"color: #999999; font-size: 13px; margin: 0;\">4D Analytics Inventory Management System</p>\n        <p style=\"color: #999999; font-size: 12px; margin: 8px 0 0 0;\">This is an automated message, please do not reply.</p>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [120, 240],
+      "id": "send-email",
+      "name": "Send Email",
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Order picked notification sent\", \"orderId\": $json.orderId } }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [400, 240]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Email Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email Data": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "notes": "Clean version - Only handles email notifications. No database operations. Dispatch log entries are created by the app."
+  }
+}
