@@ -21,13 +21,11 @@ export type DispatchMethodEnum = 'Courier' | 'Collection' | 'Internal Transfer';
 // Database row types
 export interface InventoryCatalogRow {
   id: string;
-  device_type: string;
+  item_name: string; // Schema uses item_name, not device_type
   item_description: string | null;
   item_category: ItemCategoryEnum;
   item_nature: ItemNatureEnum;
   item_url: string | null;
-  thumbnail_url: string | null;
-  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -194,10 +192,9 @@ export const inventoryCatalogService = {
     search?: string;
   }): Promise<InventoryCatalogRow[]> {
     let query = supabase
-      .from('inventory_catalog')
+      .from('inventory_items')
       .select('*')
-      .eq('is_active', true)
-      .order('device_type', { ascending: true });
+      .order('item_name', { ascending: true });
 
     if (filters?.category) {
       query = query.eq('item_category', filters.category);
@@ -208,7 +205,7 @@ export const inventoryCatalogService = {
     }
 
     if (filters?.search) {
-      query = query.or(`device_type.ilike.%${filters.search}%,item_description.ilike.%${filters.search}%`);
+      query = query.or(`item_name.ilike.%${filters.search}%,item_description.ilike.%${filters.search}%`);
     }
 
     const { data, error } = await query;
@@ -219,9 +216,8 @@ export const inventoryCatalogService = {
 
   async getCategories(): Promise<ItemCategoryEnum[]> {
     const { data, error } = await supabase
-      .from('inventory_catalog')
-      .select('item_category')
-      .eq('is_active', true);
+      .from('inventory_items')
+      .select('item_category');
 
     if (error) throw error;
 
@@ -234,9 +230,8 @@ export const inventoryCatalogService = {
 
   async getNaturesByCategory(category?: ItemCategoryEnum): Promise<ItemNatureEnum[]> {
     let query = supabase
-      .from('inventory_catalog')
-      .select('item_nature')
-      .eq('is_active', true);
+      .from('inventory_items')
+      .select('item_nature');
 
     if (category) {
       query = query.eq('item_category', category);
@@ -253,7 +248,7 @@ export const inventoryCatalogService = {
 
   async getById(id: string): Promise<InventoryCatalogRow | null> {
     const { data, error } = await supabase
-      .from('inventory_catalog')
+      .from('inventory_items')
       .select('*')
       .eq('id', id)
       .single();
