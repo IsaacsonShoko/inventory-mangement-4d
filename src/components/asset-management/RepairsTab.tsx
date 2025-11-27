@@ -63,8 +63,8 @@ const faultCategories: FaultCategoryEnum[] = [
 export function RepairsTab() {
   // Filters state
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [faultFilter, setFaultFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [faultFilter, setFaultFilter] = useState<string | undefined>(undefined);
 
   // Detail view
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
@@ -90,8 +90,8 @@ export function RepairsTab() {
 
   const clearFilters = () => {
     setSearch('');
-    setStatusFilter('');
-    setFaultFilter('');
+    setStatusFilter(undefined);
+    setFaultFilter(undefined);
   };
 
   // Filter tickets by search
@@ -183,24 +183,24 @@ export function RepairsTab() {
               />
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value === 'all' ? undefined : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 {statuses.map((status) => (
                   <SelectItem key={status} value={status}>{status}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={faultFilter} onValueChange={setFaultFilter}>
+            <Select value={faultFilter} onValueChange={(value) => setFaultFilter(value === 'all' ? undefined : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Fault Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Fault Types</SelectItem>
+                <SelectItem value="all">All Fault Types</SelectItem>
                 {faultCategories.map((fault) => (
                   <SelectItem key={fault} value={fault}>{fault}</SelectItem>
                 ))}

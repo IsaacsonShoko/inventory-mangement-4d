@@ -824,8 +824,15 @@ const PickingCartNew = () => {
                         id="qrScan"
                         value={qrScanInput}
                         onChange={(e) => handleQrScanChange(e.target.value)}
+                        onFocus={(e) => e.target.select()}
                         placeholder="Scan QR code or enter: ItemCode,SerialNumber"
                         className="font-mono"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        inputMode="text"
+                        data-1p-ignore
                       />
                       <p className="text-xs text-muted-foreground">
                         Format: ItemCode,CashConnectSerial (e.g., ABC123,SN456789)
@@ -839,7 +846,14 @@ const PickingCartNew = () => {
                           id="itemCode"
                           value={formData.itemCode || ''}
                           onChange={(e) => setFormData({ ...formData, itemCode: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           placeholder="Auto-populated from scan"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                          inputMode="text"
+                          data-1p-ignore
                         />
                       </div>
 
@@ -849,7 +863,14 @@ const PickingCartNew = () => {
                           id="cashConnectSerial"
                           value={formData.cashConnectSerialNumber || ''}
                           onChange={(e) => setFormData({ ...formData, cashConnectSerialNumber: e.target.value })}
+                          onFocus={(e) => e.target.select()}
                           placeholder="Auto-populated from scan"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                          inputMode="text"
+                          data-1p-ignore
                         />
                       </div>
                     </div>
@@ -873,7 +894,14 @@ const PickingCartNew = () => {
                         id="itemCode"
                         value={formData.itemCode || ''}
                         onChange={(e) => setFormData({ ...formData, itemCode: e.target.value })}
+                        onFocus={(e) => e.target.select()}
                         placeholder="Scan barcode or enter item code"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        inputMode="text"
+                        data-1p-ignore
                       />
                     </div>
 
@@ -883,7 +911,14 @@ const PickingCartNew = () => {
                         id="terminalSerial"
                         value={formData.terminalSerialNumber || ''}
                         onChange={(e) => setFormData({ ...formData, terminalSerialNumber: e.target.value })}
+                        onFocus={(e) => e.target.select()}
                         placeholder="Scan or enter serial number"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        inputMode="text"
+                        data-1p-ignore
                       />
                     </div>
 
@@ -893,7 +928,14 @@ const PickingCartNew = () => {
                         id="cradleSerial"
                         value={formData.cradleSerialNumber || ''}
                         onChange={(e) => setFormData({ ...formData, cradleSerialNumber: e.target.value })}
+                        onFocus={(e) => e.target.select()}
                         placeholder="Scan or enter cradle serial"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        inputMode="text"
+                        data-1p-ignore
                       />
                     </div>
                   </>
@@ -941,6 +983,13 @@ const PickingCartNew = () => {
                       id="chargerSerial"
                       value={formData.chargerSerialNumber || ''}
                       onChange={(e) => setFormData({ ...formData, chargerSerialNumber: e.target.value })}
+                      onFocus={(e) => e.target.select()}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck="false"
+                      inputMode="text"
+                      data-1p-ignore
                     />
                   </div>
                 )}

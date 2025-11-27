@@ -574,12 +574,19 @@ function StockIngestionContent() {
                     onChange={(e) => setSerialInput(e.target.value)}
                     onKeyDown={handleSerialInput}
                     onPaste={handlePaste}
+                    onFocus={(e) => e.target.select()}
                     placeholder={
                       isCashConnect
                         ? 'Scan QR: ItemCode,Serial or paste multiple'
                         : 'Enter serial and press Enter (or paste multiple)'
                     }
                     className="font-mono"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    inputMode="text"
+                    data-1p-ignore
                   />
                   <p className="text-xs text-muted-foreground">
                     Press Enter to add each serial. Auto-fills device metadata.
@@ -594,7 +601,14 @@ function StockIngestionContent() {
                       <Input
                         value={cradleSerial}
                         onChange={(e) => setCradleSerial(e.target.value)}
+                        onFocus={(e) => e.target.select()}
                         placeholder="Cradle serial"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        inputMode="text"
+                        data-1p-ignore
                       />
                     </div>
                     <div className="space-y-2">
@@ -602,7 +616,14 @@ function StockIngestionContent() {
                       <Input
                         value={chargerSerial}
                         onChange={(e) => setChargerSerial(e.target.value)}
+                        onFocus={(e) => e.target.select()}
                         placeholder="Charger serial"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        inputMode="text"
+                        data-1p-ignore
                       />
                     </div>
                   </div>

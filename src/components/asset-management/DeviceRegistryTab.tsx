@@ -40,9 +40,9 @@ const statusColors: Record<DeviceStatusEnum, string> = {
 export function DeviceRegistryTab() {
   // Filters state
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [deviceTypeFilter, setDeviceTypeFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [categoryFilter, setCategoryFilter] = useState<string | undefined>(undefined);
+  const [deviceTypeFilter, setDeviceTypeFilter] = useState<string | undefined>(undefined);
 
   // Detail view
   const [selectedDevice, setSelectedDevice] = useState<DeviceRegistry | null>(null);
@@ -72,9 +72,9 @@ export function DeviceRegistryTab() {
 
   const clearFilters = () => {
     setSearch('');
-    setStatusFilter('');
-    setCategoryFilter('');
-    setDeviceTypeFilter('');
+    setStatusFilter(undefined);
+    setCategoryFilter(undefined);
+    setDeviceTypeFilter(undefined);
   };
 
   if (isLoading) {
@@ -107,36 +107,36 @@ export function DeviceRegistryTab() {
               />
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value === 'all' ? undefined : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 {statuses.map((status) => (
                   <SelectItem key={status} value={status}>{status}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value === 'all' ? undefined : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 {categories?.map((cat) => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={deviceTypeFilter} onValueChange={setDeviceTypeFilter}>
+            <Select value={deviceTypeFilter} onValueChange={(value) => setDeviceTypeFilter(value === 'all' ? undefined : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="All Device Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Device Types</SelectItem>
+                <SelectItem value="all">All Device Types</SelectItem>
                 {deviceTypes?.map((type) => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
