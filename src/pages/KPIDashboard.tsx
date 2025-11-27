@@ -122,6 +122,12 @@ const KPIDashboard = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth.toString());
   const [filterMode, setFilterMode] = useState<'all' | 'year' | 'month'>('all');
 
+  // Business Line filter state
+  const [selectedBusinessLine, setSelectedBusinessLine] = useState<string>('all');
+
+  // Business Line options
+  const businessLineOptions = ['Accessories', 'Absa', 'Cash Connect', 'Modems', 'Sim Management', 'VPS', 'Other'];
+
   // Generate year options (last 5 years)
   const yearOptions = useMemo(() => {
     const years = [];
@@ -192,38 +198,62 @@ const KPIDashboard = () => {
     staleTime: 60 * 1000,
   });
 
+  // Fetch repair tickets for fault analysis
+  const { data: repairTickets = [], isLoading: repairTicketsLoading } = useQuery({
+    queryKey: ['repairTicketsKPI'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('repair_tickets')
+        .select('id, fault_category, status, created_at, device_id')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60 * 1000,
+  });
+
   const { data: pickingQueue = [], isLoading: pickingLoading } = usePickingQueue();
   const { data: dispatchQueue = [], isLoading: dispatchQueueLoading } = useDispatchQueue();
 
-  const isLoading = ordersLoading || stockLoading || dispatchLoading || stockLevelsLoading || pickingLoading || dispatchQueueLoading;
+  const isLoading = ordersLoading || stockLoading || dispatchLoading || stockLevelsLoading || pickingLoading || dispatchQueueLoading || repairTicketsLoading;
   const isFetching = ordersFetching;
 
-  // Filter orders based on date selection
+  // Filter orders based on date selection AND business line
   const filteredOrders = useMemo(() => {
-    if (filterMode === 'all') return allOrders;
+    let orders = allOrders;
 
-    return allOrders.filter(order => {
-      if (!order.date_ordered) return false;
-      try {
-        const orderDate = parseISO(order.date_ordered);
-        const year = parseInt(selectedYear);
-        const month = parseInt(selectedMonth);
+    // Apply date filter
+    if (filterMode !== 'all') {
+      orders = orders.filter(order => {
+        if (!order.date_ordered) return false;
+        try {
+          const orderDate = parseISO(order.date_ordered);
+          const year = parseInt(selectedYear);
+          const month = parseInt(selectedMonth);
 
-        if (filterMode === 'year') {
-          const yearStart = startOfYear(new Date(year, 0, 1));
-          const yearEnd = endOfYear(new Date(year, 0, 1));
-          return isWithinInterval(orderDate, { start: yearStart, end: yearEnd });
-        } else if (filterMode === 'month') {
-          const monthStart = startOfMonth(new Date(year, month - 1, 1));
-          const monthEnd = endOfMonth(new Date(year, month - 1, 1));
-          return isWithinInterval(orderDate, { start: monthStart, end: monthEnd });
+          if (filterMode === 'year') {
+            const yearStart = startOfYear(new Date(year, 0, 1));
+            const yearEnd = endOfYear(new Date(year, 0, 1));
+            return isWithinInterval(orderDate, { start: yearStart, end: yearEnd });
+          } else if (filterMode === 'month') {
+            const monthStart = startOfMonth(new Date(year, month - 1, 1));
+            const monthEnd = endOfMonth(new Date(year, month - 1, 1));
+            return isWithinInterval(orderDate, { start: monthStart, end: monthEnd });
+          }
+          return true;
+        } catch {
+          return false;
         }
-        return true;
-      } catch {
-        return false;
-      }
-    });
-  }, [allOrders, filterMode, selectedYear, selectedMonth]);
+      });
+    }
+
+    // Apply business line filter
+    if (selectedBusinessLine !== 'all') {
+      orders = orders.filter(order => order.item_category === selectedBusinessLine);
+    }
+
+    return orders;
+  }, [allOrders, filterMode, selectedYear, selectedMonth, selectedBusinessLine]);
 
   // Filter dispatch logs based on date selection
   const filteredDispatchLogs = useMemo(() => {
@@ -527,6 +557,37 @@ const KPIDashboard = () => {
       total: stockAlerts.length,
     };
 
+    // Fault Analysis (from repair tickets)
+    const faultsByCategory = repairTickets.reduce((acc, ticket) => {
+      const category = ticket.fault_category || 'Unknown';
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const totalFaults = repairTickets.length;
+    const activeFaults = repairTickets.filter(t =>
+      ['Reported', 'Assessing', 'In-Repair', 'Quality-Check'].includes(t.status)
+    ).length;
+    const resolvedFaults = repairTickets.filter(t =>
+      ['Repaired', 'Returned'].includes(t.status)
+    ).length;
+
+    // Business Line Breakdown (for comparison)
+    const ordersByBusinessLine = filteredOrders.reduce((acc, order) => {
+      const line = order.item_category || 'Unknown';
+      if (!acc[line]) {
+        acc[line] = { total: 0, dispatched: 0, pending: 0, fulfilled: 0 };
+      }
+      acc[line].total += 1;
+      if (order.dispatch_status === 'Dispatched') {
+        acc[line].dispatched += 1;
+        acc[line].fulfilled += 1;
+      } else if (order.dispatch_status === 'Pending') {
+        acc[line].pending += 1;
+      }
+      return acc;
+    }, {} as Record<string, { total: number; dispatched: number; pending: number; fulfilled: number }>);
+
     return {
       // Summary
       totalOrders,
@@ -584,8 +645,17 @@ const KPIDashboard = () => {
       // Stock Alerts
       stockAlerts,
       alertCounts,
+
+      // Fault Analysis
+      faultsByCategory,
+      totalFaults,
+      activeFaults,
+      resolvedFaults,
+
+      // Business Line Breakdown
+      ordersByBusinessLine,
     };
-  }, [filteredOrders, filteredDispatchLogs, pickingQueue, dispatchQueue, stockLevels]);
+  }, [filteredOrders, filteredDispatchLogs, pickingQueue, dispatchQueue, stockLevels, repairTickets]);
 
   const handleRefresh = () => {
     refetchOrders();
@@ -671,95 +741,132 @@ const KPIDashboard = () => {
       </header>
 
       <main className="container px-4 py-6">
-        {/* Date Filters */}
+        {/* Filters */}
         <Card className="mb-6">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Filter className="h-5 w-5" />
-                Date Filter
+                Filters
               </CardTitle>
-              <Badge variant="secondary">{filterDescription}</Badge>
+              <div className="flex gap-2">
+                {selectedBusinessLine !== 'all' && (
+                  <Badge variant="outline">Business Line: {selectedBusinessLine}</Badge>
+                )}
+                <Badge variant="secondary">{filterDescription}</Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label>Filter Mode</Label>
-                <Select value={filterMode} onValueChange={(value: 'all' | 'year' | 'month') => setFilterMode(value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select filter mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Time</SelectItem>
-                    <SelectItem value="year">By Year</SelectItem>
-                    <SelectItem value="month">By Month</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4">
+              {/* Business Line Filter */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2 md:col-span-4">
+                  <Label>Business Line</Label>
+                  <Select value={selectedBusinessLine} onValueChange={setSelectedBusinessLine}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select business line" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Business Lines</SelectItem>
+                      {businessLineOptions.map((line) => (
+                        <SelectItem key={line} value={line}>
+                          {line}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              {(filterMode === 'year' || filterMode === 'month') && (
+              {/* Date Filter */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label>Year</Label>
-                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <Label>Date Filter Mode</Label>
+                  <Select value={filterMode} onValueChange={(value: 'all' | 'year' | 'month') => setFilterMode(value)}>
                     <SelectTrigger>
-                      <Calendar className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Select year" />
+                      <SelectValue placeholder="Select filter mode" />
                     </SelectTrigger>
                     <SelectContent>
-                      {yearOptions.map((year) => (
-                        <SelectItem key={year} value={year}>
-                          {year}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="year">By Year</SelectItem>
+                      <SelectItem value="month">By Month</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )}
 
-              {filterMode === 'month' && (
-                <div className="space-y-2">
-                  <Label>Month</Label>
-                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger>
-                      <Calendar className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Select month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {monthOptions.map((month) => (
-                        <SelectItem key={month.value} value={month.value}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {(filterMode === 'year' || filterMode === 'month') && (
+                  <div className="space-y-2">
+                    <Label>Year</Label>
+                    <Select value={selectedYear} onValueChange={setSelectedYear}>
+                      <SelectTrigger>
+                        <Calendar className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {yearOptions.map((year) => (
+                          <SelectItem key={year} value={year}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {filterMode === 'month' && (
+                  <div className="space-y-2">
+                    <Label>Month</Label>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                      <SelectTrigger>
+                        <Calendar className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {monthOptions.map((month) => (
+                          <SelectItem key={month.value} value={month.value}>
+                            {month.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setFilterMode('all');
+                      setSelectedYear(currentYear.toString());
+                      setSelectedMonth(currentMonth.toString());
+                      setSelectedBusinessLine('all');
+                    }}
+                  >
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Reset All
+                  </Button>
                 </div>
-              )}
-
-              <div className="flex items-end">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setFilterMode('all');
-                    setSelectedYear(currentYear.toString());
-                    setSelectedMonth(currentMonth.toString());
-                  }}
-                >
-                  <RefreshCcw className="mr-2 h-4 w-4" />
-                  Reset
-                </Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 lg:w-auto lg:inline-flex">
+            <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 lg:w-auto lg:inline-flex">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
               <TabsTrigger value="performance">Performance</TabsTrigger>
               <TabsTrigger value="devices">Devices</TabsTrigger>
+              <TabsTrigger value="repairs" className="relative">
+                Repairs
+                {kpis.activeFaults > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-orange-500 text-[10px] text-white flex items-center justify-center">
+                    {kpis.activeFaults > 9 ? '9+' : kpis.activeFaults}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="alerts" className="relative">
                 Alerts
                 {kpis.alertCounts.total > 0 && (
@@ -945,6 +1052,59 @@ const KPIDashboard = () => {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Business Line Comparison */}
+              {selectedBusinessLine === 'all' && Object.keys(kpis.ordersByBusinessLine).length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Business Line Performance
+                    </CardTitle>
+                    <CardDescription>Order fulfillment metrics by business line</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {Object.entries(kpis.ordersByBusinessLine)
+                        .sort(([,a], [,b]) => b.total - a.total)
+                        .map(([line, metrics]) => {
+                          const fulfillmentRate = metrics.total > 0 ? (metrics.fulfilled / metrics.total) * 100 : 0;
+                          return (
+                            <div key={line} className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{line}</span>
+                                  <Badge variant="outline">{metrics.total} orders</Badge>
+                                </div>
+                                <div className="flex items-center gap-4 text-sm">
+                                  <div className="flex items-center gap-1">
+                                    <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                    <span>{metrics.dispatched}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3 text-amber-500" />
+                                    <span>{metrics.pending}</span>
+                                  </div>
+                                  <span className={`font-medium ${fulfillmentRate < 70 ? 'text-red-600' : fulfillmentRate < 85 ? 'text-amber-600' : 'text-green-600'}`}>
+                                    {fulfillmentRate.toFixed(1)}%
+                                  </span>
+                                </div>
+                              </div>
+                              <Progress
+                                value={fulfillmentRate}
+                                className={`h-2 ${
+                                  fulfillmentRate < 70 ? '[&>div]:bg-red-500' :
+                                  fulfillmentRate < 85 ? '[&>div]:bg-amber-500' :
+                                  '[&>div]:bg-green-500'
+                                }`}
+                              />
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             {/* Pipeline Tab */}
@@ -1113,6 +1273,160 @@ const KPIDashboard = () => {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            {/* Repairs Tab */}
+            <TabsContent value="repairs" className="space-y-6">
+              {/* Repair Summary */}
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Faults</CardTitle>
+                    <Wrench className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{kpis.totalFaults}</div>
+                    <p className="text-xs text-muted-foreground">All repair tickets</p>
+                  </CardContent>
+                </Card>
+
+                <Card className={kpis.activeFaults > 0 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : ''}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Active Faults</CardTitle>
+                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-600">{kpis.activeFaults}</div>
+                    <p className="text-xs text-muted-foreground">Needs attention</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Resolved</CardTitle>
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">{kpis.resolvedFaults}</div>
+                    <p className="text-xs text-muted-foreground">Completed repairs</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Resolution Rate</CardTitle>
+                    <Target className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold ${kpis.totalFaults > 0 && (kpis.resolvedFaults / kpis.totalFaults * 100) < 70 ? 'text-red-600' : 'text-green-600'}`}>
+                      {kpis.totalFaults > 0 ? ((kpis.resolvedFaults / kpis.totalFaults) * 100).toFixed(1) : 0}%
+                    </div>
+                    <Progress value={kpis.totalFaults > 0 ? (kpis.resolvedFaults / kpis.totalFaults) * 100 : 0} className="mt-2" />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Fault Categories Visualization */}
+              {Object.keys(kpis.faultsByCategory).length > 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-600">
+                      <Wrench className="h-5 w-5" />
+                      Fault Categories - Resource Planning
+                    </CardTitle>
+                    <CardDescription>
+                      Distribution of device faults by category. Use this to allocate repair resources and identify training needs for support technicians.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {Object.entries(kpis.faultsByCategory)
+                        .sort(([,a], [,b]) => b - a)
+                        .map(([category, count]) => {
+                          const percentage = kpis.totalFaults > 0 ? (count / kpis.totalFaults) * 100 : 0;
+                          return (
+                            <div key={category} className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Wrench className={`h-4 w-4 ${
+                                    percentage > 20 ? 'text-red-500' :
+                                    percentage > 10 ? 'text-orange-500' :
+                                    'text-yellow-500'
+                                  }`} />
+                                  <span className="text-sm font-medium">{category}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</span>
+                                  <Badge variant={percentage > 20 ? 'destructive' : percentage > 10 ? 'default' : 'secondary'}>
+                                    {count}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <Progress
+                                value={percentage}
+                                className={`h-2 ${
+                                  percentage > 20 ? '[&>div]:bg-red-500' :
+                                  percentage > 10 ? '[&>div]:bg-orange-500' :
+                                  '[&>div]:bg-yellow-500'
+                                }`}
+                              />
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+                  <CardContent className="pt-6 text-center">
+                    <ThumbsUp className="h-12 w-12 mx-auto text-green-500 mb-4" />
+                    <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">No Repair Tickets</h3>
+                    <p className="text-sm text-green-600 dark:text-green-500 mt-1">
+                      No device faults have been reported
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Resource Recommendations */}
+              {Object.keys(kpis.faultsByCategory).length > 0 && (
+                <div className="grid gap-4 md:grid-cols-3">
+                  {Object.entries(kpis.faultsByCategory)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 3)
+                    .map(([category, count], index) => {
+                      const percentage = kpis.totalFaults > 0 ? (count / kpis.totalFaults) * 100 : 0;
+                      const priority = index === 0 ? 'High' : index === 1 ? 'Medium' : 'Standard';
+                      return (
+                        <Card key={category} className={`${
+                          index === 0 ? 'border-red-200 bg-red-50 dark:bg-red-950/20' :
+                          index === 1 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' :
+                          'border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20'
+                        }`}>
+                          <CardHeader>
+                            <CardTitle className="text-sm flex items-center justify-between">
+                              <span className="truncate">{category}</span>
+                              <Badge variant={index === 0 ? 'destructive' : 'secondary'}>
+                                {priority} Priority
+                              </Badge>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-3xl font-bold mb-2">{count}</div>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {percentage.toFixed(1)}% of all faults
+                            </p>
+                            <p className="text-xs font-medium">
+                              {index === 0 && '⚠️ Allocate specialized repair resources'}
+                              {index === 1 && '📊 Monitor and provide training'}
+                              {index === 2 && '✓ Standard repair procedures'}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                </div>
+              )}
             </TabsContent>
 
             {/* Devices Tab */}

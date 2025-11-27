@@ -24,7 +24,9 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 - **Order Management**: Create, track, and fulfill customer orders
 - **Warehouse Operations**: Picking queues, dispatch workflows, and manifest generation
 - **Stock Tracking**: Real-time inventory counts with barcode/QR scanning
-- **Analytics & KPIs**: Performance metrics, SLA compliance, and operational dashboards
+- **Asset Management**: Complete device lifecycle tracking with repair and DOA workflows
+- **DOA & RMA Processing**: Streamlined dead-on-arrival logging and supplier return management
+- **Analytics & KPIs**: Performance metrics, SLA compliance, fault analysis, and operational dashboards with business line filtering
 - **User Management**: Role-based access control with approval workflows
 - **Offline Support**: Continue working without internet connectivity
 
@@ -83,6 +85,42 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 - Filter counts by user, period, or count type
 - Export stock count reports for auditing
 - Monitor inventory accuracy across locations
+
+#### Asset Management & DOA Processing
+
+**As a warehouse receiving clerk**, I want to:
+- Quickly log DOA (Dead on Arrival) devices when receiving stock
+- Select the appropriate business line for scanning workflow
+- Scan QR codes for Cash Connect devices automatically
+- Scan individual serial numbers for ABSA/VPS/Accessories devices
+- Use my phone camera or USB scanner for serial capture
+- Record supplier information and purchase order details
+- Capture the date received and fault description
+- Have the system automatically create a repair ticket and mark device as faulty
+
+**As a back office staff member**, I want to:
+- View all DOA devices in one place
+- Search for specific devices by serial number
+- Filter DOA devices by RMA status
+- Initiate RMA (Return Merchandise Authorization) processes with suppliers
+- Track RMA numbers and expected resolution dates
+- Add supplier communication notes
+- Monitor RMA status progression (Pending → Shipped → Received → Resolved)
+
+**As a repair technician**, I want to:
+- View all repair tickets organized by status
+- See detailed fault information including DOA flags
+- Track which devices are with suppliers for RMA
+- Update repair status as I work through tickets
+- Access device history and previous repair records
+
+**As an operations manager**, I want to:
+- View fault analytics and repair metrics on the KPI dashboard
+- Identify top fault categories for resource planning
+- Monitor DOA rates by supplier and business line
+- Track repair resolution rates and times
+- Use fault data to negotiate with suppliers
+- Plan repair resource allocation based on fault volume
 
 ### Warehouse Operations
 
@@ -217,12 +255,13 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 **Features**:
 - Welcome message with user name
 - Two organized sections:
-  - **Field Operations**: Stock Order, Stock Counts, Asset Management, Tracking
+  - **Field Operations**: Stock Order, Stock Counts, Asset Management (Active), Tracking
   - **Admin Workspace**: Picking Queue, Dispatching Queue, Point of Presence, Stock Alerts
 - Status badges showing Active/Coming Soon features
-- Quick access to Exceptions Dashboard
+- Quick access to KPI Dashboard and Exceptions Dashboard
 - Theme toggle (Light/Dark mode)
 - Responsive grid layout
+- Role-based navigation (shows appropriate modules based on user role)
 
 **Navigation Path**: `/`
 
@@ -468,9 +507,47 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 
 ### 7. KPI Dashboard
 
-**Purpose**: Comprehensive metrics tracking and performance monitoring
+**Purpose**: Comprehensive metrics tracking and performance monitoring with business intelligence
 
 **Features**:
+
+#### Multi-Tab Dashboard Organization
+
+**Overview Tab**:
+- High-level operational metrics
+- Order fulfillment summary
+- Real-time queue status
+- SLA compliance overview
+
+**Orders Tab**:
+- Detailed order lifecycle metrics
+- Business line performance comparison
+- Cycle time analysis by business line
+- Fulfillment rate tracking
+
+**Stock Tab**:
+- Inventory availability metrics
+- Stock alert monitoring
+- Fill rate calculations
+- Warehouse-level stock status
+
+**Repairs Tab** (NEW):
+- **Fault Analysis Metrics**:
+  - Total faults count
+  - Active faults (Reported, Assessing, In-Repair, Quality-Check)
+  - Resolved faults (Repaired, Returned)
+  - Resolution rate percentage
+
+- **Fault Categories Visualization**:
+  - 18 fault categories with color-coded progress bars
+  - Top fault categories highlighted
+  - Fault count and percentage distribution
+
+- **Resource Planning Recommendations**:
+  - Top 3 fault categories identified
+  - Priority levels (High/Medium/Low) based on fault volume
+  - Resource allocation suggestions
+  - Repair workflow optimization insights
 
 #### Order Lifecycle Metrics
 - Total orders count
@@ -480,10 +557,23 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 - Cancelled orders (count and percentage)
 - Fulfillment rate calculation
 
+#### Business Line Performance (NEW)
+- **Business Line Filter**:
+  - Filter all metrics by specific business line
+  - Options: All, Cash Connect, ABSA, VPS, Accessories, Modems, Sim Management
+  - Real-time metric updates on selection
+
+- **Business Line Breakdown**:
+  - Total orders per business line
+  - Dispatched vs pending comparison
+  - Fulfillment rates per business line
+  - Performance comparison visualization
+
 #### Cycle Time Analysis
 - Average cycle time in hours
 - Order to dispatch duration
 - Breakdown by business line
+- Time-to-fulfillment trends
 
 #### SLA Compliance
 - SLA rules:
@@ -535,6 +625,7 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 - Year selection
 - Month selection
 - All-time view
+- Business line filter (NEW)
 - Auto-refresh capability
 
 **Navigation Path**: `/kpi`
@@ -577,19 +668,85 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 
 ---
 
-### 9. Coming Soon Modules
+### 9. Asset Management Module
 
-The following modules are planned but not yet implemented:
+**Purpose**: Complete device lifecycle tracking with repair and DOA management
 
-#### Asset Management
-**Purpose**: Track serialized hardware across lifecycles
-**Planned Features**:
-- Asset registration and tracking
-- Lifecycle status management
-- Maintenance scheduling
-- Depreciation tracking
+**Features**:
+
+#### Device Registry Tab
+- Comprehensive device tracking with serial numbers
+- Device status management (Available, In Use, Faulty, In Repair, etc.)
+- Device type categorization by business line
+- Serial number search and filtering
+- Device history and audit trail
+
+#### Repairs Tab
+- Complete repair ticket workflow:
+  - Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
+- 18 fault categories including:
+  - Dead On Arrival
+  - Screen Damaged
+  - Battery Issues
+  - Software Faults
+  - Hardware Failures
+- Fault description capture
+- Repair assessment notes
+- Status tracking and updates
+- Technician assignment
+
+#### DOA/Returns Tab
+- **Summary Cards**:
+  - Total DOA devices count
+  - RMA status breakdown (Pending, Shipped, Received, Resolved)
+
+- **Log DOA Device Workflow**:
+  - Business line selection (Cash Connect, ABSA, VPS, Accessories, Modems)
+  - Business line-specific scanning:
+    - **Cash Connect**: QR code parsing (comma-separated format)
+    - **Other lines**: Individual serial fields (Manufacture, Xlink, Cradle, Charger)
+  - Mobile camera scanning with barcode/QR support
+  - USB scanner optimization (auto-complete disabled, auto-select on focus)
+  - Supplier and purchase order capture
+  - Date received tracking
+  - Fault description entry
+  - Automatic device status update to "Faulty"
+  - Creates repair ticket with "Dead On Arrival" category
+
+- **RMA Initiation**:
+  - RMA number assignment
+  - RMA date tracking
+  - Expected resolution date
+  - Supplier notes and communication tracking
+  - RMA status progression:
+    - Pending → Shipped → Received by Supplier → Replaced/Refunded/Rejected
+
+- **Device Search & Filtering**:
+  - Search by serial number
+  - Filter by RMA status
+  - Searchable table with all DOA devices
+  - View complete DOA history
+
+#### Movements Tab
+- Device location tracking
+- Movement history and audit trail
+- Transfer records between locations
+- Assignment to technicians or warehouses
+
+**Scanning Consistency**:
+All scanning workflows use identical patterns:
+- Cash Connect: QR code parsing with comma-counting logic
+- Other Business Lines: Manufacture + Xlink + Cradle + Charger serial capture
+- USB Scanner Optimizations: 7 input attributes for optimal scanning
+- Mobile Camera Support: BarcodeScanner component integration
 
 **Navigation Path**: `/asset-management`
+
+---
+
+### 10. Coming Soon Modules
+
+The following modules are planned but not yet implemented:
 
 #### Tracking
 **Purpose**: Monitor shipments and delivery milestones
@@ -1223,28 +1380,45 @@ VITE_N8N_ORDER_MANIFEST_WEBHOOK_URL=...
 
 ## Summary
 
-The 4D Analytics Inventory Management System provides a complete solution for managing inventory operations from order creation through delivery. Key highlights include:
+The 4D Analytics Inventory Management System provides a complete solution for managing inventory operations from order creation through delivery, with comprehensive asset lifecycle tracking and repair management. Key highlights include:
 
 **Active Features**:
 - Complete order-to-delivery workflow
-- Barcode/QR code scanning for stock counts
-- Real-time KPI dashboard with 20+ metrics
+- Asset Management with 4 integrated tabs:
+  - Device Registry with comprehensive tracking
+  - Repairs workflow with 18 fault categories
+  - DOA/Returns with RMA processing
+  - Device Movements tracking
+- Business line-specific scanning workflows (Cash Connect QR parsing + Multi-serial capture)
+- Barcode/QR code scanning for stock counts with mobile camera support
+- Enhanced KPI dashboard with:
+  - Business line filtering across all metrics
+  - Repairs tab with fault analysis and resource planning
+  - 30+ operational metrics
+  - Multi-tab organization (Overview, Orders, Stock, Repairs)
 - Role-based access control with approval workflow
 - Offline support for field operations
 - PDF manifest generation
 - N8N webhook integrations
+- USB scanner optimizations across all workflows
 
 **Coming Soon**:
-- Asset lifecycle management
 - Real-time shipment tracking
 - Automated stock alerts
 - Exception reporting dashboard
 - Technician roster management
 
+**Recent Enhancements (November 2024)**:
+- DOA (Dead on Arrival) device logging workflow
+- RMA (Return Merchandise Authorization) supplier return processing
+- Fault visualization with resource recommendations
+- Business line performance comparison
+- Unified scanning patterns across Stock Ingestion, Stock Counts, and DOA workflows
+
 The system is built on modern, scalable technology and designed to grow with your operations. All data is securely stored in Supabase with comprehensive audit trails and role-based access controls.
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: November 2024*
+*Document Version: 2.0*
+*Last Updated: November 27, 2024*
 *Prepared for: 4D Analytics Clients*
