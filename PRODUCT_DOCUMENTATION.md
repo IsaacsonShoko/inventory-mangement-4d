@@ -744,19 +744,145 @@ All scanning workflows use identical patterns:
 
 ---
 
-### 10. Coming Soon Modules
+### 10. Tracking Module
 
-The following modules are planned but not yet implemented:
+**Purpose**: Monitor shipments and delivery milestones with courier integration
 
-#### Tracking
-**Purpose**: Monitor shipments and delivery milestones
-**Planned Features**:
-- Real-time shipment tracking
-- Delivery milestone updates
-- ETA calculations
-- Customer notifications
+**Features**:
+- **Real-time Shipment Tracking**:
+  - Collivery API integration for courier tracking
+  - Waybill number search and validation
+  - Delivery status updates
+  - ETA calculations
+
+- **Timeline Visualization**:
+  - Order lifecycle timeline
+  - Key milestone tracking (Ordered → Picked → Dispatched → In Transit → Delivered)
+  - Status color coding
+  - Timestamp tracking for all events
+
+- **Order Search & Filtering**:
+  - Search by order ID or waybill number
+  - Filter by delivery status
+  - Filter by date range
+  - Multiple order tracking
+
+- **Delivery Details**:
+  - Recipient information display
+  - Delivery address tracking
+  - Courier service details
+  - Package references
 
 **Navigation Path**: `/tracking`
+
+---
+
+### 11. Point of Presence Module
+
+**Purpose**: Technician roster and regional management
+
+**Features**:
+- **Technician Directory**:
+  - Complete technician roster
+  - Search by name, ID, or contractor
+  - Filter by region
+  - Contact information management
+
+- **Regional Assignments**:
+  - Technician-to-region mapping
+  - Contractor company associations
+  - Regional coverage visualization
+  - Service area management
+
+- **Contact Management**:
+  - Email addresses
+  - Phone numbers
+  - Physical addresses
+  - GPS coordinates (latitude/longitude)
+
+- **Data Import/Export**:
+  - Bulk technician import
+  - CSV export functionality
+  - Data validation
+  - Duplicate prevention
+
+**Navigation Path**: `/point-of-presence`
+
+---
+
+### 12. Stock Ingestion Module
+
+**Purpose**: Register new devices into inventory with batch processing
+
+**Features**:
+- **Batch Information**:
+  - Receiving warehouse selection
+  - Supplier information
+  - Purchase order number tracking
+  - Date received capture
+  - Batch notes and documentation
+
+- **Device Entry**:
+  - Business line selection
+  - Device type gallery selection
+  - Item nature (Serialised/Non-serialised)
+  - Serial number entry with validation
+  - Cradle and charger serial capture
+
+- **Serial Number Processing**:
+  - Cash Connect QR code parsing
+  - Duplicate serial detection
+  - Real-time validation
+  - Bulk paste support (multiple serials)
+  - Auto-focus for rapid entry
+
+- **Batch Processing**:
+  - Process up to 4000+ devices per batch
+  - 100-device sub-batches for API optimization
+  - Progress tracking with percentage
+  - Success/failure count reporting
+  - Automatic movement record creation
+
+- **USB Scanner Optimization**:
+  - 7 input attributes for seamless scanning
+  - Auto-select on focus
+  - No autocomplete interference
+
+**Navigation Path**: `/stock-ingestion`
+
+---
+
+### 13. Product Catalog (Stock Admin)
+
+**Purpose**: Manage inventory item master data
+
+**Features**:
+- **Item Management**:
+  - Add new inventory items
+  - Edit existing item details
+  - Delete unused items
+  - Item activation/deactivation
+
+- **Item Details**:
+  - Item name and description
+  - Item code assignment
+  - Business line categorization
+  - Item nature (Serialised/Non-serialised)
+  - Product images and URLs
+
+- **Bulk Operations**:
+  - Import items from CSV
+  - Export catalog to CSV
+  - Batch updates
+  - Data validation
+
+**Navigation Path**: `/stock-admin`
+
+---
+
+### 14. Coming Soon Modules
+
+The following module is planned but not yet implemented:
 
 #### Exceptions Report
 **Purpose**: Dashboard for operational exceptions
@@ -768,25 +894,7 @@ The following modules are planned but not yet implemented:
 
 **Navigation Path**: `/exceptions-report`
 
-#### Stock Alerts
-**Purpose**: Automation-driven stock threshold alerts
-**Planned Features**:
-- Configurable alert thresholds
-- Real-time notifications
-- Email/SMS alerts via N8N
-- Alert dashboard
-
-**Navigation Path**: `/stock-alerts`
-
-#### Point of Presence
-**Purpose**: Technician roster and regional management
-**Planned Features**:
-- Technician directory
-- Regional assignments
-- Training status tracking
-- Contact information management
-
-**Navigation Path**: `/point-of-presence`
+**Note**: Stock Alerts functionality is fully implemented within the KPI Dashboard under the "Alerts" tab, providing real-time inventory threshold monitoring with velocity-based and static thresholds.
 
 ---
 
@@ -1403,10 +1511,7 @@ The 4D Analytics Inventory Management System provides a complete solution for ma
 - USB scanner optimizations across all workflows
 
 **Coming Soon**:
-- Real-time shipment tracking
-- Automated stock alerts
-- Exception reporting dashboard
-- Technician roster management
+- Exception reporting dashboard (operational discrepancy tracking)
 
 **Recent Enhancements (November 2024)**:
 - DOA (Dead on Arrival) device logging workflow
