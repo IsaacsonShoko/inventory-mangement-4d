@@ -212,10 +212,38 @@ const KPIDashboard = () => {
     staleTime: 60 * 1000,
   });
 
+  // Fetch stock counts for exceptions analysis
+  const { data: stockCounts = [], isLoading: stockCountsLoading } = useQuery({
+    queryKey: ['stockCountsKPI'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_counts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  // Fetch device registry for exceptions cross-check
+  const { data: deviceRegistry = [], isLoading: deviceRegistryLoading } = useQuery({
+    queryKey: ['deviceRegistryKPI'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('device_registry')
+        .select('serial_number')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60 * 1000,
+  });
+
   const { data: pickingQueue = [], isLoading: pickingLoading } = usePickingQueue();
   const { data: dispatchQueue = [], isLoading: dispatchQueueLoading } = useDispatchQueue();
 
-  const isLoading = ordersLoading || stockLoading || dispatchLoading || stockLevelsLoading || pickingLoading || dispatchQueueLoading || repairTicketsLoading;
+  const isLoading = ordersLoading || stockLoading || dispatchLoading || stockLevelsLoading || pickingLoading || dispatchQueueLoading || repairTicketsLoading || stockCountsLoading || deviceRegistryLoading;
   const isFetching = ordersFetching;
 
   // Filter orders based on date selection AND business line
@@ -588,6 +616,73 @@ const KPIDashboard = () => {
       return acc;
     }, {} as Record<string, { total: number; dispatched: number; pending: number; fulfilled: number }>);
 
+    // Stock by Business Line (from stock_levels)
+    const stockByBusinessLine = stockLevels.reduce((acc, item) => {
+      const line = item.item_category || 'Unknown';
+      if (!acc[line]) {
+        acc[line] = { total: 0, functional: 0, faulty: 0 };
+      }
+      acc[line].total += 1;
+      if (item.item_status !== 'Faulty' && item.overall_condition !== 'Faulty' && item.overall_condition !== 'Damaged') {
+        acc[line].functional += 1;
+      } else {
+        acc[line].faulty += 1;
+      }
+      return acc;
+    }, {} as Record<string, { total: number; functional: number; faulty: number }>);
+
+    // Faults by Business Line (from repair tickets joined with device_registry)
+    const faultsByBusinessLine = repairTickets.reduce((acc, ticket) => {
+      // Note: We'd need device_id to join with device_registry to get business line
+      // For now, we'll use a simplified approach
+      const line = 'All Business Lines'; // Placeholder
+      if (!acc[line]) {
+        acc[line] = { total: 0, active: 0, resolved: 0 };
+      }
+      acc[line].total += 1;
+      if (['Reported', 'Assessing', 'In-Repair', 'Quality-Check'].includes(ticket.status)) {
+        acc[line].active += 1;
+      } else if (['Repaired', 'Returned'].includes(ticket.status)) {
+        acc[line].resolved += 1;
+      }
+      return acc;
+    }, {} as Record<string, { total: number; active: number; resolved: number }>);
+
+    // Exception Analysis - Data Integrity Checks
+    // 1. Orphaned stock count serials (scanned but not in device registry)
+    const deviceRegistrySerials = new Set(deviceRegistry.map(d => d.serial_number?.toLowerCase().trim()));
+
+    const orphanedStockCountSerials = stockCounts
+      .filter(count => {
+        const serial = count.serial_number?.toLowerCase().trim();
+        return serial && !deviceRegistrySerials.has(serial);
+      })
+      .map(count => ({
+        serial: count.serial_number,
+        scannedAt: count.created_at,
+        location: count.location || 'Unknown',
+        scannedBy: count.scanned_by || 'Unknown',
+      }));
+
+    // 2. Duplicate serials in device registry (should be unique)
+    const serialCounts = deviceRegistry.reduce((acc, device) => {
+      const serial = device.serial_number?.toLowerCase().trim();
+      if (serial) {
+        acc[serial] = (acc[serial] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    const duplicateSerials = Object.entries(serialCounts)
+      .filter(([, count]) => count > 1)
+      .map(([serial, count]) => ({ serial, count }));
+
+    const exceptionCounts = {
+      orphanedStockCounts: orphanedStockCountSerials.length,
+      duplicateSerials: duplicateSerials.length,
+      total: orphanedStockCountSerials.length + duplicateSerials.length,
+    };
+
     return {
       // Summary
       totalOrders,
@@ -654,8 +749,15 @@ const KPIDashboard = () => {
 
       // Business Line Breakdown
       ordersByBusinessLine,
+      stockByBusinessLine,
+      faultsByBusinessLine,
+
+      // Exceptions
+      exceptionCounts,
+      orphanedStockCountSerials,
+      duplicateSerials,
     };
-  }, [filteredOrders, filteredDispatchLogs, pickingQueue, dispatchQueue, stockLevels, repairTickets]);
+  }, [filteredOrders, filteredDispatchLogs, pickingQueue, dispatchQueue, stockLevels, repairTickets, stockCounts, deviceRegistry]);
 
   const handleRefresh = () => {
     refetchOrders();
@@ -854,7 +956,7 @@ const KPIDashboard = () => {
         </Card>
 
         <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 lg:w-auto lg:inline-flex">
+            <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 lg:w-auto lg:inline-flex">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
               <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -872,6 +974,14 @@ const KPIDashboard = () => {
                 {kpis.alertCounts.total > 0 && (
                   <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
                     {kpis.alertCounts.total > 9 ? '9+' : kpis.alertCounts.total}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="exceptions" className="relative">
+                Exceptions
+                {kpis.exceptionCounts.total > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-purple-500 text-[10px] text-white flex items-center justify-center">
+                    {kpis.exceptionCounts.total > 9 ? '9+' : kpis.exceptionCounts.total}
                   </span>
                 )}
               </TabsTrigger>
@@ -1053,8 +1163,8 @@ const KPIDashboard = () => {
                 </Card>
               </div>
 
-              {/* Business Line Comparison */}
-              {selectedBusinessLine === 'all' && Object.keys(kpis.ordersByBusinessLine).length > 0 && (
+              {/* Business Line Comparison - Always visible when viewing all business lines */}
+              {selectedBusinessLine === 'all' && Object.keys(kpis.ordersByBusinessLine).length > 1 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -1206,6 +1316,38 @@ const KPIDashboard = () => {
                     <p className="text-sm text-muted-foreground mt-2">
                       SLA: Orders before 12 PM same day, after 12 PM by 3 PM next day
                     </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Business Line Pipeline Analysis */}
+              {selectedBusinessLine === 'all' && Object.keys(kpis.ordersByBusinessLine).length > 1 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Business Line Pipeline Status
+                    </CardTitle>
+                    <CardDescription>Pending orders by business line</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {Object.entries(kpis.ordersByBusinessLine)
+                        .filter(([, metrics]) => metrics.pending > 0)
+                        .sort(([,a], [,b]) => b.pending - a.pending)
+                        .map(([line, metrics]) => (
+                          <div key={line} className="p-3 rounded-lg border bg-muted/50">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium text-sm">{line}</span>
+                              <Badge variant="outline">{metrics.pending} pending</Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <span>Total: {metrics.total}</span>
+                              <span>Dispatched: {metrics.dispatched}</span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -1427,6 +1569,24 @@ const KPIDashboard = () => {
                     })}
                 </div>
               )}
+
+              {/* Note: Business line breakdown for repairs requires device_registry join */}
+              {selectedBusinessLine === 'all' && Object.keys(kpis.faultsByBusinessLine).length > 0 && (
+                <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Activity className="h-4 w-4" />
+                      Business Line Fault Analysis
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      Note: Repair tickets are currently tracked system-wide. To enable business line-specific fault analysis,
+                      device_registry.item_category must be joined via device_id. This enhancement is pending database query optimization.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             {/* Devices Tab */}
@@ -1583,6 +1743,59 @@ const KPIDashboard = () => {
                     <ThumbsUp className="h-12 w-12 mx-auto text-green-500 mb-4" />
                     <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">All Devices Functional</h3>
                     <p className="text-sm text-green-600 dark:text-green-500 mt-1">No faulty devices reported</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Business Line Stock Distribution */}
+              {selectedBusinessLine === 'all' && Object.keys(kpis.stockByBusinessLine).length > 1 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Stock by Business Line
+                    </CardTitle>
+                    <CardDescription>Device inventory distribution and health by business line</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {Object.entries(kpis.stockByBusinessLine)
+                        .sort(([,a], [,b]) => b.total - a.total)
+                        .map(([line, metrics]) => {
+                          const healthRate = metrics.total > 0 ? (metrics.functional / metrics.total) * 100 : 100;
+                          return (
+                            <div key={line} className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{line}</span>
+                                  <Badge variant="outline">{metrics.total} devices</Badge>
+                                </div>
+                                <div className="flex items-center gap-4 text-sm">
+                                  <div className="flex items-center gap-1">
+                                    <ThumbsUp className="h-3 w-3 text-green-500" />
+                                    <span>{metrics.functional}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Wrench className="h-3 w-3 text-red-500" />
+                                    <span>{metrics.faulty}</span>
+                                  </div>
+                                  <span className={`font-medium ${healthRate < 80 ? 'text-red-600' : healthRate < 95 ? 'text-amber-600' : 'text-green-600'}`}>
+                                    {healthRate.toFixed(1)}%
+                                  </span>
+                                </div>
+                              </div>
+                              <Progress
+                                value={healthRate}
+                                className={`h-2 ${
+                                  healthRate < 80 ? '[&>div]:bg-red-500' :
+                                  healthRate < 95 ? '[&>div]:bg-amber-500' :
+                                  '[&>div]:bg-green-500'
+                                }`}
+                              />
+                            </div>
+                          );
+                        })}
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -1818,6 +2031,135 @@ const KPIDashboard = () => {
                     </CardContent>
                   </Card>
                 </div>
+              )}
+            </TabsContent>
+
+            {/* Exceptions Tab */}
+            <TabsContent value="exceptions" className="space-y-6">
+              {/* Exception Summary Cards */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Exceptions</CardTitle>
+                    <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{kpis.exceptionCounts.total}</div>
+                    <p className="text-xs text-muted-foreground">Data discrepancies</p>
+                  </CardContent>
+                </Card>
+
+                <Card className={kpis.exceptionCounts.orphanedStockCounts > 0 ? 'border-purple-200 bg-purple-50 dark:bg-purple-950/20' : ''}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Orphaned Scans</CardTitle>
+                    <PackageX className="h-4 w-4 text-purple-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-600">{kpis.exceptionCounts.orphanedStockCounts}</div>
+                    <p className="text-xs text-muted-foreground">Not in device registry</p>
+                  </CardContent>
+                </Card>
+
+                <Card className={kpis.exceptionCounts.duplicateSerials > 0 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : ''}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Duplicate Serials</CardTitle>
+                    <AlertCircle className="h-4 w-4 text-orange-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-600">{kpis.exceptionCounts.duplicateSerials}</div>
+                    <p className="text-xs text-muted-foreground">Multiple registry entries</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Orphaned Stock Counts */}
+              {kpis.orphanedStockCountSerials.length > 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-purple-600">
+                      <PackageX className="h-5 w-5" />
+                      Orphaned Stock Count Serials
+                    </CardTitle>
+                    <CardDescription>
+                      Devices scanned in stock counts but not found in device registry. These may need to be ingested or investigated.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {kpis.orphanedStockCountSerials.slice(0, 10).map((orphan, index) => (
+                        <div
+                          key={`${orphan.serial}-${index}`}
+                          className="p-3 rounded-lg border border-purple-200 bg-purple-50 dark:bg-purple-950/20 flex items-center justify-between"
+                        >
+                          <div>
+                            <div className="font-medium text-sm">{orphan.serial}</div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Scanned at {orphan.location} by {orphan.scannedBy}
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {orphan.scannedAt ? format(parseISO(orphan.scannedAt), 'MMM d, yyyy') : 'Unknown date'}
+                          </Badge>
+                        </div>
+                      ))}
+                      {kpis.orphanedStockCountSerials.length > 10 && (
+                        <div className="text-center text-sm text-muted-foreground pt-2">
+                          ... and {kpis.orphanedStockCountSerials.length - 10} more orphaned serials
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+                  <CardContent className="pt-6 text-center">
+                    <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-4" />
+                    <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">No Orphaned Scans</h3>
+                    <p className="text-sm text-green-600 dark:text-green-500 mt-1">
+                      All scanned devices exist in the device registry
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Duplicate Serials */}
+              {kpis.duplicateSerials.length > 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-600">
+                      <AlertCircle className="h-5 w-5" />
+                      Duplicate Serial Numbers
+                    </CardTitle>
+                    <CardDescription>
+                      Serial numbers appearing multiple times in device registry. These should be unique and need immediate attention.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {kpis.duplicateSerials.map((duplicate, index) => (
+                        <div
+                          key={`${duplicate.serial}-${index}`}
+                          className="p-3 rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-950/20"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm truncate mr-2">{duplicate.serial}</span>
+                            <Badge variant="destructive">{duplicate.count}x</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+                  <CardContent className="pt-6 text-center">
+                    <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-4" />
+                    <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">No Duplicate Serials</h3>
+                    <p className="text-sm text-green-600 dark:text-green-500 mt-1">
+                      All serial numbers are unique in the device registry
+                    </p>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
 
