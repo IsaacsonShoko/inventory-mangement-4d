@@ -11,7 +11,7 @@ import { OfflineIndicator } from "@/components/OfflineIndicator";
 import Landing from "./pages/Landing";
 import StockOrder from "./pages/StockOrder";
 import AssetManagement from "./pages/AssetManagement";
-import StockCounts from "./pages/StockCounts";
+import StockCounts from "./pages/StockCountsNew";
 import StockCountsReport from "./pages/StockCountsReport";
 import ExceptionsReport from "./pages/ExceptionsReport";
 import Tracking from "./pages/Tracking";
