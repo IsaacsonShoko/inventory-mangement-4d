@@ -12,6 +12,7 @@ import Landing from "./pages/Landing";
 import StockOrder from "./pages/StockOrder";
 import AssetManagement from "./pages/AssetManagement";
 import StockCounts from "./pages/StockCountsNew";
+import StockCountsCart from "./pages/StockCountsCart";
 import StockCountsReport from "./pages/StockCountsReport";
 import ExceptionsReport from "./pages/ExceptionsReport";
 import Tracking from "./pages/Tracking";
@@ -65,6 +66,7 @@ const App = () => (
             <Route path="/stock-ingestion" element={<StockIngestion />} />
             <Route path="/stock-admin" element={<StockAdmin />} />
             <Route path="/stock-counts" element={<StockCounts />} />
+            <Route path="/stock-counts-cart" element={<StockCountsCart />} />
             <Route path="/stock-counts-report" element={<StockCountsReport />} />
             <Route path="/exceptions-report" element={<ExceptionsReport />} />
             <Route path="/tracking" element={<Tracking />} />
