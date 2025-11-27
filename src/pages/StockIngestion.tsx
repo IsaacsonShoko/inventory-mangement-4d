@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -15,11 +15,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CalendarIcon, Trash2, Check, X, ScanLine, Upload, ArrowLeft } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { CalendarIcon, Trash2, Check, X, ArrowLeft } from 'lucide-react';
 
-import { BarcodeScanner } from '@/components/BarcodeScanner';
 import { BackOfficeRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { useInventoryItems, useItemCategories } from '@/hooks/useSupabase';
@@ -31,6 +30,9 @@ import {
 } from '@/hooks/useAssetManagement';
 import type { DeviceRegistryInsert } from '@/integrations/supabase/services-asset';
 
+// Constants
+const BATCH_SIZE = 100;
+
 // Validation schema for batch info
 const batchInfoSchema = z.object({
   receivingWarehouse: z.string().min(1, 'Warehouse is required'),
@@ -40,19 +42,7 @@ const batchInfoSchema = z.object({
   notes: z.string().optional(),
 });
 
-// Validation schema for device entry
-const deviceEntrySchema = z.object({
-  deviceType: z.string().min(1, 'Device type is required'),
-  itemCategory: z.string().min(1, 'Category is required'),
-  itemNature: z.string().min(1, 'Item nature is required'),
-  serialNumber: z.string().min(1, 'Serial number is required'),
-  cradleSerialNumber: z.string().optional(),
-  chargerSerialNumber: z.string().optional(),
-  warrantyExpiry: z.date().optional(),
-});
-
 type BatchInfoForm = z.infer<typeof batchInfoSchema>;
-type DeviceEntryForm = z.infer<typeof deviceEntrySchema>;
 
 interface PendingDevice {
   id: string;
@@ -60,24 +50,30 @@ interface PendingDevice {
   deviceType: string;
   itemCategory: string;
   itemNature: string;
+  itemCode?: string;
   itemDescription?: string;
   cradleSerialNumber?: string;
   chargerSerialNumber?: string;
   warrantyExpiry?: Date;
-  status: 'valid' | 'duplicate' | 'error';
+  status: 'valid' | 'duplicate' | 'checking';
   errorMessage?: string;
 }
 
 function StockIngestionContent() {
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const serialInputRef = useRef<HTMLInputElement>(null);
 
   // State
   const [pendingDevices, setPendingDevices] = useState<PendingDevice[]>([]);
-  const [showScanner, setShowScanner] = useState(false);
-  const [entryMode, setEntryMode] = useState<'scan' | 'manual' | 'bulk'>('scan');
-  const [selectedDevice, setSelectedDevice] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedDevice, setSelectedDevice] = useState<string>('');
+  const [selectedNature, setSelectedNature] = useState<string>('');
+  const [serialInput, setSerialInput] = useState<string>('');
+  const [cradleSerial, setCradleSerial] = useState<string>('');
+  const [chargerSerial, setChargerSerial] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState(0);
 
   // Queries
   const { data: categories } = useItemCategories();
@@ -97,97 +93,166 @@ function StockIngestionContent() {
     },
   });
 
-  const deviceForm = useForm<DeviceEntryForm>({
-    resolver: zodResolver(deviceEntrySchema),
-  });
-
   // Warehouse options
   const warehouses = ['Warehouse A', 'Warehouse B', 'Warehouse C'];
 
-  // Parse Cash Connect QR code
-  const parseCashConnectSerial = (qrCode: string): string => {
-    if (!qrCode.includes(',')) return qrCode;
+  // Get selected item details
+  const selectedItem = inventoryItems?.find(i => i.item_name === selectedDevice);
 
-    const commaCount = (qrCode.match(/,/g) || []).length;
-    if (commaCount > 1) {
-      // Multiple commas: Extract characters 14-18
-      return qrCode.substring(13, 18);
-    } else {
-      // Single comma: Everything after comma
-      return qrCode.split(',')[1] || qrCode;
+  // Auto-focus serial input after adding device
+  useEffect(() => {
+    if (serialInputRef.current && selectedDevice) {
+      serialInputRef.current.focus();
     }
+  }, [pendingDevices.length, selectedDevice]);
+
+  // Parse Cash Connect QR code - EXACT logic from PickingCartNew.tsx (lines 99-120)
+  const parseCashConnectSerial = (qrCode: string): { itemCode: string; serialNumber: string } => {
+    const commaCount = (qrCode.match(/,/g) || []).length;
+
+    if (commaCount >= 1) {
+      const firstCommaIndex = qrCode.indexOf(',');
+      const itemCode = qrCode.substring(0, firstCommaIndex).trim();
+
+      let serialNumber = '';
+      if (commaCount > 1) {
+        // More than 1 comma: extract characters 14-18 (positions 13-17 in 0-based index)
+        serialNumber = qrCode.substring(13, 18);
+      } else if (commaCount === 1) {
+        // Exactly 1 comma: extract everything after the first comma
+        serialNumber = qrCode.substring(firstCommaIndex + 1).trim();
+      }
+
+      return { itemCode, serialNumber };
+    }
+
+    // No comma: use entire input as serial number
+    return { itemCode: '', serialNumber: qrCode.trim() };
   };
 
-  // Handle barcode scan
-  const handleScan = async (result: string) => {
-    setShowScanner(false);
+  // Handle serial number input (Enter key or paste multiple)
+  const handleSerialInput = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
 
-    let serialNumber = result;
+    e.preventDefault();
 
-    // Parse Cash Connect QR codes
-    if (selectedCategory === 'Cash Connect' && result.includes(',')) {
-      serialNumber = parseCashConnectSerial(result);
+    // Validate device selection
+    if (!selectedDevice || !selectedCategory || !selectedNature) {
+      toast.error('Please select business line, item nature, and device type first');
+      return;
     }
 
-    // Check for duplicate
-    const exists = await checkSerial.mutateAsync(serialNumber);
+    if (!serialInput.trim()) {
+      toast.error('Please enter a serial number');
+      return;
+    }
 
-    const selectedItem = inventoryItems?.find(i => i.item_name === selectedDevice);
+    await addDevice(serialInput.trim());
+  };
 
-    const newDevice: PendingDevice = {
-      id: crypto.randomUUID(),
+  // Add device to pending list
+  const addDevice = async (rawSerial: string) => {
+    let serialNumber = rawSerial;
+    let itemCode = '';
+
+    // Parse Cash Connect QR codes
+    if (selectedCategory === 'Cash Connect' && rawSerial.includes(',')) {
+      const parsed = parseCashConnectSerial(rawSerial);
+      serialNumber = parsed.serialNumber;
+      itemCode = parsed.itemCode;
+    }
+
+    // Add device with 'checking' status first
+    const tempId = crypto.randomUUID();
+    const tempDevice: PendingDevice = {
+      id: tempId,
       serialNumber,
       deviceType: selectedDevice,
       itemCategory: selectedCategory,
-      itemNature: selectedItem?.item_nature || 'Serialised',
-      itemDescription: selectedItem?.item_description || '',
-      status: exists ? 'duplicate' : 'valid',
-      errorMessage: exists ? 'Serial already exists in registry' : undefined,
+      itemNature: selectedNature,
+      itemCode: itemCode || selectedItem?.item_code || undefined,
+      itemDescription: selectedItem?.item_description || undefined,
+      cradleSerialNumber: cradleSerial || undefined,
+      chargerSerialNumber: chargerSerial || undefined,
+      status: 'checking',
     };
 
-    setPendingDevices(prev => [...prev, newDevice]);
+    setPendingDevices(prev => [...prev, tempDevice]);
 
-    if (exists) {
-      toast.error(`Duplicate serial: ${serialNumber}`);
-    } else {
+    // Clear input
+    setSerialInput('');
+    setCradleSerial('');
+    setChargerSerial('');
+
+    // Check for duplicate in background
+    try {
+      const exists = await checkSerial.mutateAsync(serialNumber);
+
+      // Update device status
+      setPendingDevices(prev =>
+        prev.map(d =>
+          d.id === tempId
+            ? {
+                ...d,
+                status: exists ? 'duplicate' : 'valid',
+                errorMessage: exists ? 'Serial already exists in registry' : undefined,
+              }
+            : d
+        )
+      );
+
+      if (exists) {
+        toast.error(`Duplicate serial: ${serialNumber}`);
+      } else {
+        toast.success(`Added: ${serialNumber}`);
+      }
+    } catch (error) {
+      console.error('Error checking serial:', error);
+      // Mark as valid if check fails (optimistic)
+      setPendingDevices(prev =>
+        prev.map(d =>
+          d.id === tempId
+            ? {
+                ...d,
+                status: 'valid',
+              }
+            : d
+        )
+      );
       toast.success(`Added: ${serialNumber}`);
     }
+
+    // Auto-focus back to input
+    setTimeout(() => {
+      serialInputRef.current?.focus();
+    }, 100);
   };
 
-  // Handle manual device entry
-  const handleAddDevice = async (data: DeviceEntryForm) => {
-    let serialNumber = data.serialNumber;
+  // Handle paste of multiple serials
+  const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = e.clipboardData.getData('text');
+    const lines = pastedText.split('\n').filter(line => line.trim());
 
-    // Parse Cash Connect QR codes
-    if (data.itemCategory === 'Cash Connect' && data.serialNumber.includes(',')) {
-      serialNumber = parseCashConnectSerial(data.serialNumber);
+    // If multiple lines, process them
+    if (lines.length > 1) {
+      e.preventDefault();
+
+      // Validate device selection
+      if (!selectedDevice || !selectedCategory || !selectedNature) {
+        toast.error('Please select business line, item nature, and device type first');
+        return;
+      }
+
+      toast.info(`Processing ${lines.length} serial numbers...`);
+
+      for (const line of lines) {
+        await addDevice(line.trim());
+        // Small delay to avoid overwhelming the UI
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      toast.success(`Processed ${lines.length} serial numbers`);
     }
-
-    // Check for duplicate
-    const exists = await checkSerial.mutateAsync(serialNumber);
-
-    const selectedItem = inventoryItems?.find(i => i.item_name === data.deviceType);
-
-    const newDevice: PendingDevice = {
-      id: crypto.randomUUID(),
-      serialNumber,
-      deviceType: data.deviceType,
-      itemCategory: data.itemCategory,
-      itemNature: data.itemNature,
-      itemDescription: selectedItem?.item_description || '',
-      cradleSerialNumber: data.cradleSerialNumber,
-      chargerSerialNumber: data.chargerSerialNumber,
-      warrantyExpiry: data.warrantyExpiry,
-      status: exists ? 'duplicate' : 'valid',
-      errorMessage: exists ? 'Serial already exists in registry' : undefined,
-    };
-
-    setPendingDevices(prev => [...prev, newDevice]);
-
-    // Reset serial field for next entry
-    deviceForm.setValue('serialNumber', '');
-    deviceForm.setValue('cradleSerialNumber', '');
-    deviceForm.setValue('chargerSerialNumber', '');
   };
 
   // Remove device from pending list
@@ -195,7 +260,7 @@ function StockIngestionContent() {
     setPendingDevices(prev => prev.filter(d => d.id !== id));
   };
 
-  // Submit ingestion
+  // Submit ingestion with batch processing
   const handleSubmit = async () => {
     const batchData = batchForm.getValues();
 
@@ -206,6 +271,16 @@ function StockIngestionContent() {
       toast.error('No valid devices to ingest');
       return;
     }
+
+    // Check if still checking any devices
+    const checkingDevices = pendingDevices.filter(d => d.status === 'checking');
+    if (checkingDevices.length > 0) {
+      toast.warning(`Still checking ${checkingDevices.length} devices. Please wait...`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitProgress(0);
 
     try {
       // Create batch record
@@ -221,12 +296,13 @@ function StockIngestionContent() {
         failed_count: pendingDevices.length - validDevices.length,
       });
 
-      // Create device registry entries
+      // Prepare device records
       const deviceRecords: DeviceRegistryInsert[] = validDevices.map(d => ({
         serial_number: d.serialNumber,
         device_type: d.deviceType,
         item_category: d.itemCategory,
         item_nature: d.itemNature,
+        item_code: d.itemCode || undefined,
         item_description: d.itemDescription || undefined,
         status: 'Available',
         current_holder_type: 'Warehouse',
@@ -241,38 +317,86 @@ function StockIngestionContent() {
         created_by: profile?.email || undefined,
       }));
 
-      const createdDevices = await createDevices.mutateAsync(deviceRecords);
+      // Process in batches of 100
+      const totalBatches = Math.ceil(deviceRecords.length / BATCH_SIZE);
+      const allCreatedDevices: typeof deviceRecords = [];
 
-      // Create movement records for each device
-      for (const device of createdDevices) {
-        await createMovement.mutateAsync({
-          device_id: device.id,
-          movement_type: 'Ingestion',
-          movement_date: new Date().toISOString(),
-          to_holder_type: 'Warehouse',
-          to_holder_id: batchData.receivingWarehouse,
-          performed_by: profile?.email || '',
-          reference_id: batch.id,
-          reference_type: 'Ingestion Batch',
-          notes: `Ingested from ${batchData.supplier || 'supplier'} - PO: ${batchData.purchaseOrderNumber || 'N/A'}`,
-        });
+      for (let i = 0; i < totalBatches; i++) {
+        const start = i * BATCH_SIZE;
+        const end = Math.min(start + BATCH_SIZE, deviceRecords.length);
+        const batchRecords = deviceRecords.slice(start, end);
+
+        toast.info(`Processing batch ${i + 1} of ${totalBatches} (${batchRecords.length} devices)...`);
+
+        const createdDevices = await createDevices.mutateAsync(batchRecords);
+        allCreatedDevices.push(...createdDevices);
+
+        // Update progress
+        const progress = ((i + 1) / totalBatches) * 80; // Use 80% for device creation
+        setSubmitProgress(progress);
+
+        // Small delay between batches
+        if (i < totalBatches - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
 
-      toast.success(`Successfully ingested ${validDevices.length} devices`);
+      // Create movement records for each device (in batches)
+      toast.info('Creating movement records...');
+      const movementBatches = Math.ceil(allCreatedDevices.length / BATCH_SIZE);
+
+      for (let i = 0; i < movementBatches; i++) {
+        const start = i * BATCH_SIZE;
+        const end = Math.min(start + BATCH_SIZE, allCreatedDevices.length);
+        const batchDevices = allCreatedDevices.slice(start, end);
+
+        await Promise.all(
+          batchDevices.map(device =>
+            createMovement.mutateAsync({
+              device_id: device.id,
+              movement_type: 'Ingestion',
+              movement_date: new Date().toISOString(),
+              to_holder_type: 'Warehouse',
+              to_holder_id: batchData.receivingWarehouse,
+              performed_by: profile?.email || '',
+              reference_id: batch.id,
+              reference_type: 'Ingestion Batch',
+              notes: `Ingested from ${batchData.supplier || 'supplier'} - PO: ${batchData.purchaseOrderNumber || 'N/A'}`,
+            })
+          )
+        );
+
+        // Update progress
+        const progress = 80 + ((i + 1) / movementBatches) * 20; // Use remaining 20% for movements
+        setSubmitProgress(progress);
+      }
+
+      setSubmitProgress(100);
+      toast.success(`Successfully ingested ${validDevices.length} devices in ${totalBatches} batches`);
 
       // Reset form
       setPendingDevices([]);
-      batchForm.reset();
-      deviceForm.reset();
-
+      batchForm.reset({ dateReceived: new Date() });
+      setSelectedCategory('');
+      setSelectedDevice('');
+      setSelectedNature('');
+      setSerialInput('');
+      setCradleSerial('');
+      setChargerSerial('');
     } catch (error) {
       console.error('Ingestion error:', error);
       toast.error('Failed to ingest devices');
+    } finally {
+      setIsSubmitting(false);
+      setSubmitProgress(0);
     }
   };
 
   const validCount = pendingDevices.filter(d => d.status === 'valid').length;
-  const errorCount = pendingDevices.filter(d => d.status !== 'valid').length;
+  const duplicateCount = pendingDevices.filter(d => d.status === 'duplicate').length;
+  const checkingCount = pendingDevices.filter(d => d.status === 'checking').length;
+
+  const isCashConnect = selectedCategory === 'Cash Connect';
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -363,10 +487,10 @@ function StockIngestionContent() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Device Entry</CardTitle>
-            <CardDescription>Add devices to this batch</CardDescription>
+            <CardDescription>Select device type and enter serial numbers</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Device Selection */}
+            {/* Device Selection Gallery */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Business Line *</Label>
@@ -374,7 +498,6 @@ function StockIngestionContent() {
                   value={selectedCategory}
                   onValueChange={(value) => {
                     setSelectedCategory(value);
-                    deviceForm.setValue('itemCategory', value);
                     setSelectedDevice('');
                   }}
                 >
@@ -392,8 +515,8 @@ function StockIngestionContent() {
               <div className="space-y-2">
                 <Label>Item Nature *</Label>
                 <Select
-                  value={deviceForm.watch('itemNature')}
-                  onValueChange={(value) => deviceForm.setValue('itemNature', value)}
+                  value={selectedNature}
+                  onValueChange={(value) => setSelectedNature(value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select nature" />
@@ -406,7 +529,7 @@ function StockIngestionContent() {
               </div>
             </div>
 
-            {/* Device Type Selection (Gallery) */}
+            {/* Device Type Gallery */}
             {selectedCategory && (
               <div className="space-y-2">
                 <Label>Device Type *</Label>
@@ -419,7 +542,8 @@ function StockIngestionContent() {
                         className="h-auto py-2 flex flex-col items-center"
                         onClick={() => {
                           setSelectedDevice(item.item_name || '');
-                          deviceForm.setValue('deviceType', item.item_name || '');
+                          // Auto-focus serial input after selection
+                          setTimeout(() => serialInputRef.current?.focus(), 100);
                         }}
                       >
                         <span className="text-xs truncate w-full text-center">
@@ -432,84 +556,92 @@ function StockIngestionContent() {
               </div>
             )}
 
-            {/* Entry Mode */}
-            <Tabs value={entryMode} onValueChange={(v) => setEntryMode(v as 'scan' | 'manual' | 'bulk')}>
-              <TabsList className="grid grid-cols-3 w-full">
-                <TabsTrigger value="scan">
-                  <ScanLine className="h-4 w-4 mr-2" />
-                  Scan
-                </TabsTrigger>
-                <TabsTrigger value="manual">Manual</TabsTrigger>
-                <TabsTrigger value="bulk">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Bulk
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="scan" className="space-y-4">
-                <Button
-                  onClick={() => setShowScanner(true)}
-                  disabled={!selectedDevice}
-                  className="w-full"
-                >
-                  <ScanLine className="h-4 w-4 mr-2" />
-                  Open Scanner
-                </Button>
-              </TabsContent>
-
-              <TabsContent value="manual" className="space-y-4">
+            {/* Serial Number Entry */}
+            {selectedDevice && (
+              <>
                 <div className="space-y-2">
-                  <Label>Serial Number *</Label>
+                  <Label>
+                    Serial Number *
+                    {isCashConnect && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (Scan QR code or paste multiple serials)
+                      </span>
+                    )}
+                  </Label>
                   <Input
-                    {...deviceForm.register('serialNumber')}
-                    placeholder="Enter or paste serial"
+                    ref={serialInputRef}
+                    value={serialInput}
+                    onChange={(e) => setSerialInput(e.target.value)}
+                    onKeyDown={handleSerialInput}
+                    onPaste={handlePaste}
+                    placeholder={
+                      isCashConnect
+                        ? 'Scan QR: ItemCode,Serial or paste multiple'
+                        : 'Enter serial and press Enter (or paste multiple)'
+                    }
+                    className="font-mono"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Press Enter to add each serial. Auto-fills device metadata.
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Cradle Serial</Label>
-                    <Input
-                      {...deviceForm.register('cradleSerialNumber')}
-                      placeholder="Optional"
-                    />
+                {/* Optional cradle/charger serials for non-Cash Connect */}
+                {!isCashConnect && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Cradle Serial (Optional)</Label>
+                      <Input
+                        value={cradleSerial}
+                        onChange={(e) => setCradleSerial(e.target.value)}
+                        placeholder="Cradle serial"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Charger Serial (Optional)</Label>
+                      <Input
+                        value={chargerSerial}
+                        onChange={(e) => setChargerSerial(e.target.value)}
+                        placeholder="Charger serial"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Charger Serial</Label>
-                    <Input
-                      {...deviceForm.register('chargerSerialNumber')}
-                      placeholder="Optional"
-                    />
+                )}
+              </>
+            )}
+
+            {/* Auto-filled metadata display */}
+            {selectedDevice && selectedItem && (
+              <div className="p-4 bg-muted rounded-md space-y-2">
+                <p className="text-sm font-semibold">Auto-filled Metadata:</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Device Type:</span>{' '}
+                    <span className="font-mono">{selectedDevice}</span>
                   </div>
+                  <div>
+                    <span className="text-muted-foreground">Category:</span>{' '}
+                    <span className="font-mono">{selectedCategory}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Nature:</span>{' '}
+                    <span className="font-mono">{selectedNature}</span>
+                  </div>
+                  {selectedItem.item_code && (
+                    <div>
+                      <span className="text-muted-foreground">Item Code:</span>{' '}
+                      <span className="font-mono">{selectedItem.item_code}</span>
+                    </div>
+                  )}
+                  {selectedItem.item_description && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Description:</span>{' '}
+                      <span className="text-xs">{selectedItem.item_description}</span>
+                    </div>
+                  )}
                 </div>
-
-                <Button
-                  onClick={deviceForm.handleSubmit(handleAddDevice)}
-                  disabled={!selectedDevice}
-                  className="w-full"
-                >
-                  Add to Batch
-                </Button>
-              </TabsContent>
-
-              <TabsContent value="bulk" className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Paste Serial Numbers (one per line)</Label>
-                  <textarea
-                    className="w-full h-32 p-2 border rounded-md bg-background"
-                    placeholder="Serial1&#10;Serial2&#10;Serial3"
-                    onChange={async (e) => {
-                      const serials = e.target.value.split('\n').filter(s => s.trim());
-                      // Process each serial
-                      for (const serial of serials) {
-                        await handleScan(serial.trim());
-                      }
-                      e.target.value = '';
-                    }}
-                  />
-                </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -523,8 +655,11 @@ function StockIngestionContent() {
             </CardTitle>
             <CardDescription>
               <span className="text-green-600">Valid: {validCount}</span>
-              {errorCount > 0 && (
-                <span className="text-red-600 ml-4">Errors: {errorCount}</span>
+              {duplicateCount > 0 && (
+                <span className="text-red-600 ml-4">Duplicates: {duplicateCount}</span>
+              )}
+              {checkingCount > 0 && (
+                <span className="text-yellow-600 ml-4">Checking: {checkingCount}</span>
               )}
             </CardDescription>
           </CardHeader>
@@ -537,6 +672,7 @@ function StockIngestionContent() {
                     <TableHead>Serial Number</TableHead>
                     <TableHead>Device Type</TableHead>
                     <TableHead>Category</TableHead>
+                    <TableHead>Item Code</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -548,11 +684,18 @@ function StockIngestionContent() {
                       <TableCell className="font-mono">{device.serialNumber}</TableCell>
                       <TableCell>{device.deviceType}</TableCell>
                       <TableCell>{device.itemCategory}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {device.itemCode || '-'}
+                      </TableCell>
                       <TableCell>
                         {device.status === 'valid' ? (
                           <Badge variant="outline" className="text-green-600">
                             <Check className="h-3 w-3 mr-1" />
                             Valid
+                          </Badge>
+                        ) : device.status === 'checking' ? (
+                          <Badge variant="outline" className="text-yellow-600">
+                            Checking...
                           </Badge>
                         ) : (
                           <Badge variant="destructive">
@@ -576,30 +719,41 @@ function StockIngestionContent() {
               </Table>
             </ScrollArea>
 
+            {/* Progress Bar during submission */}
+            {isSubmitting && (
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Processing batch...</span>
+                  <span>{Math.round(submitProgress)}%</span>
+                </div>
+                <Progress value={submitProgress} className="h-2" />
+              </div>
+            )}
+
             <div className="flex justify-between mt-4">
               <Button
                 variant="outline"
-                onClick={() => setPendingDevices([])}
+                onClick={() => {
+                  setPendingDevices([]);
+                  setSerialInput('');
+                  setCradleSerial('');
+                  setChargerSerial('');
+                }}
+                disabled={isSubmitting}
               >
                 Clear Batch
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={validCount === 0 || createBatch.isPending}
+                disabled={validCount === 0 || checkingCount > 0 || isSubmitting}
               >
-                Submit Ingestion ({validCount} devices)
+                {isSubmitting
+                  ? `Processing... (${Math.round(submitProgress)}%)`
+                  : `Submit Ingestion (${validCount} devices)`}
               </Button>
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Barcode Scanner Modal */}
-      {showScanner && (
-        <BarcodeScanner
-          onScan={handleScan}
-          onClose={() => setShowScanner(false)}
-        />
       )}
     </div>
   );
