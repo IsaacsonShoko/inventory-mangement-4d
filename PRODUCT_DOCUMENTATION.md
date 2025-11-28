@@ -728,15 +728,22 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 - **Complete repair ticket workflow**:
   - Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
 
-- **Log Repair Ticket (NEW)**:
+- **Log Repair Ticket (ENHANCED)**:
   - Accessible to all users (technicians and back office staff)
-  - Manual serial number entry with lookup button
+  - **Business line selection** (Cash Connect, ABSA, VPS, Accessories, Modems)
+  - **Mobile camera barcode scanning** with BarcodeScanner component
+  - **Business line-specific scanning workflows**:
+    - **Cash Connect**: QR code parsing with comma-counting logic
+    - **Other lines**: Multiple serial fields (Manufacture, Xlink, Cradle, Charger)
+  - **Camera scan buttons** on all serial input fields with Camera icon
+  - **USB scanner optimizations** (7 input attributes for seamless scanning)
+  - **Item status and overall condition** capture (Functional/Faulty, New/Good/Fair/Poor)
   - Real-time device validation (green for found, red for not found)
   - Fault category dropdown with 19 predefined categories
   - Optional fault severity selection (Low, Medium, High, Critical)
   - Fault description text area
   - Auto-populated reporter from authenticated user
-  - **Note**: Currently supports manual entry only. USB scanner support and additional fields (business line, item status, overall condition, multiple serials) to be added in future enhancement to match Stock Counts workflow
+  - **Complete uniformity** with Stock Counts scanning workflow
 
 - **Edit Fault Assessment (NEW)**:
   - Edit existing repair tickets
@@ -1595,7 +1602,15 @@ The 4D Analytics Inventory Management System provides a complete solution for ma
 **Recent Enhancements (November 28, 2024)**:
 - **Repair Ticket Management Enhancements**:
   - **Edit Fault Assessments**: All users can now update fault categories, descriptions, and assessment notes after initial ticket creation
-  - **Technician Repair Logging**: Field technicians can create repair tickets directly from Asset Management with serial number lookup and validation
+  - **Camera Scanning for Repair Logging (NEW)**: Enhanced Log Repair Ticket with mobile camera barcode scanning and comprehensive data capture
+    - Business line selection (Cash Connect, ABSA, VPS, Accessories, Modems)
+    - Mobile camera scanning with BarcodeScanner component
+    - Cash Connect QR parsing with comma-counting logic
+    - Multiple serial fields (Manufacture, Xlink, Cradle, Charger) for non-Cash Connect items
+    - Camera scan buttons on all serial input fields
+    - Item status and overall condition capture
+    - USB scanner optimizations (7 input attributes)
+    - Complete uniformity with Stock Counts scanning workflow
   - **Intelligent Fault Auto-Population**: Stock counts now auto-populate fault reasons from device repair history
   - **Assessment Pending Option**: Stock counts can proceed even when devices haven't been fully diagnosed
   - **Repair History Alerts**: Real-time display of previous fault categories when scanning devices during stock counts
