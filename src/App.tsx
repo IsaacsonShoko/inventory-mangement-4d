@@ -8,6 +8,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AdminRoute } from "@/components/ProtectedRoute";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
+import { SessionTimeoutDialog } from "@/components/SessionTimeoutDialog";
 import Landing from "./pages/Landing";
 import StockOrder from "./pages/StockOrder";
 import AssetManagement from "./pages/AssetManagement";
@@ -48,6 +50,60 @@ const persister = createSyncStoragePersister({
   key: '4d-inventory-cache',
 });
 
+function AppContent() {
+  // Session timeout: 30 minutes of inactivity with 2-minute warning
+  const { showWarning, timeRemaining, extendSession, logout } = useSessionTimeout({
+    timeout: 30 * 60 * 1000, // 30 minutes
+    warningTime: 2 * 60 * 1000, // 2 minutes warning
+    enabled: true,
+  });
+
+  return (
+    <>
+      <Toaster />
+      <Sonner />
+      <OfflineIndicator />
+      <SessionTimeoutDialog
+        open={showWarning}
+        timeRemaining={timeRemaining}
+        onExtend={extendSession}
+        onLogout={logout}
+      />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/stock-order" element={<StockOrder />} />
+          <Route path="/asset-management" element={<AssetManagement />} />
+          <Route path="/stock-ingestion" element={<StockIngestion />} />
+          <Route path="/stock-admin" element={<StockAdmin />} />
+          <Route path="/stock-counts" element={<StockCounts />} />
+          <Route path="/stock-counts-cart" element={<StockCountsCart />} />
+          <Route path="/stock-counts-report" element={<StockCountsReport />} />
+          <Route path="/exceptions-report" element={<ExceptionsReport />} />
+          <Route path="/tracking" element={<Tracking />} />
+          <Route path="/point-of-presence" element={<PointOfPresence />} />
+          <Route path="/stock-alerts" element={<StockAlerts />} />
+          <Route path="/picking" element={<PickingQueue />} />
+          <Route path="/picking/cart/:recordId" element={<PickingCart />} />
+          <Route path="/dispatching" element={<DispatchQueue />} />
+          <Route path="/dispatching/cart/:recordId" element={<DispatchCart />} />
+          <Route path="/kpi" element={<KPIDashboard />} />
+          <Route path="/supabase-test" element={<SupabaseTest />} />
+          <Route path="/admin/users" element={
+            <AdminRoute>
+              <UserManagement />
+            </AdminRoute>
+          } />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </>
+  );
+}
+
 const App = () => (
   <PersistQueryClientProvider
     client={queryClient}
@@ -55,40 +111,7 @@ const App = () => (
   >
     <AuthProvider>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <OfflineIndicator />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/stock-order" element={<StockOrder />} />
-            <Route path="/asset-management" element={<AssetManagement />} />
-            <Route path="/stock-ingestion" element={<StockIngestion />} />
-            <Route path="/stock-admin" element={<StockAdmin />} />
-            <Route path="/stock-counts" element={<StockCounts />} />
-            <Route path="/stock-counts-cart" element={<StockCountsCart />} />
-            <Route path="/stock-counts-report" element={<StockCountsReport />} />
-            <Route path="/exceptions-report" element={<ExceptionsReport />} />
-            <Route path="/tracking" element={<Tracking />} />
-            <Route path="/point-of-presence" element={<PointOfPresence />} />
-            <Route path="/stock-alerts" element={<StockAlerts />} />
-            <Route path="/picking" element={<PickingQueue />} />
-            <Route path="/picking/cart/:recordId" element={<PickingCart />} />
-            <Route path="/dispatching" element={<DispatchQueue />} />
-            <Route path="/dispatching/cart/:recordId" element={<DispatchCart />} />
-            <Route path="/kpi" element={<KPIDashboard />} />
-            <Route path="/supabase-test" element={<SupabaseTest />} />
-            <Route path="/admin/users" element={
-              <AdminRoute>
-                <UserManagement />
-              </AdminRoute>
-            } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AppContent />
       </TooltipProvider>
     </AuthProvider>
   </PersistQueryClientProvider>
