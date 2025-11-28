@@ -12,6 +12,7 @@ import {
   Loader2,
   ArrowRight,
   Trash2,
+  Home,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -40,6 +41,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import ThemeToggle from '@/components/theme-toggle';
+import { pointOfPresenceService } from '@/integrations/supabase/services-orders';
 
 import type { Tables, Enums } from '@/integrations/supabase/types';
 
@@ -74,19 +76,46 @@ interface CartItem {
   itemUrl?: string;
 }
 
-// Form validation schema
-const formSchema = z.object({
-  countType: z.enum(['Monthly', 'Mid-Month', 'Daily']),
-  stockHolder: z.string().min(1, 'Stock holder is required'),
-  nameOrLocation: z.string().optional(),
-  contractorCompany: z.string().optional(),
-  contractorRegion: z.string().optional(),
-  technicianName: z.string().optional(),
-  techId: z.string().optional(),
-  binLocation: z.string().optional(),
-});
+// Form validation schema - dynamic based on stock holder
+const createFormSchema = (stockHolder: string) => {
+  const baseSchema = {
+    countType: z.enum(['Monthly', 'Mid-Month', 'Daily']),
+    stockHolder: z.string().min(1, 'Stock holder is required'),
+  };
 
-type FormValues = z.infer<typeof formSchema>;
+  if (stockHolder === 'Warehouse') {
+    return z.object({
+      ...baseSchema,
+      warehouse: z.string().min(1, 'Warehouse is required'),
+    });
+  } else if (stockHolder === 'Technician') {
+    return z.object({
+      ...baseSchema,
+      contractorCompany: z.string().min(1, 'Contractor company is required'),
+      contractorRegion: z.string().min(1, 'Region is required'),
+      technicianName: z.string().min(1, 'Technician name is required'),
+      techId: z.string().optional(),
+    });
+  } else if (stockHolder === 'OEM') {
+    return z.object({
+      ...baseSchema,
+      oemName: z.string().min(1, 'OEM name is required'),
+    });
+  }
+
+  return z.object(baseSchema);
+};
+
+type FormValues = {
+  countType: 'Monthly' | 'Mid-Month' | 'Daily';
+  stockHolder: string;
+  warehouse?: string;
+  contractorCompany?: string;
+  contractorRegion?: string;
+  technicianName?: string;
+  techId?: string;
+  oemName?: string;
+};
 
 export default function StockCountsNew() {
   const { user } = useAuth();
@@ -95,24 +124,30 @@ export default function StockCountsNew() {
 
   // State
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<BusinessLineEnum | 'all'>('all');
+  const [selectedBusinessLine, setSelectedBusinessLine] = useState<BusinessLineEnum | ''>('');
+  const [selectedItemNature, setSelectedItemNature] = useState<'Serialised' | 'Non-serialised' | 'All'>('All');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
 
   // Main form
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(createFormSchema('')),
     defaultValues: {
       countType: 'Monthly',
       stockHolder: '',
-      nameOrLocation: '',
+      warehouse: '',
       contractorCompany: '',
       contractorRegion: '',
       technicianName: '',
       techId: '',
-      binLocation: '',
+      oemName: '',
     },
   });
+
+  // Watch stock holder for cascading form
+  const stockHolder = form.watch('stockHolder');
+  const selectedContractor = form.watch('contractorCompany');
+  const selectedRegion = form.watch('contractorRegion');
 
   // Fetch inventory items
   const { data: inventoryItems = [], isLoading: loadingItems } = useQuery({
@@ -128,13 +163,48 @@ export default function StockCountsNew() {
     },
   });
 
-  // Filter items based on search and category
+  // Fetch Point of Presence data for Technician cascading dropdowns
+  const { data: contractors = [] } = useQuery({
+    queryKey: ['contractors'],
+    queryFn: () => pointOfPresenceService.getContractors(),
+    enabled: stockHolder === 'Technician',
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: regions = [] } = useQuery({
+    queryKey: ['regions', selectedContractor],
+    queryFn: () => pointOfPresenceService.getRegions(selectedContractor),
+    enabled: stockHolder === 'Technician' && !!selectedContractor,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: technicians = [] } = useQuery({
+    queryKey: ['technicians', selectedContractor, selectedRegion],
+    queryFn: () => pointOfPresenceService.getTechnicians(selectedContractor, selectedRegion),
+    enabled: stockHolder === 'Technician' && !!selectedContractor && !!selectedRegion,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Filter items based on search, business line, and item nature
   const filteredItems = useMemo(() => {
     let items = inventoryItems;
 
-    // Filter by category
-    if (selectedCategory !== 'all') {
-      items = items.filter((item) => item.item_category === selectedCategory);
+    // Filter by business line (only show items if business line is selected)
+    if (!selectedBusinessLine) {
+      return [];
+    }
+    items = items.filter((item) => item.item_category === selectedBusinessLine);
+
+    // Filter by item nature
+    if (selectedItemNature !== 'All') {
+      items = items.filter((item) => {
+        const itemNature = item.item_nature?.toLowerCase() || '';
+        if (selectedItemNature === 'Serialised') {
+          return itemNature.includes('serial');
+        } else {
+          return !itemNature.includes('serial');
+        }
+      });
     }
 
     // Filter by search term
@@ -148,7 +218,7 @@ export default function StockCountsNew() {
     }
 
     return items;
-  }, [inventoryItems, searchTerm, selectedCategory]);
+  }, [inventoryItems, searchTerm, selectedBusinessLine, selectedItemNature]);
 
   // Add item to cart
   const addToCart = (item: InventoryItem, quantity: number) => {
@@ -256,6 +326,14 @@ export default function StockCountsNew() {
           <h1 className="text-2xl font-bold">Stock Count</h1>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/')}
+          >
+            <Home className="h-4 w-4 mr-2" />
+            Home
+          </Button>
           {cart.length > 0 && (
             <Button
               variant="outline"
@@ -269,7 +347,6 @@ export default function StockCountsNew() {
           <ThemeToggle />
         </div>
       </div>
-
       {/* Stock Details Form */}
       <Card>
         <CardHeader className="bg-primary text-primary-foreground">
@@ -342,70 +419,237 @@ export default function StockCountsNew() {
                 )}
               />
 
-              {/* Location */}
-              <FormField
-                control={form.control}
-                name="nameOrLocation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Main Warehouse" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Warehouse - Only show if Warehouse selected */}
+              {stockHolder === 'Warehouse' && (
+                <FormField
+                  control={form.control}
+                  name="warehouse"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Warehouse *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select warehouse" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="KZN">KZN</SelectItem>
+                          <SelectItem value="JHB">JHB</SelectItem>
+                          <SelectItem value="WC">WC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
-              {/* Contractor */}
-              <FormField
-                control={form.control}
-                name="contractorCompany"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contractor</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="4D Analytics" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* OEM Name - Only show if OEM selected */}
+              {stockHolder === 'OEM' && (
+                <FormField
+                  control={form.control}
+                  name="oemName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>OEM Name *</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter OEM name" autoComplete="off" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Technician Fields - Only show if Technician selected */}
+              {stockHolder === 'Technician' && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="contractorCompany"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contractor Company *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select contractor" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {contractors.map((contractor) => (
+                              <SelectItem key={contractor} value={contractor}>
+                                {contractor}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="contractorRegion"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Region *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedContractor}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select region" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {regions.map((region) => (
+                              <SelectItem key={region} value={region}>
+                                {region}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="technicianName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Technician Name *</FormLabel>
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            // Auto-populate Tech ID
+                            const tech = technicians.find(t => t.name_surname === value);
+                            if (tech) {
+                              form.setValue('techId', tech.location_code || tech.id || '');
+                            }
+                          }}
+                          value={field.value}
+                          disabled={!selectedContractor || !selectedRegion}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select technician" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {technicians.map((tech) => (
+                              <SelectItem key={tech.id} value={tech.name_surname}>
+                                {tech.name_surname} ({tech.location_code || tech.id})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="techId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tech ID</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Auto-populated" readOnly className="bg-muted" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
             </form>
           </Form>
         </CardContent>
       </Card>
 
-      {/* Category Filter & Search */}
-      <div className="flex gap-4 items-center">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search devices..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+      {/* Business Line & Item Nature Selection */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Item Selection Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Business Line Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="businessLine">Business Line *</Label>
+              <Select
+                value={selectedBusinessLine}
+                onValueChange={(value) => setSelectedBusinessLine(value as BusinessLineEnum)}
+              >
+                <SelectTrigger id="businessLine">
+                  <SelectValue placeholder="Select business line" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Item Nature Filter */}
+            <div className="space-y-2">
+              <Label>Item Nature</Label>
+              <RadioGroup
+                value={selectedItemNature}
+                onValueChange={(value) => setSelectedItemNature(value as 'Serialised' | 'Non-serialised' | 'All')}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="All" id="all" />
+                  <Label htmlFor="all" className="text-sm font-normal">
+                    All
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Serialised" id="serialised" />
+                  <Label htmlFor="serialised" className="text-sm font-normal">
+                    Serialised
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Non-serialised" id="non-serialised" />
+                  <Label htmlFor="non-serialised" className="text-sm font-normal">
+                    Non-serialised
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Search */}
+            <div className="space-y-2">
+              <Label htmlFor="search">Search</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder="Search devices..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                  disabled={!selectedBusinessLine}
+                />
+              </div>
+            </div>
           </div>
-        </div>
-        <Select
-          value={selectedCategory}
-          onValueChange={(value) => setSelectedCategory(value as BusinessLineEnum | 'all')}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {CATEGORIES.map((cat) => (
-              <SelectItem key={cat.value} value={cat.value}>
-                {cat.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          {!selectedBusinessLine && (
+            <p className="text-sm text-muted-foreground mt-3 text-center">
+              Please select a business line to view items
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Product Catalog */}
       <Card>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -7,6 +7,7 @@ import {
   Trash2,
   Package as PackageIcon,
   Camera,
+  Home,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,28 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import ThemeToggle from '@/components/theme-toggle';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
+
+// Fault reasons - mapped from the requirements
+const FAULT_REASONS = [
+  'Dead On Arrival',
+  'Screen Damaged',
+  'Battery Issues',
+  'Power Button Faulty',
+  'Keypad Not Working',
+  'Camera Faulty',
+  'Speaker/Microphone Issues',
+  'Charging Port Damaged',
+  'Software Malfunction',
+  'Network/Connectivity Issues',
+  'Printer Not Working',
+  'Card Reader Faulty',
+  'Touch Screen Not Responsive',
+  'Physical Damage',
+  'Water Damage',
+  'Overheating',
+  'Assessment Pending',
+  'Other',
+] as const;
 
 interface CartItem {
   id: string;
@@ -91,6 +114,16 @@ const StockCountsCart = () => {
   // Barcode scanner state
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [activeSerialField, setActiveSerialField] = useState<'qr' | 'manufacture' | 'xlink' | 'cradle' | 'charger' | null>(null);
+
+  // Auto-default overall condition to Faulty when item status is Faulty
+  useEffect(() => {
+    if (scanFormData.itemStatus === 'Faulty' && scanFormData.overallCondition !== 'Faulty') {
+      setScanFormData(prev => ({
+        ...prev,
+        overallCondition: 'Faulty',
+      }));
+    }
+  }, [scanFormData.itemStatus]);
 
   // Helper to check if item is Cash Connect
   const isCashConnect = (item: CartItem | null) =>
@@ -452,6 +485,11 @@ const StockCountsCart = () => {
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
               </Link>
+              <Link to="/">
+                <Button variant="ghost" size="icon">
+                  <Home className="h-5 w-5" />
+                </Button>
+              </Link>
               <h1 className="text-2xl font-bold">Stock Counts Cart</h1>
             </div>
             <ThemeToggle />
@@ -483,6 +521,11 @@ const StockCountsCart = () => {
             <Link to="/stock-counts">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <Link to="/">
+              <Button variant="ghost" size="icon">
+                <Home className="h-5 w-5" />
               </Button>
             </Link>
             <div>
@@ -680,12 +723,21 @@ const StockCountsCart = () => {
               {scanFormData.itemStatus === 'Faulty' && (
                 <div className="space-y-2">
                   <Label htmlFor="faultReason">Fault Reason</Label>
-                  <Input
-                    id="faultReason"
+                  <Select
                     value={scanFormData.faultReason || ''}
-                    onChange={(e) => setScanFormData({ ...scanFormData, faultReason: e.target.value })}
-                    placeholder="Describe the fault"
-                  />
+                    onValueChange={(value) => setScanFormData({ ...scanFormData, faultReason: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select fault reason..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FAULT_REASONS.map((reason) => (
+                        <SelectItem key={reason} value={reason}>
+                          {reason}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
