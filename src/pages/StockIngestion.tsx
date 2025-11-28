@@ -17,7 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { CalendarIcon, Trash2, Check, X, ArrowLeft } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CalendarIcon, Trash2, Check, X, ArrowLeft, AlertCircle } from 'lucide-react';
 
 import { BackOfficeRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
@@ -65,6 +66,7 @@ function StockIngestionContent() {
   const serialInputRef = useRef<HTMLInputElement>(null);
 
   // State
+  const [batchSize, setBatchSize] = useState<number>(100);
   const [pendingDevices, setPendingDevices] = useState<PendingDevice[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedDevice, setSelectedDevice] = useState<string>('');
@@ -152,6 +154,12 @@ function StockIngestionContent() {
 
   // Add device to pending list
   const addDevice = async (rawSerial: string) => {
+    // Check if batch is full
+    if (pendingDevices.length >= batchSize) {
+      toast.error(`Batch size limit of ${batchSize} reached. Please submit to continue scanning.`);
+      return;
+    }
+
     let serialNumber = rawSerial;
     let itemCode = '';
 
@@ -160,6 +168,16 @@ function StockIngestionContent() {
       const parsed = parseCashConnectSerial(rawSerial);
       serialNumber = parsed.serialNumber;
       itemCode = parsed.itemCode;
+    }
+
+    // Check for duplicate within current batch (case-insensitive)
+    const duplicateInBatch = pendingDevices.some(
+      d => d.serialNumber.toLowerCase() === serialNumber.toLowerCase()
+    );
+
+    if (duplicateInBatch) {
+      toast.error(`Serial number "${serialNumber}" already scanned in this batch`);
+      return;
     }
 
     // Add device with 'checking' status first
@@ -420,6 +438,26 @@ function StockIngestionContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <Label>Batch Size (1-100) *</Label>
+              <Input
+                type="number"
+                min="1"
+                max="100"
+                value={batchSize}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1;
+                  setBatchSize(Math.min(100, Math.max(1, value)));
+                }}
+                placeholder="Enter batch size"
+                disabled={pendingDevices.length > 0}
+              />
+              <p className="text-xs text-muted-foreground">
+                Maximum devices per submission (Supabase API limit)
+                {pendingDevices.length > 0 && ' - Cannot change after scanning starts'}
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label>Receiving Warehouse *</Label>
               <Select
                 value={batchForm.watch('receivingWarehouse')}
@@ -490,6 +528,30 @@ function StockIngestionContent() {
             <CardDescription>Select device type and enter serial numbers</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Batch Progress */}
+            {pendingDevices.length > 0 && (
+              <div className="space-y-2 p-4 bg-muted rounded-md">
+                <div className="flex justify-between text-sm font-medium">
+                  <span>Scanned Devices</span>
+                  <span>{pendingDevices.length} / {batchSize}</span>
+                </div>
+                <Progress value={(pendingDevices.length / batchSize) * 100} className="h-2" />
+                <p className="text-xs text-muted-foreground">
+                  {batchSize - pendingDevices.length} devices remaining in this batch
+                </p>
+              </div>
+            )}
+
+            {/* Batch Full Alert */}
+            {pendingDevices.length >= batchSize && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Batch size of {batchSize} reached. Please submit this batch to continue scanning more devices.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Device Selection Gallery */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -576,7 +638,9 @@ function StockIngestionContent() {
                     onPaste={handlePaste}
                     onFocus={(e) => e.target.select()}
                     placeholder={
-                      isCashConnect
+                      pendingDevices.length >= batchSize
+                        ? `Batch full (${batchSize}/${batchSize}) - Submit to continue`
+                        : isCashConnect
                         ? 'Scan QR: ItemCode,Serial or paste multiple'
                         : 'Enter serial and press Enter (or paste multiple)'
                     }
@@ -587,9 +651,12 @@ function StockIngestionContent() {
                     spellCheck="false"
                     inputMode="text"
                     data-1p-ignore
+                    disabled={pendingDevices.length >= batchSize}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Press Enter to add each serial. Auto-fills device metadata.
+                    {pendingDevices.length >= batchSize
+                      ? 'Batch size reached. Submit this batch to continue scanning.'
+                      : 'Press Enter to add each serial. Auto-fills device metadata.'}
                   </p>
                 </div>
 
