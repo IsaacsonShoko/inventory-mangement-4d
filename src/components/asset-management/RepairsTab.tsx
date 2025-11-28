@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Search, Filter, MoreHorizontal, Eye, Wrench, Edit, Plus } from 'lucide-react';
+import { Search, Filter, MoreHorizontal, Eye, Wrench, Edit, Plus, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +30,7 @@ import {
 import { useRepairTickets, useRepairMetrics, useUpdateRepairTicket, useCreateRepairTicket, useDeviceBySerial } from '@/hooks/useAssetManagement';
 import { useAuth } from '@/hooks/useAuth';
 import type { RepairStatusEnum, FaultCategoryEnum } from '@/integrations/supabase/services-asset';
+import { BarcodeScanner } from '@/components/BarcodeScanner';
 
 // Status badge colors
 const statusColors: Record<RepairStatusEnum, string> = {
@@ -85,12 +86,27 @@ export function RepairsTab() {
   // Create ticket state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createFormData, setCreateFormData] = useState({
+    business_line: '',
+    // Serial numbers
     serial_number: '',
+    qr_code_serial: '',
+    xlink_serial: '',
+    cradle_serial: '',
+    charger_serial: '',
+    // Fault fields
     fault_category: '',
     fault_description: '',
     fault_severity: '',
+    // Item fields
+    item_status: '' as 'Functional' | 'Faulty' | '',
+    overall_condition: '' as 'New' | 'Good' | 'Fair' | 'Poor' | '',
   });
   const [serialLookup, setSerialLookup] = useState('');
+  const [qrScanInput, setQrScanInput] = useState('');
+
+  // Barcode scanner state
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [activeSerialField, setActiveSerialField] = useState<'qr' | 'manufacture' | 'xlink' | 'cradle' | 'charger' | null>(null);
 
   // Queries
   const { data: tickets, isLoading } = useRepairTickets({
@@ -127,6 +143,77 @@ export function RepairsTab() {
     setFaultFilter(undefined);
   };
 
+  // Helper to check if business line is Cash Connect
+  const isCashConnect = () =>
+    createFormData.business_line?.includes('Cash Connect') ?? false;
+
+  // Parse comma-separated QR code input for Cash Connect
+  const parseQrCodeInput = (input: string) => {
+    const commaCount = (input.match(/,/g) || []).length;
+
+    if (commaCount >= 1) {
+      const firstCommaIndex = input.indexOf(',');
+      const itemCode = input.substring(0, firstCommaIndex).trim();
+
+      let cashConnectSerial = '';
+      if (commaCount > 1) {
+        // More than 1 comma: extract characters 14-18 (positions 13-17 in 0-based index)
+        cashConnectSerial = input.substring(13, 18);
+      } else if (commaCount === 1) {
+        // Exactly 1 comma: extract everything after the first comma
+        cashConnectSerial = input.substring(firstCommaIndex + 1).trim();
+      }
+
+      return { itemCode, cashConnectSerial };
+    }
+
+    // No comma: use entire input as item code
+    return { itemCode: input.trim(), cashConnectSerial: '' };
+  };
+
+  // Handle QR code scan input change for Cash Connect
+  const handleQrScanChange = (value: string) => {
+    setQrScanInput(value);
+
+    if (value && isCashConnect()) {
+      const { cashConnectSerial } = parseQrCodeInput(value);
+      setCreateFormData(prev => ({
+        ...prev,
+        qr_code_serial: cashConnectSerial,
+      }));
+    }
+  };
+
+  // Handle barcode scan from camera
+  const handleBarcodeScan = (result: string) => {
+    setShowBarcodeScanner(false);
+
+    if (!activeSerialField) return;
+
+    if (activeSerialField === 'qr') {
+      // Handle Cash Connect QR code
+      handleQrScanChange(result);
+      setQrScanInput(result);
+    } else if (activeSerialField === 'manufacture') {
+      setCreateFormData(prev => ({ ...prev, serial_number: result }));
+    } else if (activeSerialField === 'xlink') {
+      setCreateFormData(prev => ({ ...prev, xlink_serial: result }));
+    } else if (activeSerialField === 'cradle') {
+      setCreateFormData(prev => ({ ...prev, cradle_serial: result }));
+    } else if (activeSerialField === 'charger') {
+      setCreateFormData(prev => ({ ...prev, charger_serial: result }));
+    }
+
+    toast.success(`Scanned successfully: ${result}`);
+    setActiveSerialField(null);
+  };
+
+  // Open barcode scanner for specific field
+  const openBarcodeScanner = (field: 'qr' | 'manufacture' | 'xlink' | 'cradle' | 'charger') => {
+    setActiveSerialField(field);
+    setShowBarcodeScanner(true);
+  };
+
   const handleEditClick = (ticket: any) => {
     setEditTicket(ticket);
     setEditFormData({
@@ -158,8 +245,12 @@ export function RepairsTab() {
   };
 
   const handleSerialLookup = () => {
-    if (createFormData.serial_number.trim()) {
-      setSerialLookup(createFormData.serial_number.trim());
+    const primarySerial = isCashConnect()
+      ? createFormData.qr_code_serial
+      : createFormData.serial_number;
+
+    if (primarySerial?.trim()) {
+      setSerialLookup(primarySerial.trim());
     }
   };
 
@@ -404,50 +495,273 @@ export function RepairsTab() {
       <Dialog open={showCreateDialog} onOpenChange={() => {
         setShowCreateDialog(false);
         setCreateFormData({
+          business_line: '',
           serial_number: '',
+          qr_code_serial: '',
+          xlink_serial: '',
+          cradle_serial: '',
+          charger_serial: '',
           fault_category: '',
           fault_description: '',
           fault_severity: '',
+          item_status: '',
+          overall_condition: '',
         });
         setSerialLookup('');
+        setQrScanInput('');
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Log Repair Ticket</DialogTitle>
             <DialogDescription>
-              Create a new repair ticket for a faulty device
+              Scan device serial numbers and capture fault details
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Business Line Selection */}
             <div className="space-y-2">
-              <Label>Device Serial Number *</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={createFormData.serial_number}
-                  onChange={(e) => setCreateFormData(prev => ({ ...prev, serial_number: e.target.value }))}
-                  placeholder="Enter serial number"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSerialLookup();
-                    }
-                  }}
-                />
-                <Button onClick={handleSerialLookup} disabled={isLoadingDevice}>
-                  {isLoadingDevice ? 'Looking up...' : 'Lookup'}
-                </Button>
-              </div>
-              {deviceLookup && (
-                <p className="text-sm text-green-600">
-                  Device found: {deviceLookup.device_type} - {deviceLookup.item_category}
-                </p>
-              )}
-              {serialLookup && !deviceLookup && !isLoadingDevice && (
-                <p className="text-sm text-red-600">
-                  Device not found in registry
-                </p>
-              )}
+              <Label>Business Line *</Label>
+              <Select
+                value={createFormData.business_line}
+                onValueChange={(value) => setCreateFormData(prev => ({ ...prev, business_line: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select business line..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cash Connect">Cash Connect</SelectItem>
+                  <SelectItem value="ABSA">ABSA</SelectItem>
+                  <SelectItem value="VPS">VPS</SelectItem>
+                  <SelectItem value="Accessories">Accessories</SelectItem>
+                  <SelectItem value="Modems">Modems</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            {/* Item Status and Overall Condition */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Item Status *</Label>
+                <Select
+                  value={createFormData.item_status}
+                  onValueChange={(value) => setCreateFormData(prev => ({ ...prev, item_status: value as any }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Functional">Functional</SelectItem>
+                    <SelectItem value="Faulty">Faulty</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Overall Condition *</Label>
+                <Select
+                  value={createFormData.overall_condition}
+                  onValueChange={(value) => setCreateFormData(prev => ({ ...prev, overall_condition: value as any }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select condition..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="New">New</SelectItem>
+                    <SelectItem value="Good">Good</SelectItem>
+                    <SelectItem value="Fair">Fair</SelectItem>
+                    <SelectItem value="Poor">Poor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Serial Number Fields - Conditional based on business line */}
+            {createFormData.business_line && (
+              <>
+                {isCashConnect() ? (
+                  <>
+                    {/* Cash Connect: QR Code Scan */}
+                    <p className="text-sm font-semibold text-center">Scan Cash Connect QR Code</p>
+
+                    <div className="space-y-2">
+                      <Label>QR Code Scan (Comma-separated format)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={qrScanInput}
+                          onChange={(e) => handleQrScanChange(e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="Scan QR code here"
+                          autoFocus
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                          inputMode="text"
+                          data-1p-ignore
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openBarcodeScanner('qr')}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>QR Code Serial Number</Label>
+                      <Input
+                        value={createFormData.qr_code_serial}
+                        onChange={(e) => setCreateFormData(prev => ({ ...prev, qr_code_serial: e.target.value }))}
+                        onFocus={(e) => e.target.select()}
+                        placeholder="Auto-populated from scan or enter manually"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck="false"
+                        inputMode="text"
+                        data-1p-ignore
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* All other business lines: Individual serial number fields */}
+                    <p className="text-sm font-semibold text-center">Scan Device Serial Numbers</p>
+
+                    <div className="space-y-2">
+                      <Label>Manufacture Serial Number</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={createFormData.serial_number}
+                          onChange={(e) => setCreateFormData(prev => ({ ...prev, serial_number: e.target.value }))}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="Scan or enter manufacture serial"
+                          autoFocus
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                          inputMode="text"
+                          data-1p-ignore
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openBarcodeScanner('manufacture')}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Xlink Serial Number</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={createFormData.xlink_serial}
+                          onChange={(e) => setCreateFormData(prev => ({ ...prev, xlink_serial: e.target.value }))}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="Scan or enter xlink serial"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                          inputMode="text"
+                          data-1p-ignore
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openBarcodeScanner('xlink')}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Cradle Serial Number</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={createFormData.cradle_serial}
+                          onChange={(e) => setCreateFormData(prev => ({ ...prev, cradle_serial: e.target.value }))}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="Scan or enter cradle serial"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                          inputMode="text"
+                          data-1p-ignore
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openBarcodeScanner('cradle')}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Charger Serial Number</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={createFormData.charger_serial}
+                          onChange={(e) => setCreateFormData(prev => ({ ...prev, charger_serial: e.target.value }))}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="Scan or enter charger serial"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                          inputMode="text"
+                          data-1p-ignore
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openBarcodeScanner('charger')}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Device Lookup Button and Status */}
+                <div className="space-y-2">
+                  <Button onClick={handleSerialLookup} disabled={isLoadingDevice} className="w-full">
+                    {isLoadingDevice ? 'Looking up device...' : 'Lookup Device in Registry'}
+                  </Button>
+                  {deviceLookup && (
+                    <p className="text-sm text-green-600">
+                      Device found: {deviceLookup.device_type} - {deviceLookup.item_category}
+                    </p>
+                  )}
+                  {serialLookup && !deviceLookup && !isLoadingDevice && (
+                    <p className="text-sm text-red-600">
+                      Device not found in registry
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <Label>Fault Category *</Label>
@@ -501,12 +815,20 @@ export function RepairsTab() {
             <Button variant="outline" onClick={() => {
               setShowCreateDialog(false);
               setCreateFormData({
+                business_line: '',
                 serial_number: '',
+                qr_code_serial: '',
+                xlink_serial: '',
+                cradle_serial: '',
+                charger_serial: '',
                 fault_category: '',
                 fault_description: '',
                 fault_severity: '',
+                item_status: '',
+                overall_condition: '',
               });
               setSerialLookup('');
+              setQrScanInput('');
             }}>
               Cancel
             </Button>
@@ -709,6 +1031,17 @@ export function RepairsTab() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Barcode Scanner Modal */}
+      {showBarcodeScanner && (
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          onClose={() => {
+            setShowBarcodeScanner(false);
+            setActiveSerialField(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,83 +1,71 @@
-# Welcome to your Lovable project
+# 4D Analytics Inventory Management System
 
-## Project info
+Enterprise-grade inventory management platform for complete lifecycle tracking from order creation through delivery, with comprehensive asset management and repair workflows.
 
-**URL**: <https://lovable.dev/projects/3dea3dd3-5e4c-4653-8243-7301dd3f0830>
+## Overview
 
-## How can I edit this code?
+The 4D Analytics Inventory Management System provides end-to-end visibility and control over warehouse operations, including:
 
-There are several ways of editing your application.
+- **Order Management**: Create, track, and fulfill customer orders
+- **Warehouse Operations**: Picking queues, dispatch workflows, and manifest generation
+- **Stock Tracking**: Real-time inventory counts with barcode/QR scanning
+- **Asset Management**: Complete device lifecycle tracking with repair and DOA workflows
+- **DOA & RMA Processing**: Streamlined dead-on-arrival logging and supplier return management
+- **Analytics & KPIs**: Performance metrics, SLA compliance, fault analysis, and operational dashboards
+- **User Management**: Role-based access control with approval workflows
+- **Offline Support**: Continue working without internet connectivity
 
-### Use Lovable
+## Technology Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/3dea3dd3-5e4c-4653-8243-7301dd3f0830) and start prompting.
+- **Frontend**: React 18 + TypeScript + Vite
+- **UI Framework**: Tailwind CSS + ShadCN UI Components
+- **Backend**: Supabase (PostgreSQL)
+- **Build Tool**: Vite
+- **Authentication**: Supabase Auth with Row Level Security
+- **Storage**: Supabase Storage for documents and images
+- **Real-time**: Supabase Realtime for live updates
 
-Changes made via Lovable will be committed automatically to this repo.
+## Prerequisites
 
-### Use your preferred IDE
+- Node.js 18.x or higher
+- npm 9.x or higher
+- Supabase account with configured project
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd inventory-mangement-4d
+```
 
-Follow these steps:
+2. Install dependencies:
+```bash
+npm install
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+3. Configure environment variables (see Configuration section below)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+4. Start the development server:
+```bash
 npm run dev
 ```
 
-### Edit a file directly in GitHub
+5. Build for production:
+```bash
+npm run build
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Configuration
 
-### Use GitHub Codespaces
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/3dea3dd3-5e4c-4653-8243-7301dd3f0830) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
-
-## Environment configuration
-
-Create a `.env.local` file (or update your existing environment file) with the following keys:
+Create a `.env.local` file in the project root with the following variables:
 
 ```ini
-# Airtable access
+# Supabase Configuration
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+
+# Legacy Airtable Integration (Optional - if migrating from Airtable)
 VITE_AIRTABLE_PAT=your_airtable_pat
 VITE_AIRTABLE_BASE_ID=appXXXXXXXXXXXXXX
 VITE_AIRTABLE_INVENTORY_TABLE_ID=tblXXXXXXXXXXXXXX
@@ -86,36 +74,117 @@ VITE_AIRTABLE_BUSINESS_LINES_TABLE_ID=tblXXXXXXXXXXXXXX
 VITE_AIRTABLE_UNIQUE_ORDERS_TABLE_ID=tblXXXXXXXXXXXXXX
 VITE_AIRTABLE_ORDERS_TABLE_ID=tblXXXXXXXXXXXXXX
 
-# n8n webhooks that replace the legacy Power Automate flows
+# N8N Webhooks (Order Automation)
 VITE_N8N_SUBMIT_ORDER_WEBHOOK_URL=https://your-n8n-host/webhook/submit-order
 VITE_N8N_ORDER_PLACED_WEBHOOK_URL=https://your-n8n-host/webhook/order-placed
 ```
 
-### Order Flow Architecture
+## System Features
 
-The application uses a dual-table approach for order management:
+### Core Modules
 
-1. **Unique_Orders Table** (`VITE_AIRTABLE_UNIQUE_ORDERS_TABLE_ID`):
-   - Stores ONE record per order with order summary and recipient details
-   - Contains all delivery information (Deliver to Part, recipient name, address, email, etc.)
-   - Auto-generates Order ID field
+1. **Stock Order**: Create and manage equipment orders with custom delivery addresses
+2. **Picking Queue**: Warehouse picking workflows with business line filtering
+3. **Dispatching Queue**: Order fulfillment and manifest generation with PDF export
+4. **Stock Counts**: Mobile barcode scanning for inventory counts with fault tracking
+5. **Asset Management**:
+   - Device Registry with comprehensive tracking
+   - Repair ticket management with 19 fault categories
+   - DOA/Returns with RMA processing
+   - Device movement tracking
+6. **KPI Dashboard**: 8 comprehensive tabs with 30+ operational metrics
+7. **User Management**: Role-based access control with approval workflows
+8. **Point of Presence**: Technician roster and regional management
+9. **Stock Administration**: Product catalog and inventory item management
+10. **Stock Ingestion**: Batch device registration with barcode scanning
+11. **Tracking**: Real-time shipment tracking with courier integration
 
-2. **Stock_Order Table** (`VITE_AIRTABLE_ORDERS_TABLE_ID`):
-   - Stores line items (one record per cart item)
-   - Created by n8n webhook after receiving line items from the app
-   - Contains basic item info (device type, quantity, dispatch to, status)
+### Key Capabilities
 
-### Webhook Flow
+- **Barcode/QR Scanning**: Mobile camera and USB scanner support across all workflows
+- **Business Line Management**: Cash Connect, ABSA, VPS, Accessories, Modems, Sim Management
+- **Fault Tracking**: Intelligent fault auto-population from repair history
+- **SLA Compliance**: Real-time monitoring with breach detection
+- **Offline Mode**: Progressive Web App with offline capability
+- **Data Integrity**: Exception monitoring for orphaned scans and duplicates
+- **Audit Trail**: Comprehensive logging across all operations
 
-- `VITE_N8N_SUBMIT_ORDER_WEBHOOK_URL` is invoked once per cart item and receives complete order-line data including:
-  - Order ID from Unique_Orders
-  - Item details (category, nature, device type, quantity)
-  - Delivery details (contractor, region, technician, recipient info)
-  - **n8n responsibility**: Loop through these payloads and create Stock_Order records
+## User Roles
 
-- `VITE_N8N_ORDER_PLACED_WEBHOOK_URL` triggers after all line items have been sent and receives the overall order summary (order ID, delivery party, total items, item counts).
+- **Admin**: Full system access and configuration
+- **Back Office**: Order management, asset tracking, and reporting
+- **Picker**: Warehouse picking operations
+- **Dispatcher**: Order fulfillment and shipping
+- **Technician**: Field operations, stock counts, and repair logging
+- **Field User**: Stock ordering and tracking
 
-Both endpoints should accept `POST` requests with a JSON payload. Configure your n8n workflows to:
-1. Receive order line payloads
-2. Create corresponding Stock_Order records in Airtable
-3. Process order placed notification for any downstream automation
+## Database Schema
+
+The system uses Supabase PostgreSQL with the following core tables:
+
+- `user_profiles`: User authentication and role management
+- `inventory_items`: Product catalog and item master data
+- `stock_levels`: Real-time inventory quantities by warehouse
+- `stock_orders`: Order headers and delivery information
+- `stock_order_items`: Order line items
+- `stock_counts`: Inventory count records
+- `stock_count_items`: Individual count line items
+- `device_registry`: Asset tracking and serial number management
+- `repair_tickets`: Fault tracking and repair workflows
+- `device_movements`: Asset movement audit trail
+- `point_of_presence`: Technician roster and regional assignments
+
+## Deployment
+
+### Production Build
+
+```bash
+npm run build
+```
+
+The build output will be in the `dist/` directory.
+
+### Environment-Specific Builds
+
+Ensure environment variables are properly configured for each deployment environment (development, staging, production).
+
+### Hosting Recommendations
+
+- **Vercel**: Zero-config deployment with automatic HTTPS
+- **Netlify**: Continuous deployment with form handling
+- **AWS S3 + CloudFront**: Enterprise-grade hosting with CDN
+- **Custom Server**: Nginx/Apache with SSL certificate
+
+## Support and Documentation
+
+- **Product Documentation**: See `PRODUCT_DOCUMENTATION.md` for comprehensive feature documentation
+- **API Documentation**: Supabase auto-generated API docs
+- **Support**: Contact 4D Analytics support team
+
+## Version History
+
+- **v2.1** (November 28, 2024): Repair ticket management enhancements
+  - Edit fault assessments
+  - Technician repair logging
+  - Intelligent fault auto-population
+  - Assessment pending option
+  - Repair history alerts
+
+- **v2.0** (November 27, 2024): Business line dimensional analysis and exceptions monitoring
+  - KPI Dashboard business line filtering
+  - Exceptions tab for data integrity
+  - DOA/RMA workflows
+  - Fault analytics
+
+## License
+
+Proprietary software developed for 4D Analytics clients.
+
+## Contact
+
+**4D Analytics**
+For technical support or inquiries, contact your account manager or support team.
+
+---
+
+*Last Updated: November 28, 2024*
