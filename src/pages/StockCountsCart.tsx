@@ -8,6 +8,7 @@ import {
   Package as PackageIcon,
   Camera,
   Home,
+  Info,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import ThemeToggle from '@/components/theme-toggle';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Fault reasons - mapped from the requirements
 const FAULT_REASONS = [
@@ -115,6 +117,10 @@ const StockCountsCart = () => {
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [activeSerialField, setActiveSerialField] = useState<'qr' | 'manufacture' | 'xlink' | 'cradle' | 'charger' | null>(null);
 
+  // Repair ticket lookup state
+  const [repairTicketHistory, setRepairTicketHistory] = useState<any[]>([]);
+  const [loadingRepairHistory, setLoadingRepairHistory] = useState(false);
+
   // Auto-default overall condition to Faulty when item status is Faulty
   useEffect(() => {
     if (scanFormData.itemStatus === 'Faulty' && scanFormData.overallCondition !== 'Faulty') {
@@ -124,6 +130,68 @@ const StockCountsCart = () => {
       }));
     }
   }, [scanFormData.itemStatus]);
+
+  // Auto-fetch repair ticket history when serial number is entered
+  useEffect(() => {
+    const fetchRepairHistory = async () => {
+      const serialNumber = scanFormData.manufactureSerialNumber ||
+                          scanFormData.qrCodeSerialNumber ||
+                          scanFormData.xlinkSerialNumber;
+
+      if (!serialNumber) {
+        setRepairTicketHistory([]);
+        return;
+      }
+
+      setLoadingRepairHistory(true);
+      try {
+        // First, find the device by serial number
+        const { data: device, error: deviceError } = await supabase
+          .from('device_registry')
+          .select('id')
+          .eq('serial_number', serialNumber)
+          .maybeSingle();
+
+        if (deviceError) throw deviceError;
+
+        if (device) {
+          // Then fetch repair tickets for this device
+          const { data: tickets, error: ticketsError } = await supabase
+            .from('repair_tickets')
+            .select('*')
+            .eq('device_id', device.id)
+            .order('created_at', { ascending: false });
+
+          if (ticketsError) throw ticketsError;
+
+          setRepairTicketHistory(tickets || []);
+
+          // Auto-populate fault reason from most recent ticket if status is Faulty
+          if (tickets && tickets.length > 0 && scanFormData.itemStatus === 'Faulty') {
+            const mostRecentTicket = tickets[0];
+            if (mostRecentTicket.fault_category && !scanFormData.faultReason) {
+              setScanFormData(prev => ({
+                ...prev,
+                faultReason: mostRecentTicket.fault_category,
+              }));
+              toast({
+                title: 'Fault reason auto-populated',
+                description: `Using fault from previous repair: ${mostRecentTicket.fault_category}`,
+              });
+            }
+          }
+        } else {
+          setRepairTicketHistory([]);
+        }
+      } catch (error) {
+        console.error('Error fetching repair history:', error);
+      } finally {
+        setLoadingRepairHistory(false);
+      }
+    };
+
+    fetchRepairHistory();
+  }, [scanFormData.manufactureSerialNumber, scanFormData.qrCodeSerialNumber, scanFormData.xlinkSerialNumber, scanFormData.itemStatus, toast]);
 
   // Helper to check if item is Cash Connect
   const isCashConnect = (item: CartItem | null) =>
@@ -249,6 +317,7 @@ const StockCountsCart = () => {
       overallCondition: '',
     });
     setQrScanInput(''); // Reset QR scan input
+    setRepairTicketHistory([]); // Reset repair history
     setShowScanDialog(true);
   };
 
@@ -719,10 +788,24 @@ const StockCountsCart = () => {
                 </div>
               </div>
 
+              {/* Repair History Alert (conditional) */}
+              {scanFormData.itemStatus === 'Faulty' && repairTicketHistory.length > 0 && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Repair History Found:</strong> This device has {repairTicketHistory.length} previous repair ticket(s).
+                    Most recent: {repairTicketHistory[0].fault_category}
+                    {repairTicketHistory[0].fault_description && ` - ${repairTicketHistory[0].fault_description}`}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Fault Reason (conditional) */}
               {scanFormData.itemStatus === 'Faulty' && (
                 <div className="space-y-2">
-                  <Label htmlFor="faultReason">Fault Reason</Label>
+                  <Label htmlFor="faultReason">
+                    Fault Reason {loadingRepairHistory && '(Loading history...)'}
+                  </Label>
                   <Select
                     value={scanFormData.faultReason || ''}
                     onValueChange={(value) => setScanFormData({ ...scanFormData, faultReason: value })}

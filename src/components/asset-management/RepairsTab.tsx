@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Search, Filter, MoreHorizontal, Eye, Wrench } from 'lucide-react';
+import { Search, Filter, MoreHorizontal, Eye, Wrench, Edit, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,11 +22,13 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 
-import { useRepairTickets, useRepairMetrics } from '@/hooks/useAssetManagement';
+import { useRepairTickets, useRepairMetrics, useUpdateRepairTicket, useCreateRepairTicket, useDeviceBySerial } from '@/hooks/useAssetManagement';
+import { useAuth } from '@/hooks/useAuth';
 import type { RepairStatusEnum, FaultCategoryEnum } from '@/integrations/supabase/services-asset';
 
 // Status badge colors
@@ -69,6 +74,24 @@ export function RepairsTab() {
   // Detail view
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
 
+  // Edit state
+  const [editTicket, setEditTicket] = useState<any | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    fault_category: '',
+    fault_description: '',
+    assessment_notes: '',
+  });
+
+  // Create ticket state
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createFormData, setCreateFormData] = useState({
+    serial_number: '',
+    fault_category: '',
+    fault_description: '',
+    fault_severity: '',
+  });
+  const [serialLookup, setSerialLookup] = useState('');
+
   // Queries
   const { data: tickets, isLoading } = useRepairTickets({
     status: statusFilter || undefined,
@@ -76,6 +99,16 @@ export function RepairsTab() {
   });
 
   const { data: metrics } = useRepairMetrics();
+
+  // Auth
+  const { profile } = useAuth();
+
+  // Mutations
+  const updateTicket = useUpdateRepairTicket();
+  const createTicket = useCreateRepairTicket();
+
+  // Device lookup query
+  const { data: deviceLookup, isLoading: isLoadingDevice } = useDeviceBySerial(serialLookup);
 
   // Status options
   const statuses: RepairStatusEnum[] = [
@@ -92,6 +125,78 @@ export function RepairsTab() {
     setSearch('');
     setStatusFilter(undefined);
     setFaultFilter(undefined);
+  };
+
+  const handleEditClick = (ticket: any) => {
+    setEditTicket(ticket);
+    setEditFormData({
+      fault_category: ticket.fault_category || '',
+      fault_description: ticket.fault_description || '',
+      assessment_notes: ticket.assessment_notes || '',
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editTicket) return;
+
+    try {
+      await updateTicket.mutateAsync({
+        id: editTicket.id,
+        updates: {
+          fault_category: editFormData.fault_category as FaultCategoryEnum,
+          fault_description: editFormData.fault_description,
+          assessment_notes: editFormData.assessment_notes,
+        },
+      });
+
+      toast.success('Repair ticket updated successfully');
+      setEditTicket(null);
+    } catch (error) {
+      console.error('Failed to update repair ticket:', error);
+      toast.error('Failed to update repair ticket');
+    }
+  };
+
+  const handleSerialLookup = () => {
+    if (createFormData.serial_number.trim()) {
+      setSerialLookup(createFormData.serial_number.trim());
+    }
+  };
+
+  const handleCreateTicket = async () => {
+    if (!deviceLookup) {
+      toast.error('Device not found. Please verify the serial number.');
+      return;
+    }
+
+    if (!createFormData.fault_category) {
+      toast.error('Please select a fault category');
+      return;
+    }
+
+    try {
+      await createTicket.mutateAsync({
+        device_id: deviceLookup.id,
+        reported_by: profile?.full_name || profile?.email || 'Unknown',
+        fault_category: createFormData.fault_category as FaultCategoryEnum,
+        fault_description: createFormData.fault_description || null,
+        fault_severity: createFormData.fault_severity || null,
+        status: 'Reported',
+      });
+
+      toast.success('Repair ticket created successfully');
+      setShowCreateDialog(false);
+      setCreateFormData({
+        serial_number: '',
+        fault_category: '',
+        fault_description: '',
+        fault_severity: '',
+      });
+      setSerialLookup('');
+    } catch (error) {
+      console.error('Failed to create repair ticket:', error);
+      toast.error('Failed to create repair ticket');
+    }
   };
 
   // Filter tickets by search
@@ -166,10 +271,16 @@ export function RepairsTab() {
       {/* Filters */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filters
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              Filters
+            </CardTitle>
+            <Button onClick={() => setShowCreateDialog(true)} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Log Repair Ticket
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -267,6 +378,10 @@ export function RepairsTab() {
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditClick(ticket)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Fault Assessment
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -284,6 +399,187 @@ export function RepairsTab() {
           </ScrollArea>
         </CardContent>
       </Card>
+
+      {/* Create Ticket Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={() => {
+        setShowCreateDialog(false);
+        setCreateFormData({
+          serial_number: '',
+          fault_category: '',
+          fault_description: '',
+          fault_severity: '',
+        });
+        setSerialLookup('');
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Log Repair Ticket</DialogTitle>
+            <DialogDescription>
+              Create a new repair ticket for a faulty device
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Device Serial Number *</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={createFormData.serial_number}
+                  onChange={(e) => setCreateFormData(prev => ({ ...prev, serial_number: e.target.value }))}
+                  placeholder="Enter serial number"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSerialLookup();
+                    }
+                  }}
+                />
+                <Button onClick={handleSerialLookup} disabled={isLoadingDevice}>
+                  {isLoadingDevice ? 'Looking up...' : 'Lookup'}
+                </Button>
+              </div>
+              {deviceLookup && (
+                <p className="text-sm text-green-600">
+                  Device found: {deviceLookup.device_type} - {deviceLookup.item_category}
+                </p>
+              )}
+              {serialLookup && !deviceLookup && !isLoadingDevice && (
+                <p className="text-sm text-red-600">
+                  Device not found in registry
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fault Category *</Label>
+              <Select
+                value={createFormData.fault_category}
+                onValueChange={(value) => setCreateFormData(prev => ({ ...prev, fault_category: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select fault category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {faultCategories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fault Severity</Label>
+              <Select
+                value={createFormData.fault_severity}
+                onValueChange={(value) => setCreateFormData(prev => ({ ...prev, fault_severity: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select severity (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fault Description</Label>
+              <Textarea
+                value={createFormData.fault_description}
+                onChange={(e) => setCreateFormData(prev => ({ ...prev, fault_description: e.target.value }))}
+                placeholder="Describe the fault in detail..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowCreateDialog(false);
+              setCreateFormData({
+                serial_number: '',
+                fault_category: '',
+                fault_description: '',
+                fault_severity: '',
+              });
+              setSerialLookup('');
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTicket} disabled={createTicket.isPending || !deviceLookup}>
+              {createTicket.isPending ? 'Creating...' : 'Create Ticket'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Ticket Dialog */}
+      <Dialog open={!!editTicket} onOpenChange={() => setEditTicket(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Repair Ticket #{editTicket?.ticket_number}</DialogTitle>
+            <DialogDescription>
+              Update fault assessment for {editTicket?.device?.serial_number}
+            </DialogDescription>
+          </DialogHeader>
+
+          {editTicket && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Fault Category *</Label>
+                <Select
+                  value={editFormData.fault_category}
+                  onValueChange={(value) => setEditFormData(prev => ({ ...prev, fault_category: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select fault category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {faultCategories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Fault Description</Label>
+                <Textarea
+                  value={editFormData.fault_description}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, fault_description: e.target.value }))}
+                  placeholder="Describe the fault in detail..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Assessment Notes</Label>
+                <Textarea
+                  value={editFormData.assessment_notes}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, assessment_notes: e.target.value }))}
+                  placeholder="Add assessment notes..."
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTicket(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditSave} disabled={updateTicket.isPending}>
+              {updateTicket.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Ticket Detail Dialog */}
       <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>

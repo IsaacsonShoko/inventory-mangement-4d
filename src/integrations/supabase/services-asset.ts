@@ -474,6 +474,18 @@ export const repairTicketService = {
     return data as RepairTicket;
   },
 
+  async update(id: string, updates: Partial<RepairTicket>) {
+    const { data, error } = await supabase
+      .from('repair_tickets')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as RepairTicket;
+  },
+
   async updateStatus(id: string, status: RepairStatusEnum, additionalData?: Partial<RepairTicket>) {
     const updates: Partial<RepairTicket> = {
       status,

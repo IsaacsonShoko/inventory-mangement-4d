@@ -181,6 +181,20 @@ export function useCreateRepairTicket() {
   });
 }
 
+export function useUpdateRepairTicket() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Parameters<typeof repairTicketService.update>[1] }) =>
+      repairTicketService.update(id, updates),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['repairTickets'] });
+      queryClient.invalidateQueries({ queryKey: ['repairTicket', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['deviceRegistry'] });
+    },
+  });
+}
+
 export function useUpdateRepairTicketStatus() {
   const queryClient = useQueryClient();
 
