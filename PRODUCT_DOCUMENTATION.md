@@ -76,7 +76,11 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 
 **As a technician**, I want to:
 - Count stock at my location
-- Report faulty or damaged equipment
+- Report faulty or damaged equipment during stock counts
+- Use "Assessment Pending" as a fault reason when the device hasn't been fully diagnosed yet
+- Perform stock counts even before completing fault assessments
+- Have fault reasons auto-populated from previous repair tickets when scanning known devices
+- See repair history alerts when scanning devices with existing repair tickets
 - Record serial numbers for audit purposes
 - View my count history
 
@@ -113,6 +117,9 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 - Track which devices are with suppliers for RMA
 - Update repair status as I work through tickets
 - Access device history and previous repair records
+- Log new repair tickets directly when I encounter faulty devices
+- Edit fault assessments when devices are diagnosed
+- Update fault categories and descriptions after initial triage
 
 **As an operations manager**, I want to:
 - View fault analytics and repair metrics on the KPI dashboard
@@ -452,10 +459,16 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
   - Charger Serial Number
 
 - **Item Condition Tracking**:
-  - Item status (Functional, Faulty, In-repair)
-  - Overall condition (New, Good, Fair, Damaged)
-  - Fault reason (if faulty)
-  - XLI case reference
+  - Item status (Functional, Faulty)
+  - Overall condition (New, Good, Fair, Poor)
+  - Auto-default to "Faulty" when item status is "Faulty"
+
+- **Intelligent Fault Tracking (NEW)**:
+  - **Assessment Pending option**: Allows stock counts before full device diagnosis
+  - **Auto-populated fault reasons**: System queries repair ticket history when scanning a device
+  - **Repair history alerts**: Shows previous fault category and description for known devices
+  - **18 predefined fault reasons** matching repair ticket categories for consistency
+  - Reduces manual data entry and improves fault categorization accuracy
 
 - **Count Items Table**:
   - List of all counted items
@@ -712,18 +725,51 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 - Device history and audit trail
 
 #### Repairs Tab
-- Complete repair ticket workflow:
+- **Complete repair ticket workflow**:
   - Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
-- 18 fault categories including:
+
+- **Log Repair Ticket (NEW)**:
+  - Accessible to all users (technicians and back office staff)
+  - Serial number lookup with real-time device validation
+  - Visual feedback (green for found, red for not found)
+  - Fault category dropdown with 19 predefined categories
+  - Optional fault severity selection (Low, Medium, High, Critical)
+  - Fault description text area
+  - Auto-populated reporter from authenticated user
+
+- **Edit Fault Assessment (NEW)**:
+  - Edit existing repair tickets
+  - Update fault category after diagnosis
+  - Modify fault description
+  - Add assessment notes
+  - Available to all users for collaborative fault assessment
+
+- **18+ fault categories** including:
   - Dead On Arrival
   - Screen Damaged
   - Battery Issues
-  - Software Faults
-  - Hardware Failures
-- Fault description capture
-- Repair assessment notes
-- Status tracking and updates
-- Technician assignment
+  - Power Button Faulty
+  - Keypad Not Working
+  - Camera Faulty
+  - Speaker/Microphone Issues
+  - Charging Port Damaged
+  - Software Malfunction
+  - Network/Connectivity Issues
+  - Printer Not Working
+  - Card Reader Faulty
+  - Touch Screen Not Responsive
+  - Physical Damage
+  - Water Damage
+  - Overheating
+  - Assessment Pending (NEW - for devices requiring further diagnosis)
+  - Other
+
+- **Repair ticket features**:
+  - Fault description capture
+  - Repair assessment notes
+  - Status tracking and updates
+  - Technician assignment
+  - Repair metrics and analytics
 
 #### DOA/Returns Tab
 - **Summary Cards**:
@@ -1545,6 +1591,15 @@ The 4D Analytics Inventory Management System provides a complete solution for ma
 - N8N webhook integrations
 - USB scanner optimizations across all workflows
 
+**Recent Enhancements (November 28, 2024)**:
+- **Repair Ticket Management Enhancements**:
+  - **Edit Fault Assessments**: All users can now update fault categories, descriptions, and assessment notes after initial ticket creation
+  - **Technician Repair Logging**: Field technicians can create repair tickets directly from Asset Management with serial number lookup and validation
+  - **Intelligent Fault Auto-Population**: Stock counts now auto-populate fault reasons from device repair history
+  - **Assessment Pending Option**: Stock counts can proceed even when devices haven't been fully diagnosed
+  - **Repair History Alerts**: Real-time display of previous fault categories when scanning devices during stock counts
+  - **19 Standardized Fault Categories**: Consistent fault categorization across Stock Counts and Repairs modules
+
 **Recent Enhancements (November 27, 2024)**:
 - **Business Line Dimensional Analysis**: Woven into KPI Dashboard tabs for complete dimensional view
   - Overview: Business line fulfillment comparison
@@ -1564,6 +1619,6 @@ The system is built on modern, scalable technology and designed to grow with you
 
 ---
 
-*Document Version: 2.0*
-*Last Updated: November 27, 2024*
+*Document Version: 2.1*
+*Last Updated: November 28, 2024*
 *Prepared for: 4D Analytics Clients*
