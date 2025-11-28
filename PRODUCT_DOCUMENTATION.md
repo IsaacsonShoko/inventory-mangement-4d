@@ -69,7 +69,7 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 
 **As a warehouse staff member**, I want to:
 - Perform daily, mid-month, or monthly stock counts
-- Scan barcodes/QR codes using my device camera
+- Scan barcodes/QR codes using USB scanners
 - Record item quantities and conditions
 - Capture serial numbers for serialised equipment
 - Submit counts that automatically update inventory levels
@@ -730,12 +730,13 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 
 - **Log Repair Ticket (NEW)**:
   - Accessible to all users (technicians and back office staff)
-  - Serial number lookup with real-time device validation
-  - Visual feedback (green for found, red for not found)
+  - Manual serial number entry with lookup button
+  - Real-time device validation (green for found, red for not found)
   - Fault category dropdown with 19 predefined categories
   - Optional fault severity selection (Low, Medium, High, Critical)
   - Fault description text area
   - Auto-populated reporter from authenticated user
+  - **Note**: Currently supports manual entry only. USB scanner support and additional fields (business line, item status, overall condition, multiple serials) to be added in future enhancement to match Stock Counts workflow
 
 - **Edit Fault Assessment (NEW)**:
   - Edit existing repair tickets
