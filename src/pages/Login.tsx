@@ -79,7 +79,7 @@ const Login = () => {
       <Card className="w-full max-w-md relative z-10">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent">
-            4D Analytics
+            Xlink Technologies Pty Ltd
           </CardTitle>
           <CardDescription>Inventory Management System</CardDescription>
         </CardHeader>

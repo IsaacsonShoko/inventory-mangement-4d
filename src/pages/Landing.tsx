@@ -16,6 +16,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "@/components/theme-toggle";
+import { useAuth } from "@/hooks/useAuth";
 
 type ModuleCard = {
   title: string;
@@ -124,7 +125,8 @@ const adminWorkspaceModules: ModuleCard[] = [
 ];
 
 const Landing = () => {
-  const userName = "Isaacson Shoko";
+  const { profile } = useAuth();
+  const userName = profile?.full_name || profile?.email || "User";
 
   return (
     <div className="min-h-screen bg-background text-foreground relative overflow-hidden">
@@ -138,8 +140,8 @@ const Landing = () => {
         <header className="border-b border-border/40 bg-background/60 backdrop-blur">
           <div className="container mx-auto px-4 py-2.5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col md:flex-row md:items-center md:gap-3">
-              <span className="text-lg font-semibold">4D Analytics Inventory Management System</span>
-              <span className="text-xs text-muted-foreground">Welcome back, <span className="font-medium text-foreground">{userName}</span></span>
+              <span className="text-lg font-semibold">Xlink Technologies Pty Ltd Inventory Management System</span>
+              <span className="text-xs text-muted-foreground">Welcome, <span className="font-medium text-foreground">{userName}</span></span>
             </div>
             <ThemeToggle />
           </div>
@@ -149,7 +151,7 @@ const Landing = () => {
           <section className="space-y-1.5">
             <div className="text-center">
               <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent">
-                4D Analytics Inventory Management
+                Xlink Technologies Inventory Management
               </h1>
               <p className="text-xs text-muted-foreground max-w-2xl mx-auto">
                 Streamline operations with automated workflows and real-time inventory control.

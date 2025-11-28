@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Form,
   FormControl,
@@ -122,12 +123,15 @@ const createFormSchema = (deliveryParty: DeliveryParty) => {
 const StockOrder = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const userEmail = profile?.email || "";
 
   const form = useForm<any>({
     resolver: zodResolver(createFormSchema('')),
@@ -136,18 +140,18 @@ const StockOrder = () => {
       itemCategory: "select",
       itemNature: "select",
       deliveryParty: "select",
-      orderedBy: "",
+      orderedBy: userEmail,
       contractorCompany: "select",
       region: "select",
       technician: "select",
-      onBehalfOf: "",
+      onBehalfOf: userEmail,
       orderLocation: "",
       popId: "",
       recipientName: "",
       recipientCompanyName: "",
       recipientAddress: "",
       recipientContactNumber: "",
-      recipientEmail: "",
+      recipientEmail: userEmail,
       cellPhoneNumber: "",
     },
   });
@@ -256,15 +260,24 @@ const StockOrder = () => {
     toast,
   ]);
 
+  // Auto-fill email fields when user profile loads
+  useEffect(() => {
+    if (userEmail) {
+      form.setValue('orderedBy', userEmail);
+      form.setValue('onBehalfOf', userEmail);
+      form.setValue('recipientEmail', userEmail);
+    }
+  }, [userEmail, form]);
+
   const isFormLocked = cart.length > 0;
 
   useEffect(() => {
     form.clearErrors();
-    
+
     if (deliveryParty !== 'Technician') {
       form.setValue('contractorCompany', 'select');
       form.setValue('technician', 'select');
-      form.setValue('onBehalfOf', '');
+      form.setValue('onBehalfOf', userEmail);
       form.setValue('orderLocation', '');
       form.setValue('popId', '');
     }
@@ -273,14 +286,14 @@ const StockOrder = () => {
     }
     if (deliveryParty !== 'Regional Warehouse' && deliveryParty !== 'Non Technician') {
       form.setValue('recipientName', '');
-      form.setValue('recipientEmail', '');
+      form.setValue('recipientEmail', userEmail);
     }
     if (deliveryParty !== 'Non Technician') {
       form.setValue('recipientCompanyName', '');
       form.setValue('recipientAddress', '');
       form.setValue('recipientContactNumber', '');
     }
-  }, [deliveryParty]);
+  }, [deliveryParty, userEmail, form]);
 
   useEffect(() => {
     if (deliveryParty === 'Regional Warehouse' && selectedRegion && selectedRegion !== 'select') {
