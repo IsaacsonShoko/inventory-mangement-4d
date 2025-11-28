@@ -94,7 +94,7 @@ function StockIngestionContent() {
   });
 
   // Warehouse options
-  const warehouses = ['Warehouse A', 'Warehouse B', 'Warehouse C'];
+  const warehouses = ['KZN', 'JHB', 'WC'];
 
   // Get selected item details
   const selectedItem = inventoryItems?.find(i => i.item_name === selectedDevice);
