@@ -6,6 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface UserProfileAdmin {
   id: string;
@@ -23,6 +33,8 @@ export default function UserManagement() {
   const [users, setUsers] = useState<UserProfileAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+  const [userToRevoke, setUserToRevoke] = useState<UserProfileAdmin | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -91,6 +103,19 @@ export default function UserManagement() {
 
   const pendingCount = users.filter((u) => u.approval_status === 'pending').length;
 
+  const handleRevokeClick = (user: UserProfileAdmin) => {
+    setUserToRevoke(user);
+    setRevokeDialogOpen(true);
+  };
+
+  const confirmRevoke = async () => {
+    if (!userToRevoke) return;
+
+    await updateUserStatus(userToRevoke.id, { approval_status: 'rejected' });
+    setRevokeDialogOpen(false);
+    setUserToRevoke(null);
+  };
+
   if (!isAdmin) {
     return (
       <div className="p-8 text-center">
@@ -102,16 +127,20 @@ export default function UserManagement() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">User Management</h1>
-          <p className="text-gray-600">Manage user approvals and roles</p>
+      <div className="mb-8">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold">User Management</h1>
+            <p className="text-muted-foreground mt-2">
+              Approve pending user signups, manage user roles, and control system access. Users who sign up are placed in "pending" status until approved.
+            </p>
+          </div>
+          {pendingCount > 0 && (
+            <Badge variant="destructive" className="text-lg px-4 py-2">
+              {pendingCount} Pending Approval{pendingCount !== 1 ? 's' : ''}
+            </Badge>
+          )}
         </div>
-        {pendingCount > 0 && (
-          <Badge variant="destructive" className="text-lg px-4 py-2">
-            {pendingCount} Pending Approval
-          </Badge>
-        )}
       </div>
 
       {/* Filter */}
@@ -208,8 +237,8 @@ export default function UserManagement() {
                     {user.approval_status === 'approved' && user.id !== profile?.id && (
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => updateUserStatus(user.id, { approval_status: 'rejected' })}
+                        variant="destructive"
+                        onClick={() => handleRevokeClick(user)}
                       >
                         Revoke Access
                       </Button>
@@ -229,6 +258,24 @@ export default function UserManagement() {
           )}
         </div>
       )}
+
+      {/* Revoke Access Confirmation Dialog */}
+      <AlertDialog open={revokeDialogOpen} onOpenChange={setRevokeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke User Access?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revoke access for <strong>{userToRevoke?.full_name || userToRevoke?.email}</strong> and set their status to "rejected". They will no longer be able to log in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRevoke} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Revoke Access
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

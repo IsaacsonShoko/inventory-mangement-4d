@@ -11,12 +11,14 @@ import {
   Boxes,
   ArrowRight,
   PackagePlus,
-  Database
+  Database,
+  Users
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/useAuth";
+import { usePendingApprovals } from "@/hooks/usePendingApprovals";
 
 type ModuleCard = {
   title: string;
@@ -122,10 +124,20 @@ const adminWorkspaceModules: ModuleCard[] = [
     status: "active",
     testId: "card-stock-ingestion",
   },
+  {
+    title: "User Management",
+    description: "Approve pending user signups, manage roles, and control access to the system.",
+    icon: Users,
+    path: "/admin/users",
+    color: "from-red-500 to-pink-600",
+    status: "active",
+    testId: "card-user-management",
+  },
 ];
 
 const Landing = () => {
   const { profile } = useAuth();
+  const { data: pendingCount = 0 } = usePendingApprovals();
   const userName = profile?.full_name || profile?.email || "User";
 
   return (
@@ -199,7 +211,12 @@ const Landing = () => {
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {adminWorkspaceModules.map(({ icon: Icon, title, description, path, color, status }, index) => (
-                <Link key={title} to={path} className="group">
+                <Link key={title} to={path} className="group relative">
+                  {title === "User Management" && pendingCount > 0 && (
+                    <Badge className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 rounded-full h-6 w-6 flex items-center justify-center p-0 text-xs font-bold">
+                      {pendingCount > 99 ? '99+' : pendingCount}
+                    </Badge>
+                  )}
                   <Card 
                     className="h-full border-border/50 bg-card/80 backdrop-blur hover:border-primary/50 hover:shadow-lg transition-all duration-300 animate-fade-in"
                     style={{ animationDelay: `${index * 80}ms` }}
