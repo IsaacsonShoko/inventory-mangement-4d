@@ -20,7 +20,7 @@ export const SystemGuideBot = () => {
     {
       id: "welcome",
       role: "bot",
-      text: "Hello! I'm your 4D System Guide. I can help you with workflows, troubleshooting, and system features based on the documentation.",
+      text: "Hello! I'm your 4D System Guide. Ask me anything about the inventory system.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -45,7 +45,7 @@ export const SystemGuideBot = () => {
 
     try {
       const response = await n8nService.chatWithAssistant(userText);
-      const botText = response.answer || response.output || response.text || "I'm not sure, please check the system documentation.";
+      const botText = response.answer || response.output || "Please check the documentation.";
       
       setMessages((prev) => [
         ...prev,
@@ -60,7 +60,7 @@ export const SystemGuideBot = () => {
       console.error("Chat error:", error);
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: "bot", text: "I'm having trouble reaching the knowledge base right now." },
+        { id: (Date.now() + 1).toString(), role: "bot", text: "I couldn't reach the knowledge base." },
       ]);
     } finally {
       setIsLoading(false);
@@ -68,7 +68,8 @@ export const SystemGuideBot = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end space-y-4 font-sans">
+    // UPDATED Z-INDEX TO 9999 TO FORCE VISIBILITY
+    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end space-y-4 font-sans">
       {isOpen && (
         <Card className="w-[380px] h-[600px] shadow-2xl flex flex-col border-primary/20 animate-in slide-in-from-bottom-5 fade-in duration-300 bg-background/95 backdrop-blur-sm">
           <CardHeader className="bg-primary text-primary-foreground p-4 rounded-t-lg flex flex-row items-center justify-between space-y-0 shrink-0">
@@ -100,20 +101,13 @@ export const SystemGuideBot = () => {
                       <div className={cn("rounded-2xl p-3 text-sm shadow-sm", msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted text-foreground rounded-tl-sm")}>
                         {msg.text}
                       </div>
-                      {msg.sources && msg.sources.length > 0 && (
-                        <div className="flex gap-1 flex-wrap mt-1">
-                          {msg.sources.map((source, idx) => (
-                            <span key={idx} className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/50 px-2 py-1 rounded-full border"><BookOpen className="h-3 w-3" />{source.title}</span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
                 {isLoading && (
                   <div className="flex gap-3 self-start max-w-[90%]">
                     <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border"><Bot className="h-4 w-4" /></div>
-                    <div className="bg-muted rounded-2xl rounded-tl-sm p-4 flex items-center shadow-sm"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="ml-2 text-xs text-muted-foreground">Searching knowledge base...</span></div>
+                    <div className="bg-muted rounded-2xl rounded-tl-sm p-4 flex items-center shadow-sm"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
                   </div>
                 )}
                 <div ref={scrollRef} />
@@ -121,7 +115,7 @@ export const SystemGuideBot = () => {
             </ScrollArea>
             <div className="p-4 border-t bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/50">
               <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
-                <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="How do I return stock?..." className="flex-1 shadow-sm" disabled={isLoading} />
+                <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask a question..." className="flex-1 shadow-sm" disabled={isLoading} />
                 <Button type="submit" size="icon" disabled={isLoading || !input.trim()}><Send className="h-4 w-4" /></Button>
               </form>
             </div>
