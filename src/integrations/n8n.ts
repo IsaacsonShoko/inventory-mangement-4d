@@ -224,4 +224,12 @@ export const n8nService = {
     const url = assertWebhookConfigured(orderManifestWebhookUrl, 'VITE_N8N_ORDER_MANIFEST_WEBHOOK_URL');
     await postWebhook(url, payload, 'order manifest notification');
   }
+,
+  async chatWithAssistant(message: string) {
+    // You will need to add this variable to your .env file
+    // VITE_N8N_CHAT_WEBHOOK_URL=https://[your-n8n-url]/webhook/chat
+    const url = assertWebhookConfigured(import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL, 'VITE_N8N_CHAT_WEBHOOK_URL');
+    
+    return await postWebhook(url, { message }, 'chat assistant');
+  }
 };

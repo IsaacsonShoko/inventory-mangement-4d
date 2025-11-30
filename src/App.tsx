@@ -10,6 +10,9 @@ import { AdminRoute } from "@/components/ProtectedRoute";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { SessionTimeoutDialog } from "@/components/SessionTimeoutDialog";
+// Import the bot component
+import { SystemGuideBot } from "@/components/SystemGuideBot";
+
 import Landing from "./pages/Landing";
 import StockOrder from "./pages/StockOrder";
 import AssetManagement from "./pages/AssetManagement";
@@ -32,6 +35,7 @@ import StockAdmin from "./pages/StockAdmin";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import "./App.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -99,6 +103,10 @@ function AppContent() {
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        
+        {/* Chatbot added here - safe inside BrowserRouter */}
+        <SystemGuideBot />
+        
       </BrowserRouter>
     </>
   );
