@@ -225,43 +225,51 @@ The 4D Analytics Inventory Management System is a comprehensive web-based platfo
 - Email notifications at key milestones
 - Historical tracking available
 
-### Order Cancellation
-**Purpose**: Cancel orders that are no longer needed
+### My Orders Management
+**Purpose**: View, track, cancel, and modify your orders
 
-**Required Role**: User (own orders), Back Office, Admin
-
-**Steps**:
-1. Navigate to order tracking or stock order history
-2. Find order to cancel
-3. Check order status (only pending orders can be cancelled)
-4. Click "Cancel Order"
-5. Select cancellation reason
-6. Confirm cancellation
-
-**Restrictions**:
-- Cannot cancel picked orders
-- Cannot cancel dispatched orders
-- Cancellation requires approval for high-value orders
-
-### Order Modification
-**Purpose**: Update order details before picking
-
-**Required Role**: User (own orders), Back Office, Admin
+**Required Role**: User (own orders), Back Office, Admin (all orders)
 
 **Steps**:
-1. Navigate to order tracking
-2. Find pending order
-3. Click "Edit Order"
-4. Update allowed fields:
+1. Navigate to **Tracking** (`/tracking`)
+2. **My Orders Tab**:
+   - View list of all your orders
+   - Each order shows:
+     - Order ID (e.g., ORD-0042)
+     - Business Line (Cash Connect, ABSA, VPS, etc.)
+     - Order Status (Pending, Picked, Dispatched, Delivered)
+     - Date Ordered
+     - Action buttons
+3. **Available Actions**:
+   - **Track**: View shipment details and delivery status
+   - **Cancel**: Cancel pending orders (button only appears for Pending status)
+   - **Modify**: Edit pending orders (button only appears for Pending status)
+
+**Order Cancellation**:
+1. Click "Cancel" button next to pending order
+2. Confirm cancellation in dialog
+3. Order status changes to "Cancelled"
+4. Warehouse team receives notification
+
+**Order Modification**:
+1. Click "Modify" button next to pending order
+2. Update allowed fields:
    - Quantities
    - Delivery address (for non-technician orders)
    - Contact information
-5. Save changes
+3. Save changes
+4. Order updates appear immediately
 
 **Restrictions**:
-- Cannot modify picked orders
-- Cannot change item categories
-- Some changes require approval
+- Cannot cancel picked, dispatched, or delivered orders
+- Cannot modify picked, dispatched, or delivered orders
+- Users see only their own orders
+- Back Office and Admin see all orders
+
+**Notes**:
+- Real-time order status updates
+- Color-coded status badges for quick identification
+- Filtered by user role automatically
 
 ---
 
@@ -1126,35 +1134,37 @@ Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
 ### Stock Alerts
 **Purpose**: Monitor inventory levels and triggers
 
-**Required Role**: All roles (filtered by permissions)
+**Required Role**: Back Office, Admin
 
 **Steps**:
-1. Navigate to **Stock Alerts** (`/stock-alerts`)
-2. **Alert Types**:
+1. Navigate to **KPI Dashboard** (`/kpi`)
+2. Select the **Alerts** tab
+3. **Alert Types**:
    - **Out of Stock**: 0 units available
    - **Critical**: 1-5 units or ≤3 days stock
    - **Warning**: 6-10 units or ≤7 days stock
    - **Velocity-based**: Based on usage patterns
-3. **Alert Management**:
+4. **Alert Management**:
    - View all active alerts
-   - Filter by severity or location
-   - Update stock levels
-   - Create purchase orders
-4. **Alert Resolution**:
-   - Mark as resolved
-   - Add resolution notes
-   - Track resolution time
+   - Filter by business line or location
+   - Filter by severity level
+   - Export alert data
+5. **Alert Resolution**:
+   - Review alert details
+   - Create purchase orders from alerts
+   - Track alert trends over time
 
 **Alert Features**:
 - Automatic threshold calculation
 - Business line filtering
 - Location-based aggregation
-- Email notifications
+- Real-time monitoring
+- Historical alert tracking
 
 **Notes**:
 - Proactive inventory management
-- Automated monitoring
-- Historical alert tracking
+- Integrated with KPI dashboard
+- Alerts update automatically based on stock movements
 
 ---
 

@@ -13,8 +13,11 @@ import {
   PackageCheck,
   ClipboardList,
   Navigation,
+  X,
+  Edit,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,11 +30,34 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@/components/ui/alert';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // Collivery API Configuration
 const COLLIVERY_CONFIG = {
   baseUrl: 'https://api.collivery.co.za/v3',
-  // API key will be configured here for production
   apiKey: import.meta.env.VITE_COLLIVERY_API_KEY || '',
   headers: {
     'X-App-Name': '4D-Analytics-Inventory',
@@ -106,14 +132,52 @@ interface OrderTracking {
   currentStage: number;
 }
 
+// My Orders list item type
+interface MyOrder {
+  id: number;
+  order_id: number;
+  date_ordered: string;
+  item_category: string;
+  pick_status: string;
+  dispatch_status: string;
+  ordered_by: string;
+}
+
 const Tracking = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'waybill' | 'order'>('waybill');
   const [activeSearch, setActiveSearch] = useState('');
   const [courierEvents, setCourierEvents] = useState<CourierEvent[]>([]);
   const [courierLoading, setCourierLoading] = useState(false);
   const [courierError, setCourierError] = useState<string | null>(null);
+  const [orderToCancel, setOrderToCancel] = useState<MyOrder | null>(null);
+
+  // Fetch user's orders
+  const { data: myOrders, isLoading: ordersLoading, refetch: refetchOrders } = useQuery({
+    queryKey: ['myOrders', user?.email],
+    queryFn: async () => {
+      if (!user?.email) return [];
+
+      let query = supabase
+        .from('unique_orders')
+        .select('id, order_id, date_ordered, item_category, pick_status, dispatch_status, ordered_by')
+        .order('date_ordered', { ascending: false });
+
+      // Filter by user role - regular users see only their orders
+      if (user.role === 'user') {
+        query = query.eq('ordered_by', user.email);
+      }
+      // Admin and back_office see all orders (no filter)
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data as MyOrder[];
+    },
+    enabled: !!user?.email,
+  });
 
   // Fetch order tracking data
   const { data: orderData, isLoading, refetch } = useQuery({
@@ -230,6 +294,50 @@ const Tracking = () => {
     setCourierError(null);
   };
 
+  // Handle order cancellation
+  const handleCancelOrder = async () => {
+    if (!orderToCancel) return;
+
+    try {
+      const { error } = await supabase
+        .from('unique_orders')
+        .update({ dispatch_status: 'Cancelled' })
+        .eq('id', orderToCancel.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `Order ORD-${String(orderToCancel.order_id).padStart(4, '0')} has been cancelled.`,
+      });
+
+      refetchOrders();
+      setOrderToCancel(null);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to cancel order',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Get status badge variant
+  const getStatusVariant = (pickStatus: string, dispatchStatus: string): "default" | "secondary" | "destructive" | "outline" => {
+    if (dispatchStatus === 'Dispatched') return 'default';
+    if (pickStatus === 'Picked') return 'secondary';
+    if (dispatchStatus === 'Cancelled') return 'destructive';
+    return 'outline';
+  };
+
+  // Get display status
+  const getDisplayStatus = (pickStatus: string, dispatchStatus: string): string => {
+    if (dispatchStatus === 'Cancelled') return 'Cancelled';
+    if (dispatchStatus === 'Dispatched') return 'Dispatched';
+    if (pickStatus === 'Picked') return 'Picked';
+    return 'Pending';
+  };
+
   // Determine stage status
   const getStageStatus = (stageIndex: number, currentStage: number) => {
     if (stageIndex < currentStage) return 'completed';
@@ -242,324 +350,467 @@ const Tracking = () => {
       {/* Header */}
       <div className="flex items-center space-x-2">
         <MapPin className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Order Tracking</h1>
+        <h1 className="text-2xl font-bold">Orders & Tracking</h1>
       </div>
 
-      {/* Search Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Track Your Order</CardTitle>
-          <CardDescription>
-            Enter your waybill number or order ID to track delivery status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={searchType === 'waybill' ? 'Enter waybill number...' : 'Enter order ID...'}
-                  className="pl-10"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant={searchType === 'waybill' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSearchType('waybill')}
-              >
-                Waybill
-              </Button>
-              <Button
-                variant={searchType === 'order' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSearchType('order')}
-              >
-                Order ID
-              </Button>
-            </div>
-            <Button onClick={handleSearch} disabled={isLoading}>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                'Track'
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tabbed Interface */}
+      <Tabs defaultValue="orders" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="orders">My Orders</TabsTrigger>
+          <TabsTrigger value="tracking">Track Shipment</TabsTrigger>
+        </TabsList>
 
-      {/* Results */}
-      {orderData && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Order Timeline */}
-          <Card className="lg:col-span-2">
+        {/* My Orders Tab */}
+        <TabsContent value="orders" className="space-y-4">
+          <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">Order #{orderData.orderId}</CardTitle>
-                  <CardDescription>
-                    {new Date(orderData.dateOrdered).toLocaleDateString('en-ZA', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </CardDescription>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => refetch()}>
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Refresh
-                </Button>
-              </div>
+              <CardTitle>My Orders</CardTitle>
+              <CardDescription>
+                View and manage your orders
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Animated Timeline */}
-              <div className="relative">
-                {ORDER_STAGES.map((stage, index) => {
-                  const status = getStageStatus(index, orderData.currentStage);
-                  const Icon = stage.icon;
+              {ordersLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : !myOrders || myOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Package className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Orders Found</h3>
+                  <p className="text-sm text-muted-foreground">
+                    You haven't placed any orders yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Business Line</TableHead>
+                        <TableHead>Date Ordered</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {myOrders.map((order) => {
+                        const displayStatus = getDisplayStatus(order.pick_status, order.dispatch_status);
+                        const isPending = displayStatus === 'Pending';
 
-                  return (
-                    <div key={stage.id} className="relative pb-8 last:pb-0">
-                      {/* Connector Line */}
-                      {index < ORDER_STAGES.length - 1 && (
-                        <div
-                          className={`absolute left-5 top-10 w-0.5 h-full -ml-px transition-all duration-700 ease-out ${
-                            status === 'completed'
-                              ? 'bg-primary'
-                              : status === 'current'
-                              ? 'bg-gradient-to-b from-primary to-muted'
-                              : 'bg-muted'
-                          }`}
-                        />
-                      )}
-
-                      {/* Stage Item */}
-                      <div className="relative flex items-start group">
-                        {/* Icon Circle */}
-                        <div
-                          className={`
-                            flex items-center justify-center w-10 h-10 rounded-full border-2
-                            transition-all duration-500 ease-out
-                            ${status === 'completed'
-                              ? 'bg-primary border-primary text-primary-foreground scale-100'
-                              : status === 'current'
-                              ? 'bg-background border-primary text-primary scale-110 shadow-lg shadow-primary/25'
-                              : 'bg-muted border-muted-foreground/20 text-muted-foreground scale-90'
-                            }
-                          `}
-                          style={{
-                            animation: status === 'current' ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none',
-                          }}
-                        >
-                          <Icon className="h-5 w-5" />
-                        </div>
-
-                        {/* Content */}
-                        <div className="ml-4 min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3
-                              className={`text-sm font-semibold transition-colors duration-300 ${
-                                status === 'pending' ? 'text-muted-foreground' : ''
-                              }`}
-                            >
-                              {stage.label}
-                            </h3>
-                            {status === 'current' && (
-                              <Badge
-                                variant="secondary"
-                                className="text-xs animate-pulse bg-primary/10 text-primary"
-                              >
-                                Current
+                        return (
+                          <TableRow key={order.id}>
+                            <TableCell className="font-medium font-mono">
+                              ORD-{String(order.order_id).padStart(4, '0')}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{order.item_category}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(order.date_ordered).toLocaleDateString('en-ZA')}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getStatusVariant(order.pick_status, order.dispatch_status)}>
+                                {displayStatus}
                               </Badge>
-                            )}
-                            {status === 'completed' && (
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
-                            )}
-                          </div>
-                          <p
-                            className={`text-xs mt-0.5 transition-colors duration-300 ${
-                              status === 'pending' ? 'text-muted-foreground/60' : 'text-muted-foreground'
-                            }`}
-                          >
-                            {stage.description}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                            </TableCell>
+                            <TableCell className="text-right space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSearchType('order');
+                                  setSearchQuery(String(order.order_id));
+                                  setActiveSearch(String(order.order_id));
+                                  // Switch to tracking tab after a brief delay
+                                  setTimeout(() => {
+                                    const trackingTab = document.querySelector('[value="tracking"]') as HTMLElement;
+                                    trackingTab?.click();
+                                  }, 100);
+                                }}
+                              >
+                                <Search className="h-4 w-4 mr-1" />
+                                Track
+                              </Button>
+                              {isPending && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      toast({
+                                        title: 'Coming Soon',
+                                        description: 'Order modification feature will be available soon.',
+                                      });
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    Modify
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setOrderToCancel(order)}
+                                  >
+                                    <X className="h-4 w-4 mr-1" />
+                                    Cancel
+                                  </Button>
+                                </>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Track Shipment Tab */}
+        <TabsContent value="tracking" className="space-y-4">
+          {/* Search Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Track Your Order</CardTitle>
+              <CardDescription>
+                Enter your waybill number or order ID to track delivery status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder={searchType === 'waybill' ? 'Enter waybill number...' : 'Enter order ID...'}
+                      className="pl-10"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={searchType === 'waybill' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSearchType('waybill')}
+                  >
+                    Waybill
+                  </Button>
+                  <Button
+                    variant={searchType === 'order' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSearchType('order')}
+                  >
+                    Order ID
+                  </Button>
+                </div>
+                <Button onClick={handleSearch} disabled={isLoading}>
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Track'
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Order Details & Courier Tracking */}
-          <div className="space-y-6">
-            {/* Order Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Order Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Waybill Number</p>
-                  <p className="text-sm font-medium font-mono">
-                    {orderData.waybillNumber || 'Not assigned'}
-                  </p>
-                </div>
-                <Separator />
-                <div>
-                  <p className="text-xs text-muted-foreground">Dispatch Method</p>
-                  <p className="text-sm font-medium">
-                    {orderData.dispatchMethod || 'Not specified'}
-                  </p>
-                </div>
-                <Separator />
-                <div>
-                  <p className="text-xs text-muted-foreground">Recipient</p>
-                  <p className="text-sm font-medium">
-                    {orderData.recipientName || orderData.technicianName || 'N/A'}
-                  </p>
-                </div>
-                {orderData.recipientAddress && (
-                  <>
-                    <Separator />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Delivery Address</p>
-                      <p className="text-sm">{orderData.recipientAddress}</p>
-                    </div>
-                  </>
-                )}
-                <Separator />
-                <div>
-                  <p className="text-xs text-muted-foreground">Category</p>
-                  <Badge variant="outline">{orderData.itemCategory || 'N/A'}</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Courier Tracking */}
-            {orderData.waybillNumber && orderData.dispatchMethod === 'Courier' && (
-              <Card>
+          {/* Results */}
+          {orderData && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Order Timeline */}
+              <Card className="lg:col-span-2">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">Courier Tracking</CardTitle>
-                    <Badge variant="secondary" className="text-xs">
-                      MDS / Collivery
-                    </Badge>
+                    <div>
+                      <CardTitle className="text-lg">Order #{orderData.orderId}</CardTitle>
+                      <CardDescription>
+                        {new Date(orderData.dateOrdered).toLocaleDateString('en-ZA', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => refetch()}>
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Refresh
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {!COLLIVERY_CONFIG.apiKey ? (
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>API Key Required</AlertTitle>
-                      <AlertDescription className="text-xs">
-                        Configure VITE_COLLIVERY_API_KEY environment variable to enable live courier tracking.
-                      </AlertDescription>
-                    </Alert>
-                  ) : courierLoading ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    </div>
-                  ) : courierError ? (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-xs">
-                        {courierError}
-                      </AlertDescription>
-                    </Alert>
-                  ) : courierEvents.length > 0 ? (
-                    <div className="space-y-3">
-                      {courierEvents.map((event, index) => (
-                        <div key={index} className="flex gap-3 text-sm">
-                          <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-primary" />
-                          <div>
-                            <p className="font-medium">{event.status}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {event.description}
-                            </p>
-                            {event.location && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {event.location}
+                  {/* Animated Timeline */}
+                  <div className="relative">
+                    {ORDER_STAGES.map((stage, index) => {
+                      const status = getStageStatus(index, orderData.currentStage);
+                      const Icon = stage.icon;
+
+                      return (
+                        <div key={stage.id} className="relative pb-8 last:pb-0">
+                          {/* Connector Line */}
+                          {index < ORDER_STAGES.length - 1 && (
+                            <div
+                              className={`absolute left-5 top-10 w-0.5 h-full -ml-px transition-all duration-700 ease-out ${
+                                status === 'completed'
+                                  ? 'bg-primary'
+                                  : status === 'current'
+                                  ? 'bg-gradient-to-b from-primary to-muted'
+                                  : 'bg-muted'
+                              }`}
+                            />
+                          )}
+
+                          {/* Stage Item */}
+                          <div className="relative flex items-start group">
+                            {/* Icon Circle */}
+                            <div
+                              className={`
+                                flex items-center justify-center w-10 h-10 rounded-full border-2
+                                transition-all duration-500 ease-out
+                                ${status === 'completed'
+                                  ? 'bg-primary border-primary text-primary-foreground scale-100'
+                                  : status === 'current'
+                                  ? 'bg-background border-primary text-primary scale-110 shadow-lg shadow-primary/25'
+                                  : 'bg-muted border-muted-foreground/20 text-muted-foreground scale-90'
+                                }
+                              `}
+                              style={{
+                                animation: status === 'current' ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none',
+                              }}
+                            >
+                              <Icon className="h-5 w-5" />
+                            </div>
+
+                            {/* Content */}
+                            <div className="ml-4 min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h3
+                                  className={`text-sm font-semibold transition-colors duration-300 ${
+                                    status === 'pending' ? 'text-muted-foreground' : ''
+                                  }`}
+                                >
+                                  {stage.label}
+                                </h3>
+                                {status === 'current' && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs animate-pulse bg-primary/10 text-primary"
+                                  >
+                                    Current
+                                  </Badge>
+                                )}
+                                {status === 'completed' && (
+                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                )}
+                              </div>
+                              <p
+                                className={`text-xs mt-0.5 transition-colors duration-300 ${
+                                  status === 'pending' ? 'text-muted-foreground/60' : 'text-muted-foreground'
+                                }`}
+                              >
+                                {stage.description}
                               </p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(event.timestamp).toLocaleString()}
-                            </p>
+                            </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => fetchCourierTracking(orderData.waybillNumber!)}
-                    >
-                      <Truck className="h-4 w-4 mr-2" />
-                      Get Courier Updates
-                    </Button>
-                  )}
-
-                  {orderData.waybillNumber && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="w-full mt-2 text-xs"
-                      asChild
-                    >
-                      <a
-                        href={`https://www.collivery.co.za/track/${orderData.waybillNumber}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Track on Collivery.net
-                        <ExternalLink className="h-3 w-3 ml-1" />
-                      </a>
-                    </Button>
-                  )}
+                      );
+                    })}
+                  </div>
                 </CardContent>
               </Card>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Empty State */}
-      {!activeSearch && (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="rounded-full bg-primary/10 p-4 mb-4">
-              <Package className="h-8 w-8 text-primary" />
+              {/* Order Details & Courier Tracking */}
+              <div className="space-y-6">
+                {/* Order Details */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Order Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Waybill Number</p>
+                      <p className="text-sm font-medium font-mono">
+                        {orderData.waybillNumber || 'Not assigned'}
+                      </p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Dispatch Method</p>
+                      <p className="text-sm font-medium">
+                        {orderData.dispatchMethod || 'Not specified'}
+                      </p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Recipient</p>
+                      <p className="text-sm font-medium">
+                        {orderData.recipientName || orderData.technicianName || 'N/A'}
+                      </p>
+                    </div>
+                    {orderData.recipientAddress && (
+                      <>
+                        <Separator />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Delivery Address</p>
+                          <p className="text-sm">{orderData.recipientAddress}</p>
+                        </div>
+                      </>
+                    )}
+                    <Separator />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Category</p>
+                      <Badge variant="outline">{orderData.itemCategory || 'N/A'}</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Courier Tracking */}
+                {orderData.waybillNumber && orderData.dispatchMethod === 'Courier' && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm">Courier Tracking</CardTitle>
+                        <Badge variant="secondary" className="text-xs">
+                          MDS / Collivery
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {!COLLIVERY_CONFIG.apiKey ? (
+                        <Alert>
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>API Key Required</AlertTitle>
+                          <AlertDescription className="text-xs">
+                            Configure VITE_COLLIVERY_API_KEY environment variable to enable live courier tracking.
+                          </AlertDescription>
+                        </Alert>
+                      ) : courierLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        </div>
+                      ) : courierError ? (
+                        <Alert variant="destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-xs">
+                            {courierError}
+                          </AlertDescription>
+                        </Alert>
+                      ) : courierEvents.length > 0 ? (
+                        <div className="space-y-3">
+                          {courierEvents.map((event, index) => (
+                            <div key={index} className="flex gap-3 text-sm">
+                              <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-primary" />
+                              <div>
+                                <p className="font-medium">{event.status}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {event.description}
+                                </p>
+                                {event.location && (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {event.location}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(event.timestamp).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => fetchCourierTracking(orderData.waybillNumber!)}
+                        >
+                          <Truck className="h-4 w-4 mr-2" />
+                          Get Courier Updates
+                        </Button>
+                      )}
+
+                      {orderData.waybillNumber && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="w-full mt-2 text-xs"
+                          asChild
+                        >
+                          <a
+                            href={`https://www.collivery.co.za/track/${orderData.waybillNumber}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Track on Collivery.net
+                            <ExternalLink className="h-3 w-3 ml-1" />
+                          </a>
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
-            <h3 className="text-lg font-semibold mb-2">Track Your Delivery</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Enter your waybill number or order ID above to see real-time tracking
-              information and delivery status updates.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+          )}
 
-      {/* Not Found */}
-      {activeSearch && !isLoading && !orderData && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Order Not Found</AlertTitle>
-          <AlertDescription>
-            No order found with {searchType === 'waybill' ? 'waybill number' : 'order ID'}: {activeSearch}
-          </AlertDescription>
-        </Alert>
-      )}
+          {/* Empty State */}
+          {!activeSearch && (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <div className="rounded-full bg-primary/10 p-4 mb-4">
+                  <Package className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Track Your Delivery</h3>
+                <p className="text-sm text-muted-foreground text-center max-w-sm">
+                  Enter your waybill number or order ID above to see real-time tracking
+                  information and delivery status updates.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Not Found */}
+          {activeSearch && !isLoading && !orderData && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Order Not Found</AlertTitle>
+              <AlertDescription>
+                No order found with {searchType === 'waybill' ? 'waybill number' : 'order ID'}: {activeSearch}
+              </AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Cancel Order Dialog */}
+      <AlertDialog open={!!orderToCancel} onOpenChange={() => setOrderToCancel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Order</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel order{' '}
+              <span className="font-mono font-semibold">
+                ORD-{orderToCancel ? String(orderToCancel.order_id).padStart(4, '0') : ''}
+              </span>
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, Keep Order</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelOrder}>
+              Yes, Cancel Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
