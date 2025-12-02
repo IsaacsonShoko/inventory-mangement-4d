@@ -156,7 +156,7 @@ export interface CreateOrderInput {
   ordered_by: string;
   on_behalf_of?: string;
   order_location?: string;
-  cellphone_number?: string;
+  cell_phone_number?: string;
 }
 
 export interface CreateOrderLineItemInput {

@@ -324,7 +324,7 @@ export const usePickingQueue = () => {
           'Warehouse Fulfilling': order.warehouse_fulfilling,
           'WayBill Number': order.waybill_number,
           'Order Notes': order.order_notes,
-          'CellPhone Number': order.cellphone_number,
+          'CellPhone Number': order.cell_phone_number,
         },
       }));
     },
@@ -366,7 +366,7 @@ export const useDispatchQueue = () => {
               'Warehouse Fulfilling': order.warehouse_fulfilling,
               'WayBill Number': order.waybill_number,
               'Order Notes': order.order_notes,
-              'CellPhone Number': order.cellphone_number,
+              'CellPhone Number': order.cell_phone_number,
             },
             dispatchLogEntries: dispatchLogs.map(log => ({
               id: log.id,
@@ -436,7 +436,7 @@ export const useUniqueOrderRecord = (recordId?: string) => {
           'Warehouse Fulfilling': order.warehouse_fulfilling,
           'WayBill Number': order.waybill_number,
           'Order Notes': order.order_notes,
-          'CellPhone Number': order.cellphone_number,
+          'CellPhone Number': order.cell_phone_number,
         },
       };
     },
