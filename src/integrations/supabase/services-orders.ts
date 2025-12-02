@@ -389,7 +389,7 @@ export const ordersService = {
     }));
 
     const { error: lineItemsError } = await supabase
-      .from('order_line_items')
+      .from('stock_order')
       .insert(lineItems);
 
     if (lineItemsError) throw lineItemsError;
@@ -475,7 +475,7 @@ export const ordersService = {
 
   async getLineItems(orderId: string): Promise<OrderLineItemRow[]> {
     const { data, error } = await supabase
-      .from('order_line_items')
+      .from('stock_order')
       .select('*')
       .eq('order_id', orderId)
       .order('device_type', { ascending: true });
@@ -486,7 +486,7 @@ export const ordersService = {
 
   async updateLineItem(id: string, updates: Partial<OrderLineItemRow>): Promise<OrderLineItemRow> {
     const { data, error } = await supabase
-      .from('order_line_items')
+      .from('stock_order')
       .update(updates)
       .eq('id', id)
       .select()
