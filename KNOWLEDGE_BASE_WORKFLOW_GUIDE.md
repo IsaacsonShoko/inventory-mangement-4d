@@ -112,6 +112,41 @@ The 4D Analytics Inventory Management System is a comprehensive web-based platfo
 - User history is preserved for audit
 - Can re-activate revoked users if needed
 
+### Password Reset Flow
+**Purpose**: Users can reset their password if forgotten or need to change it
+
+**Required Role**: Any (self-service)
+
+**Steps for Forgotten Password**:
+1. Navigate to the **Login** page (`/login`)
+2. Click "Forgot your password?" link below the Sign In button
+3. Enter your email address in the dialog
+4. Click "Send Reset Link"
+5. Check your email for password reset link
+6. Click the link in email (redirects to `/reset-password` page)
+7. Enter new password (minimum 6 characters)
+8. Confirm new password
+9. Click "Update Password"
+10. System redirects to login page after 3 seconds
+11. Sign in with new password
+
+**Steps for Forced Password Change**:
+1. Admin sends password reset email to user
+2. User follows reset link from email
+3. User sets new password on Reset Password page
+
+**Security Features**:
+- Password must be at least 6 characters long
+- Reset links expire after 1 hour
+- Password confirmation required
+- Secure token-based authentication
+
+**Notes**:
+- Reset emails sent instantly via Supabase Auth
+- Users cannot reuse reset link after successful password change
+- No notification sent to admin when user resets password
+- If email not received, check spam folder
+
 ---
 
 ## Order Management Workflows
@@ -198,6 +233,53 @@ The 4D Analytics Inventory Management System is a comprehensive web-based platfo
 **Notes**:
 - For external customers or partners
 - Delivery tracking notifications sent to recipient email
+
+### Backorder Management
+**Purpose**: Handle orders when requested items are out of stock
+
+**Required Role**: User, Back Office, Admin (when placing orders)
+
+**How Backorders Work**:
+When placing an order on the Stock Order page, the system automatically handles out-of-stock items:
+
+**Steps**:
+1. Navigate to **Stock Order** (`/stock-order`)
+2. Complete order form (delivery party, recipient, etc.)
+3. Search for items in the device gallery
+4. **Stock Status Indicators**:
+   - **In Stock (Green)**: Available quantity shown (e.g., "In Stock (45)")
+   - **Low Stock (Amber)**: Limited quantity available (1-5 units)
+   - **Out of Stock (Red)**: Zero units available
+5. For out-of-stock items:
+   - Item card displays red border and "Out of Stock" badge
+   - Overlay shows warning icon on item image
+   - Add button turns amber instead of green
+   - Warning text appears: "Item will be backordered if added to cart"
+6. Add out-of-stock items to cart (system allows this)
+7. Submit order normally - backordered items are included
+8. Order enters picking queue with backorder status
+
+**Warehouse Processing**:
+1. Pickers see orders with backordered items in Picking Queue
+2. Available items are picked immediately
+3. Backordered items remain in queue until stock arrives
+4. System tracks partial fulfillment status
+
+**Backorder Resolution**:
+1. When backordered stock arrives (via Stock Ingestion)
+2. Pending orders with those items automatically become pickable
+3. Warehouse team completes picking
+4. Order proceeds to dispatch
+
+**Notifications**:
+- User receives email when order is placed (including backordered items)
+- Additional notification sent when backorder is fulfilled
+
+**Notes**:
+- Backorders are passive - no separate backorder queue exists
+- Orders may be partially fulfilled (some items picked, others backordered)
+- Priority given to older orders when stock arrives
+- Users can track backorder status via Order Tracking page
 
 ### Order Tracking
 **Purpose**: Monitor order status and progress
@@ -1208,6 +1290,66 @@ Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
 - Real-time data updates
 - Business line dimensional analysis
 - Interactive visualizations
+
+### SLA Tracking and Compliance
+**Purpose**: Monitor order fulfillment against Service Level Agreement targets
+
+**Required Role**: Back Office, Admin
+
+**SLA Rules**:
+The system enforces automatic SLA tracking based on order time:
+- **Orders placed before 12:00 PM**: Must be picked and dispatched same day
+- **Orders placed after 12:00 PM**: Must be picked and dispatched by 3:00 PM next business day
+
+**Steps to Monitor SLA**:
+1. Navigate to **KPI Dashboard** (`/kpi`)
+2. **Overview Tab** displays:
+   - **SLA Compliance** card showing compliance percentage
+   - Color-coded indicators:
+     - Green: ≥95% compliance (excellent)
+     - Amber: 80-94% compliance (needs attention)
+     - Red: <80% compliance (critical)
+   - Total SLA breaches count
+3. **Alerts Tab** shows:
+   - Active SLA breach alerts for orders past deadline
+   - Order ID, business line, and time overdue
+   - Click alerts to view order details
+4. **Orders Tab** provides:
+   - Detailed order-level SLA status
+   - Breakdown by pick status and dispatch status
+   - Time remaining or overdue for each order
+
+**SLA Calculation Logic**:
+1. System calculates deadline based on order timestamp
+2. Compares current time against deadline
+3. Updates breach status in real-time
+4. Aggregates compliance rate: `(Total Pending Orders - Breached Orders) / Total Pending Orders × 100`
+
+**SLA Breach Alerts**:
+When SLA is breached:
+- Alert appears in KPI Dashboard → Alerts tab
+- Breach count increments on Overview card
+- Order highlighted in red on Orders tab
+- Warehouse teams can prioritize breached orders in Picking Queue
+
+**Use Cases**:
+- **Operations Manager**: Monitor daily SLA compliance across all business lines
+- **Warehouse Manager**: Identify and prioritize delayed orders
+- **Executive Dashboard**: Track operational efficiency trends
+- **Performance Review**: Historical SLA compliance reporting
+
+**Best Practices**:
+- Check SLA Compliance card daily at start of shift
+- Prioritize picking orders approaching SLA deadline
+- Investigate root causes of repeated SLA breaches
+- Filter by business line to identify problem areas
+- Use Alerts tab for immediate breach notifications
+
+**Notes**:
+- SLA tracking is automatic - no manual entry required
+- Excludes weekends and holidays from next-day calculations
+- Breach alerts clear automatically once order is dispatched
+- Historical SLA data available in Trends tab for performance analysis
 
 ### Business Line Analysis
 **Purpose**: Compare performance across business lines

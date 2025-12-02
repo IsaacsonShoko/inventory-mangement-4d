@@ -24,6 +24,7 @@ from typing import Dict, Any, Optional
 N8N_WEBHOOKS = {
     'order-placed': os.environ.get('N8N_ORDER_PLACED_URL', ''),
     'order-picked': os.environ.get('N8N_ORDER_PICKED_URL', ''),
+    'chat': os.environ.get('VITE_N8N_CHAT_WEBHOOK_URL', ''), 
     'order-dispatched': os.environ.get('N8N_ORDER_DISPATCHED_URL', ''),
 }
 
