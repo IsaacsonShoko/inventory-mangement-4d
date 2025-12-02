@@ -116,15 +116,6 @@ export default function UserManagement() {
     setUserToRevoke(null);
   };
 
-  if (!isAdmin) {
-    return (
-      <div className="p-8 text-center">
-        <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-        <p className="text-gray-600">You must be an admin to access this page.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">

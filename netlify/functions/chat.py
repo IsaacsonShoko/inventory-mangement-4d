@@ -16,7 +16,7 @@ import json
 import os
 import urllib.request
 import urllib.error
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 # Environment variables
 SUPABASE_URL = os.environ.get('VITE_SUPABASE_URL', '')
@@ -180,7 +180,7 @@ def search_similar_documents(embedding: List[float]) -> List[Dict[str, Any]]:
         return []
 
 
-def format_context(documents: List[Dict[str, Any]]) -> tuple[str, List[Dict[str, str]]]:
+def format_context(documents: List[Dict[str, Any]]) -> Tuple[str, List[Dict[str, str]]]:
     """Format documents into context string and sources list"""
 
     if not documents:

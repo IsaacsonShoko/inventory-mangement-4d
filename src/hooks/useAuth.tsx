@@ -10,6 +10,9 @@ export interface UserProfile {
   id: string;
   email: string;
   full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
   role: UserRole;
   approval_status: ApprovalStatus;
   approved_by: string | null;
@@ -23,7 +26,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, metadata?: { full_name?: string; role?: UserRole }) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, metadata?: { first_name?: string; last_name?: string; company?: string; role?: string }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
@@ -108,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (
     email: string,
     password: string,
-    metadata?: { full_name?: string; role?: UserRole }
+    metadata?: { first_name?: string; last_name?: string; company?: string; role?: string }
   ) => {
     const { error } = await supabase.auth.signUp({
       email,
