@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, X, Send, Bot, User, Loader2, BookOpen } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -38,29 +38,54 @@ export const SystemGuideBot = () => {
 
     const userText = input;
     const userMsg: Message = { id: Date.now().toString(), role: "user", text: userText };
-    
+
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
 
     try {
-      const response = await n8nService.chatWithAssistant(userText);
+      // Check if we have a direct chat endpoint (preferred) or use n8n
+      const chatEndpoint = import.meta.env.VITE_CHAT_ENDPOINT;
+
+      let response;
+      if (chatEndpoint) {
+        // Use direct Netlify function
+        const res = await fetch(chatEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userText }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        response = await res.json();
+      } else {
+        // Fallback to n8n service
+        response = await n8nService.chatWithAssistant(userText);
+      }
+
       const botText = response.answer || response.output || "Please check the documentation.";
-      
+
       setMessages((prev) => [
         ...prev,
-        { 
-          id: (Date.now() + 1).toString(), 
-          role: "bot", 
+        {
+          id: (Date.now() + 1).toString(),
+          role: "bot",
           text: botText,
-          sources: response.sources 
+          sources: response.sources
         },
       ]);
     } catch (error) {
       console.error("Chat error:", error);
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: "bot", text: "I couldn't reach the knowledge base." },
+        {
+          id: (Date.now() + 1).toString(),
+          role: "bot",
+          text: "I couldn't reach the knowledge base. Please try again or contact support."
+        },
       ]);
     } finally {
       setIsLoading(false);

@@ -46,34 +46,50 @@ def ingest_file(file_path, source_name):
             print(f"Warning: File not found: {file_path}. Skipping.")
             return
 
-    print(f"Loading {source_name} from {file_path}...")
-    loader = TextLoader(file_path, encoding='utf-8')
-    documents = loader.load()
+    print(f"\nLoading {source_name} from {file_path}...")
+    try:
+        loader = TextLoader(file_path, encoding='utf-8')
+        documents = loader.load()
 
-    # Add metadata
-    for doc in documents:
-        doc.metadata["source"] = source_name
+        # Add metadata
+        for doc in documents:
+            doc.metadata["source"] = source_name
 
-    # Split text
-    print(f"Splitting {source_name}...")
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
-        separators=["\n## ", "\n### ", "\n", " ", ""]
-    )
-    chunks = text_splitter.split_documents(documents)
-    print(f"Created {len(chunks)} chunks.")
+        # Split text
+        print(f"Splitting {source_name}...")
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            separators=["\n## ", "\n### ", "\n", " ", ""]
+        )
+        chunks = text_splitter.split_documents(documents)
+        print(f"Created {len(chunks)} chunks.")
 
-    # Store in Supabase
-    print(f"Upserting to Supabase...")
-    vector_store = SupabaseVectorStore.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        client=supabase,
-        table_name="documents",
-        query_name="match_documents"
-    )
-    print(f"Successfully ingested {source_name}!")
+        # Store in Supabase in smaller batches to avoid rate limits
+        print(f"Upserting to Supabase in batches...")
+        batch_size = 10
+        for i in range(0, len(chunks), batch_size):
+            batch = chunks[i:i + batch_size]
+            print(f"  Processing batch {i//batch_size + 1}/{(len(chunks) + batch_size - 1)//batch_size}...")
+
+            vector_store = SupabaseVectorStore.from_documents(
+                documents=batch,
+                embedding=embeddings,
+                client=supabase,
+                table_name="documents",
+                query_name="match_documents"
+            )
+
+            # Small delay to avoid rate limiting
+            import time
+            time.sleep(1)
+
+        print(f"[SUCCESS] Successfully ingested {source_name} ({len(chunks)} chunks)!")
+
+    except Exception as e:
+        print(f"[ERROR] Error ingesting {source_name}: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     # Ingest Product Documentation

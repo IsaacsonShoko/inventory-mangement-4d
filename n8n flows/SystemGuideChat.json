@@ -1,0 +1,209 @@
+{
+  "name": "System Guide Chat with Vector Search",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "system-guide-chat"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT content, metadata, 1 - (embedding <=> $1::vector) as similarity FROM documents WHERE 1 - (embedding <=> $1::vector) > $2 ORDER BY embedding <=> $1::vector LIMIT $3",
+        "additionalFields": {}
+      },
+      "id": "supabase-vector-search",
+      "name": "Supabase Vector Search",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "1",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "embeddings",
+        "text": "={{ $json.body.message }}",
+        "options": {
+          "model": "text-embedding-3-small"
+        }
+      },
+      "id": "openai-embeddings",
+      "name": "OpenAI Embeddings",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the context from vector search results\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  return [{\n    json: {\n      context: \"No relevant documentation found.\",\n      sources: []\n    }\n  }];\n}\n\n// Get the embedding from the first item\nconst embedding = items[0].json.embedding;\n\n// Get search results (if any)\nconst searchResults = items.filter(item => item.json.content);\n\n// Format context\nconst context = searchResults\n  .slice(0, 5) // Top 5 results\n  .map((item, idx) => {\n    const metadata = item.json.metadata || {};\n    return `[${idx + 1}] Source: ${metadata.source || 'Unknown'}\\n${item.json.content}`;\n  })\n  .join('\\n\\n---\\n\\n');\n\n// Format sources\nconst sources = searchResults\n  .slice(0, 5)\n  .map(item => {\n    const metadata = item.json.metadata || {};\n    return {\n      title: metadata.source || 'Documentation',\n      similarity: item.json.similarity\n    };\n  });\n\nreturn [{\n  json: {\n    context: context || \"No relevant documentation found.\",\n    sources: sources,\n    embedding: embedding,\n    userMessage: $('Webhook').first().json.body.message\n  }\n}];"
+      },
+      "id": "format-context",
+      "name": "Format Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a helpful 4D Inventory Management System assistant. Use the following documentation to answer the user's question. If the documentation doesn't contain relevant information, say so politely and suggest contacting support.\n\nDocumentation:\n{{ $json.context }}\n\nProvide clear, concise answers based on this documentation. Include specific details when available."
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userMessage }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 500
+        }
+      },
+      "id": "openai-chat",
+      "name": "OpenAI Chat",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the final response\nconst chatResponse = $input.first().json.message?.content || \"I'm having trouble generating a response.\";\nconst sources = $('Format Context').first().json.sources || [];\n\nreturn [{\n  json: {\n    answer: chatResponse,\n    sources: sources,\n    success: true\n  }\n}];"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Search": {
+      "main": [
+        [
+          {
+            "node": "Format Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Context": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-12-02T00:00:00.000Z",
+  "versionId": "1"
+}
