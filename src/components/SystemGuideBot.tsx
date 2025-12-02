@@ -56,7 +56,7 @@ export const SystemGuideBot = () => {
       {
         id: "welcome",
         role: "bot",
-        text: "I am Xlink-Sage. The inventory system has its patterns : Ask, and I'll help you read them.",
+        text: "Greetings. I am the Old Sage of Inventory Wisdom. The patterns of this realm reveal themselves to those who ask the right questions. What knowledge do you seek?",
       },
       ...history,
     ];
@@ -179,7 +179,7 @@ export const SystemGuideBot = () => {
               <Bot className="h-5 w-5" />
               <div>
                 <CardTitle className="text-base">Xlink-Sage</CardTitle>
-                <p className="text-xs text-primary-foreground/80 font-normal">Pattern Reader</p>
+                <p className="text-xs text-primary-foreground/80 font-normal">Old Sage of Inventory Wisdom</p>
               </div>
             </div>
             <Button
@@ -227,7 +227,7 @@ export const SystemGuideBot = () => {
       {!isOpen && (
         <Button onClick={() => setIsOpen(true)} size="icon" className="h-14 w-14 rounded-full shadow-lg hover:scale-110 transition-all duration-300 bg-primary hover:bg-primary/90">
           <MessageCircle className="h-7 w-7" />
-          <span className="sr-only">Open Xlink-Sage</span>
+          <span className="sr-only">Open Xlink-Sage - Old Sage of Inventory Wisdom</span>
         </Button>
       )}
     </div>
