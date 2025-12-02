@@ -95,11 +95,7 @@ function AppContent() {
           <Route path="/dispatching/cart/:recordId" element={<DispatchCart />} />
           <Route path="/kpi" element={<KPIDashboard />} />
           <Route path="/supabase-test" element={<SupabaseTest />} />
-          <Route path="/admin/users" element={
-            <AdminRoute>
-              <UserManagement />
-            </AdminRoute>
-          } />
+          <Route path="/admin/users" element={<UserManagement />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

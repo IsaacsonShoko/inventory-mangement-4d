@@ -182,22 +182,25 @@ const Landing = () => {
                     className="group h-full border-border/50 bg-card/80 backdrop-blur hover:border-primary/50 hover:shadow-lg transition-all duration-300 animate-fade-in"
                     style={{ animationDelay: `${index * 80}ms` }}
                   >
-                    <CardContent className="p-3 space-y-2">
+                    <CardContent className="p-4 relative">
+                      <Badge
+                        variant={status === "active" ? "default" : "outline"}
+                        className="absolute top-4 right-4 uppercase text-[9px] px-1.5 py-0.5"
+                      >
+                        {status === "active" ? "Active" : "Coming Soon"}
+                      </Badge>
                       <div className={`w-8 h-8 rounded-md bg-gradient-to-br ${color} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300`}>
                         <Icon className="h-4 w-4 text-white" />
                       </div>
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-semibold flex items-center gap-1">
+                      <div className="space-y-2 mt-3">
+                        <h3 className="text-sm font-semibold text-left flex items-center gap-1">
                           {title}
                           <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
                         </h3>
-                        <p className="text-[10px] text-muted-foreground leading-snug">
+                        <p className="text-[10px] text-muted-foreground leading-relaxed text-left min-h-[2.5rem]">
                           {description}
                         </p>
                       </div>
-                      <Badge variant={status === "active" ? "default" : "outline"} className="uppercase text-[9px] px-1.5 py-0.5">
-                        {status === "active" ? "Active" : "Coming Soon"}
-                      </Badge>
                     </CardContent>
                   </Card>
                 </Link>
@@ -217,26 +220,29 @@ const Landing = () => {
                       {pendingCount > 99 ? '99+' : pendingCount}
                     </Badge>
                   )}
-                  <Card 
+                  <Card
                     className="h-full border-border/50 bg-card/80 backdrop-blur hover:border-primary/50 hover:shadow-lg transition-all duration-300 animate-fade-in"
                     style={{ animationDelay: `${index * 80}ms` }}
                   >
-                    <CardContent className="p-3 space-y-2">
+                    <CardContent className="p-4 relative">
+                      <Badge
+                        variant={status === "active" ? "default" : "outline"}
+                        className="absolute top-4 right-4 uppercase text-[9px] px-1.5 py-0.5"
+                      >
+                        {status === "active" ? "Active" : "Coming Soon"}
+                      </Badge>
                       <div className={`w-8 h-8 rounded-md bg-gradient-to-br ${color} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform`}>
                         <Icon className="h-4 w-4 text-white" />
                       </div>
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-semibold flex items-center gap-1">
+                      <div className="space-y-2 mt-3">
+                        <h3 className="text-sm font-semibold text-left flex items-center gap-1">
                           {title}
                           <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                         </h3>
-                        <p className="text-[10px] text-muted-foreground leading-snug">
+                        <p className="text-[10px] text-muted-foreground leading-relaxed text-left min-h-[2.5rem]">
                           {description}
                         </p>
                       </div>
-                      <Badge variant={status === "active" ? "default" : "outline"} className="uppercase text-[9px] px-1.5 py-0.5">
-                        {status === "active" ? "Active" : "Coming Soon"}
-                      </Badge>
                     </CardContent>
                   </Card>
                 </Link>
