@@ -79,12 +79,34 @@ export const SystemGuideBot = () => {
       ]);
     } catch (error) {
       console.error("Chat error:", error);
+
+      // Extract user-friendly error message
+      let errorMessage = "I couldn't reach the knowledge base. Please try again or contact support.";
+
+      if (error instanceof Error) {
+        const errorText = error.message.toLowerCase();
+
+        // Check for specific error types and provide helpful messages
+        if (errorText.includes('quota exceeded') || errorText.includes('insufficient')) {
+          errorMessage = "⚠️ The AI service has reached its usage quota. Please contact your system administrator to add credits at platform.openai.com";
+        } else if (errorText.includes('rate limit')) {
+          errorMessage = "⏱️ Too many requests at once. Please wait a moment and try again.";
+        } else if (errorText.includes('invalid') && errorText.includes('api key')) {
+          errorMessage = "🔑 The AI service is not properly configured. Please contact your system administrator.";
+        } else if (errorText.includes('temporarily unavailable')) {
+          errorMessage = "🔧 The AI service is temporarily down. Please try again in a few minutes.";
+        } else if (error.message && !error.message.startsWith('HTTP')) {
+          // Use the specific error message if it's not a generic HTTP error
+          errorMessage = `⚠️ ${error.message}`;
+        }
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "bot",
-          text: "I couldn't reach the knowledge base. Please try again or contact support."
+          text: errorMessage
         },
       ]);
     } finally {

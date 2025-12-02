@@ -118,9 +118,31 @@ def get_embedding(text: str) -> List[float]:
         method='POST'
     )
 
-    with urllib.request.urlopen(req, timeout=30) as response:
-        result = json.loads(response.read().decode('utf-8'))
-        return result['data'][0]['embedding']
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            return result['data'][0]['embedding']
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        error_data = {}
+        try:
+            error_data = json.loads(error_body)
+        except:
+            pass
+
+        # Handle specific OpenAI error codes
+        if e.code == 401:
+            raise Exception("Invalid OpenAI API key. Please check your configuration.")
+        elif e.code == 429:
+            error_message = error_data.get('error', {}).get('message', '')
+            if 'quota' in error_message.lower() or 'insufficient' in error_message.lower():
+                raise Exception("OpenAI API quota exceeded. Please check your billing and usage limits at platform.openai.com")
+            else:
+                raise Exception("OpenAI API rate limit reached. Please try again in a moment.")
+        elif e.code == 500:
+            raise Exception("OpenAI service is temporarily unavailable. Please try again later.")
+        else:
+            raise Exception(f"OpenAI API error: {error_data.get('error', {}).get('message', 'Unknown error')}")
 
 
 def search_similar_documents(embedding: List[float]) -> List[Dict[str, Any]]:
@@ -191,12 +213,21 @@ def generate_chat_response(user_message: str, context: str) -> str:
 
     url = 'https://api.openai.com/v1/chat/completions'
 
-    system_prompt = f"""You are a helpful 4D Inventory Management System assistant. Use the following documentation to answer the user's question. If the documentation doesn't contain relevant information, say so politely and suggest contacting support.
+    system_prompt = f"""You are the Xlink System Guide, a helpful assistant built to help users understand and navigate the Inventory Management Platform.
 
-Documentation:
-{context}
+Use the context that comes from the knowledge base to answer questions. Stick to what the documents actually say. If something is unclear or missing in the context, say so instead of guessing. You're here to help people find the right screen, workflow, button, or process step, not to invent new features or instructions.
 
-Provide clear, concise answers based on this documentation. Include specific details when available."""
+When you answer:
+
+- Speak plainly and keep things short unless the user asks for detail.
+- If the context mentions a specific module (like Picking Queue, Stock Counts, Asset Management), tell the user exactly where to go and what they'll see.
+- If multiple interpretations exist, choose the safest and most literal one.
+- If the answer isn't in the retrieved context, say: "I don't have this in my documentation. Please check the KNOWLEDGE_BASE_WORKFLOW_GUIDE.md or contact support."
+
+Avoid speculation, avoid fabricating steps or pages, and avoid referencing internal system details that weren't provided in the context.
+
+Context from knowledge base:
+{context}"""
 
     data = json.dumps({
         'model': CHAT_MODEL,
@@ -218,9 +249,31 @@ Provide clear, concise answers based on this documentation. Include specific det
         method='POST'
     )
 
-    with urllib.request.urlopen(req, timeout=30) as response:
-        result = json.loads(response.read().decode('utf-8'))
-        return result['choices'][0]['message']['content']
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            return result['choices'][0]['message']['content']
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        error_data = {}
+        try:
+            error_data = json.loads(error_body)
+        except:
+            pass
+
+        # Handle specific OpenAI error codes
+        if e.code == 401:
+            raise Exception("Invalid OpenAI API key. Please check your configuration.")
+        elif e.code == 429:
+            error_message = error_data.get('error', {}).get('message', '')
+            if 'quota' in error_message.lower() or 'insufficient' in error_message.lower():
+                raise Exception("OpenAI API quota exceeded. Please add credits to your account at platform.openai.com/account/billing")
+            else:
+                raise Exception("OpenAI API rate limit reached. Please wait a moment and try again.")
+        elif e.code == 500:
+            raise Exception("OpenAI service is temporarily unavailable. Please try again later.")
+        else:
+            raise Exception(f"OpenAI API error: {error_data.get('error', {}).get('message', 'Unknown error')}")
 
 
 def error_response(message: str, status_code: int, headers: Dict[str, str]) -> Dict[str, Any]:
