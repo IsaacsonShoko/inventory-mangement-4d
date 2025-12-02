@@ -62,7 +62,7 @@ export interface OrderRow {
   ordered_by: string;
   on_behalf_of: string | null;
   order_location: string | null;
-  cellphone_number: string | null;
+  cell_phone_number: string | null;
   quantity_ordered: number;
   dispatch_status: DispatchStatusEnum;
   pick_status: PickStatusEnum | null;
@@ -369,7 +369,7 @@ export const ordersService = {
         ordered_by: input.ordered_by,
         on_behalf_of: input.on_behalf_of || null,
         order_location: input.order_location || null,
-        cellphone_number: input.cellphone_number || null,
+        cell_phone_number: input.cell_phone_number || null,
       })
       .select()
       .single();

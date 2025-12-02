@@ -189,7 +189,7 @@ export const useCreateOrder = () => {
         ordered_by: formData.orderedBy,
         on_behalf_of: formData.onBehalfOf,
         order_location: formData.orderLocation,
-        cellphone_number: formData.cellPhoneNumber,
+        cell_phone_number: formData.cellPhoneNumber,
       }, cartItems);
 
       const orderId = formatOrderNumber(result.orderNumber);
