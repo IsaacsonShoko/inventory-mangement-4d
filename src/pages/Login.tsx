@@ -215,14 +215,15 @@ const Login = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-company">Company</Label>
-                  <Input
-                    id="signup-company"
-                    type="text"
-                    placeholder="Company Name"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    required
-                  />
+                  <Select value={company} onValueChange={setCompany} required>
+                    <SelectTrigger id="signup-company">
+                      <SelectValue placeholder="Select your company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Xlink">Xlink</SelectItem>
+                      <SelectItem value="Contractor Company">Contractor Company</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-role">Role</Label>
