@@ -1,24 +1,13 @@
 /**
- * Netlify Function: System Guide Chat with Vector Search
- * Handles chat requests using Supabase vector similarity search and OpenAI
- *
- * Environment Variables (set in Netlify Dashboard):
- *   VITE_SUPABASE_URL - Your Supabase project URL
- *   VITE_SUPABASE_SERVICE_ROLE_KEY - Supabase service role key (for vector search)
- *   OPENAI_API_KEY - OpenAI API key for embeddings and chat
+ * DEBUG VERSION: Netlify Function: System Guide Chat with Vector Search
+ * This version includes extensive logging and no threshold filtering
  */
 
-// Configuration
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const CHAT_MODEL = "gpt-4o-mini";
-const SIMILARITY_THRESHOLD = 0.5;
-const MAX_RESULTS = 5;
+const MAX_RESULTS = 10;  // Increased from 5 for debugging
 
-/**
- * Main handler for chat requests
- */
 export async function handler(event, context) {
-  // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -26,36 +15,28 @@ export async function handler(event, context) {
     'Content-Type': 'application/json',
   };
 
-  // Handle OPTIONS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: '',
-    };
+    return { statusCode: 200, headers, body: '' };
   }
 
-  // Only allow POST
   if (event.httpMethod !== 'POST') {
     return errorResponse('Method not allowed', 405, headers);
   }
 
   try {
-    // Get environment variables
     const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
     const SUPABASE_KEY = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-    // Validate environment variables
-    if (!OPENAI_API_KEY) {
-      return errorResponse('OpenAI API key not configured', 500, headers);
+    console.log('=== DEBUG: Environment Check ===');
+    console.log('SUPABASE_URL:', SUPABASE_URL ? 'Present' : 'Missing');
+    console.log('SUPABASE_KEY:', SUPABASE_KEY ? `Present (${SUPABASE_KEY.substring(0, 20)}...)` : 'Missing');
+    console.log('OPENAI_API_KEY:', OPENAI_API_KEY ? 'Present' : 'Missing');
+
+    if (!OPENAI_API_KEY || !SUPABASE_URL || !SUPABASE_KEY) {
+      return errorResponse('Environment not configured', 500, headers);
     }
 
-    if (!SUPABASE_URL || !SUPABASE_KEY) {
-      return errorResponse('Supabase credentials not configured', 500, headers);
-    }
-
-    // Parse request
     const body = JSON.parse(event.body || '{}');
     const userMessage = (body.message || '').trim();
 
@@ -63,18 +44,33 @@ export async function handler(event, context) {
       return errorResponse('Message is required', 400, headers);
     }
 
-    console.log(`Processing chat request: ${userMessage.substring(0, 50)}...`);
+    console.log(`=== DEBUG: User message ===`);
+    console.log(userMessage);
 
-    // Step 1: Generate embedding for user message
+    // Step 1: Generate embedding
+    console.log('=== DEBUG: Generating embedding ===');
     const embedding = await getEmbedding(userMessage, OPENAI_API_KEY);
+    console.log('Embedding dimensions:', embedding.length);
+    console.log('First 5 values:', embedding.slice(0, 5));
 
-    // Step 2: Search Supabase for similar documents
+    // Step 2: Search documents (NO THRESHOLD)
+    console.log('=== DEBUG: Searching documents ===');
     const documents = await searchSimilarDocuments(embedding, SUPABASE_URL, SUPABASE_KEY);
 
-    // Step 3: Format context from documents
-    const { context, sources } = formatContext(documents);
+    console.log(`=== DEBUG: Search results ===`);
+    console.log(`Found ${documents.length} documents`);
+    if (documents.length > 0) {
+      documents.forEach((doc, i) => {
+        console.log(`Doc ${i + 1}: similarity=${doc.similarity}, content_preview=${doc.content?.substring(0, 50)}`);
+      });
+    }
 
-    // Step 4: Generate AI response using context
+    // Step 3: Format context
+    const { context, sources } = formatContext(documents);
+    console.log('=== DEBUG: Context length ===', context.length);
+
+    // Step 4: Generate response
+    console.log('=== DEBUG: Generating AI response ===');
     const answer = await generateChatResponse(userMessage, context, OPENAI_API_KEY);
 
     return {
@@ -84,11 +80,16 @@ export async function handler(event, context) {
         success: true,
         answer,
         sources,
+        debug: {
+          documentsFound: documents.length,
+          embeddingDimensions: embedding.length,
+          topSimilarities: documents.slice(0, 3).map(d => d.similarity)
+        }
       }),
     };
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('=== DEBUG: Error ===', error);
     return errorResponse(`Failed to process chat: ${error.message}`, 500, headers);
   }
 }
@@ -112,20 +113,7 @@ async function getEmbedding(text, apiKey) {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     const errorMessage = errorData.error?.message || 'Unknown error';
-
-    if (response.status === 401) {
-      throw new Error('Invalid OpenAI API key. Please check your configuration.');
-    } else if (response.status === 429) {
-      if (errorMessage.toLowerCase().includes('quota') || errorMessage.toLowerCase().includes('insufficient')) {
-        throw new Error('OpenAI API quota exceeded. Please check your billing and usage limits at platform.openai.com');
-      } else {
-        throw new Error('OpenAI API rate limit reached. Please try again in a moment.');
-      }
-    } else if (response.status === 500) {
-      throw new Error('OpenAI service is temporarily unavailable. Please try again later.');
-    } else {
-      throw new Error(`OpenAI API error: ${errorMessage}`);
-    }
+    throw new Error(`OpenAI embedding error: ${errorMessage}`);
   }
 
   const result = await response.json();
@@ -133,12 +121,11 @@ async function getEmbedding(text, apiKey) {
 }
 
 /**
- * Search Supabase for similar documents using vector similarity
+ * Search Supabase for similar documents (NO THRESHOLD FILTERING)
  */
 async function searchSimilarDocuments(embedding, supabaseUrl, supabaseKey) {
-  console.log('Calling Supabase RPC:', `${supabaseUrl}/rest/v1/rpc/match_documents_no_threshold`);
-  console.log('Embedding length:', embedding.length);
-  console.log('First 3 values:', embedding.slice(0, 3));
+  console.log('=== DEBUG: Calling Supabase RPC ===');
+  console.log('URL:', `${supabaseUrl}/rest/v1/rpc/match_documents_no_threshold`);
 
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/match_documents_no_threshold`, {
     method: 'POST',
@@ -154,27 +141,52 @@ async function searchSimilarDocuments(embedding, supabaseUrl, supabaseKey) {
     })
   });
 
-  console.log('Supabase response status:', response.status);
+  console.log('=== DEBUG: Supabase response status ===', response.status);
 
   const responseText = await response.text();
-  console.log('Supabase response preview:', responseText.substring(0, 200));
+  console.log('=== DEBUG: Supabase response (first 500 chars) ===');
+  console.log(responseText.substring(0, 500));
 
   if (!response.ok) {
     console.error('Supabase search error:', responseText);
-    return []; // Return empty list if search fails
+    // Try fallback to original match_documents with very low threshold
+    console.log('=== DEBUG: Trying fallback with original function ===');
+    return await searchWithThreshold(embedding, supabaseUrl, supabaseKey, 0.1);
   }
 
   try {
     const documents = JSON.parse(responseText);
-    console.log(`Found ${documents.length} similar documents`);
-    if (documents.length > 0) {
-      console.log('Top result similarity:', documents[0].similarity);
-    }
     return documents;
   } catch (e) {
     console.error('Failed to parse Supabase response:', e);
     return [];
   }
+}
+
+/**
+ * Fallback: Search with threshold
+ */
+async function searchWithThreshold(embedding, supabaseUrl, supabaseKey, threshold) {
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/match_documents`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': supabaseKey,
+      'Authorization': `Bearer ${supabaseKey}`
+    },
+    body: JSON.stringify({
+      query_embedding: embedding,
+      match_threshold: threshold,
+      match_count: MAX_RESULTS
+    })
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const documents = await response.json();
+  return documents;
 }
 
 /**
@@ -251,21 +263,7 @@ ${context}`;
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    const errorMessage = errorData.error?.message || 'Unknown error';
-
-    if (response.status === 401) {
-      throw new Error('Invalid OpenAI API key. Please check your configuration.');
-    } else if (response.status === 429) {
-      if (errorMessage.toLowerCase().includes('quota') || errorMessage.toLowerCase().includes('insufficient')) {
-        throw new Error('OpenAI API quota exceeded. Please add credits to your account at platform.openai.com/account/billing');
-      } else {
-        throw new Error('OpenAI API rate limit reached. Please wait a moment and try again.');
-      }
-    } else if (response.status === 500) {
-      throw new Error('OpenAI service is temporarily unavailable. Please try again later.');
-    } else {
-      throw new Error(`OpenAI API error: ${errorMessage}`);
-    }
+    throw new Error(`OpenAI chat error: ${errorData.error?.message || 'Unknown error'}`);
   }
 
   const result = await response.json();

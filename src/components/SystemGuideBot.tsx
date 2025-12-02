@@ -20,7 +20,7 @@ export const SystemGuideBot = () => {
     {
       id: "welcome",
       role: "bot",
-      text: "Hello! I'm your 4D System Guide. Ask me anything about the inventory system.",
+      text: "I am Xlink-Sage. The inventory system has its patterns : Ask, and I'll help you read them.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -123,8 +123,8 @@ export const SystemGuideBot = () => {
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
               <div>
-                <CardTitle className="text-base">System Guide</CardTitle>
-                <p className="text-xs text-primary-foreground/80 font-normal">Powered by Project Docs</p>
+                <CardTitle className="text-base">Xlink-Sage</CardTitle>
+                <p className="text-xs text-primary-foreground/80 font-normal">Pattern Reader</p>
               </div>
             </div>
             <Button
@@ -172,7 +172,7 @@ export const SystemGuideBot = () => {
       {!isOpen && (
         <Button onClick={() => setIsOpen(true)} size="icon" className="h-14 w-14 rounded-full shadow-lg hover:scale-110 transition-all duration-300 bg-primary hover:bg-primary/90">
           <MessageCircle className="h-7 w-7" />
-          <span className="sr-only">Open System Guide</span>
+          <span className="sr-only">Open Xlink-Sage</span>
         </Button>
       )}
     </div>
