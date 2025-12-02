@@ -49,7 +49,7 @@ export interface OrderRow {
   date_ordered: string;
   item_category: ItemCategoryEnum;
   item_nature: ItemNatureEnum;
-  delivery_party: DeliveryPartyEnum;
+  deliver_to_part: DeliveryPartyEnum;
   contractor_company: string | null;
   region: string | null;
   technician: string | null;
@@ -58,7 +58,7 @@ export interface OrderRow {
   recipient_company_name: string | null;
   recipient_address: string | null;
   recipient_contact_number: string | null;
-  recipient_email: string | null;
+  recipient_email_address: string | null;
   ordered_by: string;
   on_behalf_of: string | null;
   order_location: string | null;
@@ -143,7 +143,7 @@ export interface CreateOrderInput {
   date_ordered?: string;
   item_category: ItemCategoryEnum;
   item_nature: ItemNatureEnum;
-  delivery_party: DeliveryPartyEnum;
+  deliver_to_part: DeliveryPartyEnum;
   contractor_company?: string;
   region?: string;
   technician?: string;
@@ -152,7 +152,7 @@ export interface CreateOrderInput {
   recipient_company_name?: string;
   recipient_address?: string;
   recipient_contact_number?: string;
-  recipient_email?: string;
+  recipient_email_address?: string;
   ordered_by: string;
   on_behalf_of?: string;
   order_location?: string;
@@ -356,7 +356,7 @@ export const ordersService = {
         date_ordered: input.date_ordered || new Date().toISOString().split('T')[0],
         item_category: input.item_category,
         item_nature: input.item_nature,
-        delivery_party: input.delivery_party,
+        deliver_to_part: input.deliver_to_part,
         contractor_company: input.contractor_company || null,
         region: input.region || null,
         technician: input.technician || null,
@@ -365,7 +365,7 @@ export const ordersService = {
         recipient_company_name: input.recipient_company_name || null,
         recipient_address: input.recipient_address || null,
         recipient_contact_number: input.recipient_contact_number || null,
-        recipient_email: input.recipient_email || null,
+        recipient_email_address: input.recipient_email_address || null,
         ordered_by: input.ordered_by,
         on_behalf_of: input.on_behalf_of || null,
         order_location: input.order_location || null,
