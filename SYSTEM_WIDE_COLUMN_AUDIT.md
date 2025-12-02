@@ -130,33 +130,38 @@ sla_breached_at: string | null
 
 ---
 
-### ⚠️ Priority 2: HIGH
+### ✅ Resolved: Schema Documentation Issues
 
-#### 4. user_profiles - Extra Columns in TypeScript Not in Database
+#### 4. user_profiles - ✅ RESOLVED: Schema Documentation Outdated
 
-**Impact**: ⚠️ **MEDIUM - Code accesses undefined properties**
+**Impact**: ⚠️ **RESOLVED - Code is CORRECT, schema docs were outdated**
 
-**Database Has** (SUPABASE_SCHEMA.sql lines 94-105):
+**Status**: **COLUMNS EXIST IN LIVE DATABASE** - User confirmed they added first_name, last_name, and company columns. Schema documentation files just weren't updated.
+
+**Actual Database Columns** (confirmed by user):
+
 ```sql
+-- user_profiles has:
 id, email, full_name, role, approval_status,
-approved_by, approved_at, warehouse, created_at, updated_at
+approved_by, approved_at, warehouse,
+first_name,   -- Added by user, not in schema docs
+last_name,    -- Added by user, not in schema docs
+company,      -- Added by user, not in schema docs
+created_at, updated_at
 ```
 
-**TypeScript Has Extra** (useAuth.tsx lines 13-15):
+**TypeScript Interface** (useAuth.tsx lines 13-15) - ALL CORRECT ✅:
+
 ```typescript
-first_name: string | null   ❌ NOT IN DATABASE
-last_name: string | null    ❌ NOT IN DATABASE
-company: string | null      ❌ NOT IN DATABASE
+first_name: string | null   ✅ EXISTS IN DATABASE
+last_name: string | null    ✅ EXISTS IN DATABASE
+company: string | null      ✅ EXISTS IN DATABASE
 ```
 
-**Fix Options:**
-- **Option A**: Remove from [useAuth.tsx](src/hooks/useAuth.tsx) interface
-- **Option B**: Add to database if actually needed:
-  ```sql
-  ALTER TABLE user_profiles ADD COLUMN first_name TEXT;
-  ALTER TABLE user_profiles ADD COLUMN last_name TEXT;
-  ALTER TABLE user_profiles ADD COLUMN company TEXT;
-  ```
+**Fix**: Update schema documentation (not code):
+
+- Need to create migration file documenting these additions
+- Need to update SUPABASE_SCHEMA.sql to reflect current reality
 
 ---
 
