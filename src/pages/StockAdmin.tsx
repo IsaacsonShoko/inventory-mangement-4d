@@ -220,28 +220,41 @@ const StockAdmin = () => {
   const onSubmit = async (data: ItemFormValues) => {
     let imageUrl = data.item_url;
 
-    // If there's a new image file, upload it
-    if (imageFile && activeTab === 'add') {
+    // If there's a new image file, upload it (works for both add and edit)
+    if (imageFile) {
       try {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${data.item_name.replace(/\s+/g, '_')}_${Date.now()}.${fileExt}`;
         const filePath = `inventory-images/${fileName}`;
 
+        console.log('Uploading image to Inventory Gallery:', filePath);
+
         const { error: uploadError } = await supabase.storage
-          .from('assets')
+          .from('Inventory Gallery')
           .upload(filePath, imageFile);
 
         if (uploadError) {
           console.error('Upload error:', uploadError);
+          toast({
+            title: 'Image upload failed',
+            description: uploadError.message,
+            variant: 'destructive',
+          });
           // Continue without image if upload fails
         } else {
           const { data: urlData } = supabase.storage
-            .from('assets')
+            .from('Inventory Gallery')
             .getPublicUrl(filePath);
           imageUrl = urlData.publicUrl;
+          console.log('Image uploaded successfully:', imageUrl);
         }
       } catch (err) {
         console.error('Image upload error:', err);
+        toast({
+          title: 'Image upload error',
+          description: err instanceof Error ? err.message : 'Unknown error',
+          variant: 'destructive',
+        });
       }
     }
 
