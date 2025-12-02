@@ -33,41 +33,44 @@ Comprehensive audit of ALL database tables comparing schema definitions with Typ
 
 ### ❌ Priority 1: BLOCKING PRODUCTION
 
-#### 1. stock_levels & stock_counts - Code Using Non-Existent Columns
+#### 1. stock_levels & stock_counts - ✅ RESOLVED: Schema Documentation Outdated
 
-**Impact**: 🔥 **CRITICAL - Insert/Update/Query operations will FAIL**
+**Impact**: ⚠️ **RESOLVED - Code is CORRECT, schema docs were outdated**
 
-**Database Schema** (create-stock-counts-tables.sql):
+**Status**: **COLUMNS EXIST IN LIVE DATABASE** - User confirmed they added these columns. Schema documentation files just weren't updated.
+
+**Actual Database Columns** (confirmed by user):
+
 ```sql
--- stock_levels has these columns:
-id, device_type, item_description, item_category, item_nature,
-bin_location, quantity, manufacture_serial_number, qr_code_serial_number,
-xlink_serial_number, cradle_serial_number, charger_serial_number,
-stock_holder, name_or_location, contractor_company, contractor_region,
-technician_name, tech_id, item_status, fault_reason, overall_condition,
-xli_case_ref, count_type, count_id, created_at, updated_at
-
--- stock_counts has similar columns
+-- stock_levels and stock_counts BOTH have:
+... (all existing columns) ...
+count_type count_type,      -- Type of count: Monthly, Mid-Month, Daily
+user_email TEXT,             -- Tracks which user performed the count
+count_period TEXT,           -- Generated period identifier:
+                             --   Monthly: "2025-12"
+                             --   Mid-Month: "2025-12-H1" or "2025-12-H2"
+                             --   Daily: "2025-12-02"
 ```
 
-**Code References** (stockCountSupabaseService.ts):
-- Line 31: Interface includes `user_email: string | null` ❌ NOT IN DB
-- Line 31: Interface includes `count_period: string | null` ❌ NOT IN DB
-- Line 162: Inserting `user_email: userEmail` ❌ WILL FAIL
-- Line 163: Inserting `count_period: countPeriod` ❌ WILL FAIL
-- Line 302: Filtering `.eq('user_email', userEmail)` ❌ WILL FAIL
-- Line 332: Filtering `.eq('count_period', filters.countPeriod)` ❌ WILL FAIL
-- Line 170: Upsert conflict on `user_email,device_type,count_type,count_period` ❌ WILL FAIL
+**How They Work Together**:
 
-**Fix Options:**
-- **Option A**: Add columns to database:
-  ```sql
-  ALTER TABLE stock_levels ADD COLUMN user_email TEXT;
-  ALTER TABLE stock_levels ADD COLUMN count_period TEXT;
-  ALTER TABLE stock_counts ADD COLUMN user_email TEXT;
-  ALTER TABLE stock_counts ADD COLUMN count_period TEXT;
-  ```
-- **Option B**: Remove all references from [stockCountSupabaseService.ts](src/services/stockCountSupabaseService.ts)
+- `count_type` = What KIND of count (Monthly/Mid-Month/Daily)
+- `count_period` = Auto-generated from count_type via `getCountPeriod()` function
+- `user_email` = Who performed the count
+- Upsert prevents duplicates: one count per `user_email + device_type + count_type + count_period`
+
+**Code References** (stockCountSupabaseService.ts) - ALL CORRECT ✅:
+
+- Line 38-54: `getCountPeriod()` generates period from type
+- Line 136: `const countPeriod = getCountPeriod(data.countType)`
+- Line 162-163: Inserts both user_email and count_period
+- Line 170: Upsert conflict on all 4 fields
+- Line 302, 332: Filters by these columns
+
+**Fix**: Update schema documentation (not code):
+
+- Created `migration_add_stock_count_tracking_fields.sql` to document the additions
+- Need to update `create-stock-counts-tables.sql` to reflect current reality
 
 ---
 
