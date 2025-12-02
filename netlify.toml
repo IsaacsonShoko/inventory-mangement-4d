@@ -13,6 +13,12 @@
   status = 200
   force = true
 
+# SPA fallback - serve index.html for all routes (must be last)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
 # Headers for CORS
 [[headers]]
   for = "/.netlify/functions/*"
