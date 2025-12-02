@@ -64,7 +64,6 @@ export type OrderFormDataSnapshot = {
   contractorCompany: string | null;
   region: string | null;
   technician: string | null;
-  onBehalfOf: string | null;
   orderLocation: string | null;
   popId: string | null;
   recipientName: string | null;
@@ -107,7 +106,6 @@ export interface OrderLineWebhookPayload {
   orderedBy: string;
   orderLocation: string | null;
   deliverToPart: string;
-  onBehalfOf: string | null;
   popId: string | null;
   recipientName: string | null;
   recipientCompanyName: string | null;
@@ -183,7 +181,6 @@ export interface OrderStageWebhookPayload {
   contractorCompany?: string | null;
   region?: string | null;
   technician?: string | null;
-  onBehalfOf?: string | null;
   orderLocation?: string | null;
   recipientName?: string | null;
   recipientCompanyName?: string | null;

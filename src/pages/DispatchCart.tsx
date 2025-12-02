@@ -646,7 +646,6 @@ const DispatchCart = () => {
               contractorCompany: coerceToString(uniqueOrder?.contractor_company),
               region: coerceToString(uniqueOrder?.region),
               technician: coerceToString(uniqueOrder?.technician),
-              onBehalfOf: coerceToString(uniqueOrder?.on_behalf_of),
               orderLocation: coerceToString(uniqueOrder?.order_location),
               recipientName: coerceToString(uniqueOrder?.recipient_name),
               recipientCompanyName: coerceToString(uniqueOrder?.recipient_company_name),

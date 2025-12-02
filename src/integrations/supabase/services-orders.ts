@@ -367,7 +367,6 @@ export const ordersService = {
         recipient_contact_number: input.recipient_contact_number || null,
         recipient_email_address: input.recipient_email_address || null,
         ordered_by: input.ordered_by,
-        on_behalf_of: input.on_behalf_of || null,
         order_location: input.order_location || null,
         cell_phone_number: input.cell_phone_number || null,
       })

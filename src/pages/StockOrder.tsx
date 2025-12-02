@@ -95,7 +95,6 @@ const createFormSchema = (deliveryParty: DeliveryParty) => {
       contractorCompany: z.string().min(1, "Contractor company is required").refine(val => val !== "select", "Please select a contractor"),
       region: z.string().min(1, "Region is required").refine(val => val !== "select", "Please select a region"),
       technician: z.string().min(1, "Technician is required").refine(val => val !== "select", "Please select a technician"),
-      onBehalfOf: z.string().email("Valid email is required"),
       orderLocation: z.string().optional(),
       popId: z.string().optional(),
     });
@@ -144,7 +143,6 @@ const StockOrder = () => {
       contractorCompany: "select",
       region: "select",
       technician: "select",
-      onBehalfOf: userEmail,
       orderLocation: "",
       popId: "",
       recipientName: "",
@@ -264,7 +262,6 @@ const StockOrder = () => {
   useEffect(() => {
     if (userEmail) {
       form.setValue('orderedBy', userEmail);
-      form.setValue('onBehalfOf', userEmail);
       form.setValue('recipientEmail', userEmail);
     }
   }, [userEmail, form]);
@@ -277,7 +274,6 @@ const StockOrder = () => {
     if (deliveryParty !== 'Technician') {
       form.setValue('contractorCompany', 'select');
       form.setValue('technician', 'select');
-      form.setValue('onBehalfOf', userEmail);
       form.setValue('orderLocation', '');
       form.setValue('popId', '');
     }
@@ -314,7 +310,6 @@ const StockOrder = () => {
     if (deliveryParty === 'Technician' && selectedTechnician && selectedTechnician !== 'select' && technicians) {
       const tech = technicians.find(t => t.name_surname === selectedTechnician);
       if (tech) {
-        form.setValue('onBehalfOf', tech.email_address || '');
         form.setValue('orderLocation', tech.area_based || '');
         form.setValue('popId', tech.location_code || tech.id || '');
       }
@@ -403,7 +398,6 @@ const StockOrder = () => {
         contractorCompany: formValues.contractorCompany,
         region: formValues.region,
         technician: formValues.technician,
-        onBehalfOf: formValues.onBehalfOf,
         orderLocation: formValues.orderLocation,
         popId: formValues.popId,
       }),
@@ -444,7 +438,6 @@ const StockOrder = () => {
         contractorCompany: "select",
         region: "select",
         technician: "select",
-        onBehalfOf: "",
         orderLocation: "",
         popId: "",
         recipientName: "",
@@ -762,20 +755,6 @@ const StockOrder = () => {
                                 )}
                               </SelectContent>
                             </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="onBehalfOf"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>On Behalf of (Email)</FormLabel>
-                            <FormControl>
-                              <Input {...field} readOnly className="bg-muted" />
-                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}

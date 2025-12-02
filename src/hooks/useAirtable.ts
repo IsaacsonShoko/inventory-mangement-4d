@@ -29,7 +29,6 @@ export interface OrderFormData {
   contractorCompany?: string;
   region?: string;
   technician?: string;
-  onBehalfOf?: string;
   recipientName?: string;
   recipientCompanyName?: string;
   recipientAddress?: string;
@@ -187,7 +186,6 @@ export const useCreateOrder = () => {
         recipient_contact_number: formData.recipientContactNumber,
         recipient_email_address: formData.recipientEmail,
         ordered_by: formData.orderedBy,
-        on_behalf_of: formData.onBehalfOf,
         order_location: formData.orderLocation,
         cell_phone_number: formData.cellPhoneNumber,
       }, cartItems);
@@ -218,7 +216,6 @@ export const useCreateOrder = () => {
             contractorCompany: formData.contractorCompany || null,
             region: formData.region || null,
             technician: formData.technician || null,
-            onBehalfOf: formData.onBehalfOf || null,
             orderLocation: formData.orderLocation || null,
             popId: formData.popId || null,
             recipientName: formData.recipientName || null,
@@ -259,7 +256,6 @@ export const useCreateOrder = () => {
             orderedBy: formData.orderedBy,
             orderLocation: formData.orderLocation || null,
             deliverToPart: formData.deliveryParty,
-            onBehalfOf: formData.onBehalfOf || null,
             popId: formData.popId || null,
             recipientName: formData.recipientName || null,
             recipientCompanyName: formData.recipientCompanyName || null,

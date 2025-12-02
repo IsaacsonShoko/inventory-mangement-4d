@@ -41,7 +41,6 @@ export interface OrderFormData {
   contractorCompany?: string;
   region?: string;
   technician?: string;
-  onBehalfOf?: string;
   recipientName?: string;
   recipientCompanyName?: string;
   recipientAddress?: string;
@@ -374,7 +373,6 @@ export const orderService = {
         dispatch_status: 'Pending',
         ordered_by: formData.orderedBy,
         deliver_to_part: formData.deliveryParty as DeliveryPartyEnum || null,
-        on_behalf_of: formData.onBehalfOf || null,
         pop_id: formData.popId || null,
         recipient_name: formData.recipientName || null,
         recipient_company_name: formData.recipientCompanyName || null,
@@ -408,7 +406,6 @@ export const orderService = {
         contractorCompany: formData.contractorCompany ?? null,
         region: formData.region ?? null,
         technician: formData.technician ?? null,
-        onBehalfOf: formData.onBehalfOf ?? null,
         orderLocation: formData.orderLocation ?? null,
         popId: formData.popId ?? null,
         recipientName: formData.recipientName ?? null,
@@ -452,7 +449,6 @@ export const orderService = {
         orderedBy: formDataSnapshot.orderedBy,
         orderLocation: formDataSnapshot.orderLocation,
         deliverToPart: formDataSnapshot.deliveryParty,
-        onBehalfOf: formDataSnapshot.onBehalfOf,
         popId: formDataSnapshot.popId,
         recipientName: formDataSnapshot.recipientName,
         recipientCompanyName: formDataSnapshot.recipientCompanyName,
