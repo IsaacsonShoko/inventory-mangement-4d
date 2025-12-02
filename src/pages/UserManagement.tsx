@@ -21,6 +21,9 @@ interface UserProfileAdmin {
   id: string;
   email: string;
   full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
   role: UserRole;
   approval_status: ApprovalStatus;
   warehouse: string | null;
@@ -160,6 +163,9 @@ export default function UserManagement() {
                   <div>
                     <CardTitle className="text-lg">{user.full_name || 'No name'}</CardTitle>
                     <p className="text-sm text-gray-600">{user.email}</p>
+                    {user.company && (
+                      <p className="text-xs text-gray-500 mt-1">Company: {user.company}</p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Badge
