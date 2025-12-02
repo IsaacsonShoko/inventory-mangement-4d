@@ -58,12 +58,14 @@ export async function handler(event, context) {
     // Parse request
     const body = JSON.parse(event.body || '{}');
     const userMessage = (body.message || '').trim();
+    const conversationHistory = body.conversationHistory || [];
 
     if (!userMessage) {
       return errorResponse('Message is required', 400, headers);
     }
 
     console.log(`Processing chat request: ${userMessage.substring(0, 50)}...`);
+    console.log(`Conversation history: ${conversationHistory.length} messages`);
 
     // Step 1: Generate embedding for user message
     const embedding = await getEmbedding(userMessage, OPENAI_API_KEY);
@@ -74,8 +76,8 @@ export async function handler(event, context) {
     // Step 3: Format context from documents
     const { context, sources } = formatContext(documents);
 
-    // Step 4: Generate AI response using context
-    const answer = await generateChatResponse(userMessage, context, OPENAI_API_KEY);
+    // Step 4: Generate AI response using context and conversation history
+    const answer = await generateChatResponse(userMessage, context, conversationHistory, OPENAI_API_KEY);
 
     return {
       statusCode: 200,
@@ -210,9 +212,9 @@ function formatContext(documents) {
 }
 
 /**
- * Generate chat response using OpenAI with context
+ * Generate chat response using OpenAI with context and conversation history
  */
-async function generateChatResponse(userMessage, context, apiKey) {
+async function generateChatResponse(userMessage, context, conversationHistory, apiKey) {
   const systemPrompt = `You are Xlink-Sage, a witty but grounded guide to the inventory system. Think of yourself as that friend who's seen it all and can point people in the right direction without the corporate speak.
 
 Your style:
@@ -232,6 +234,13 @@ The context below is what you know. Stick to it.
 Context from knowledge base:
 ${context}`;
 
+  // Build messages array with conversation history
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...conversationHistory,
+    { role: 'user', content: userMessage }
+  ];
+
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -240,10 +249,7 @@ ${context}`;
     },
     body: JSON.stringify({
       model: CHAT_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
-      ],
+      messages,
       temperature: 0.7,
       max_tokens: 500
     })

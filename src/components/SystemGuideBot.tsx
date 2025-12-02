@@ -14,15 +14,53 @@ interface Message {
   sources?: { title: string; url?: string }[];
 }
 
+// Conversation memory constants
+const STORAGE_KEY_PREFIX = "xlink-sage-chat-";
+const MAX_HISTORY_MESSAGES = 5; // Store last 5 exchanges (10 messages total)
+
+// Generate session ID
+const generateSessionId = () => {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+};
+
+// Load conversation history from localStorage
+const loadConversationHistory = (sessionId: string): Message[] => {
+  try {
+    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${sessionId}`);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error("Failed to load conversation history:", error);
+  }
+  return [];
+};
+
+// Save conversation history to localStorage
+const saveConversationHistory = (sessionId: string, messages: Message[]) => {
+  try {
+    // Only store last N user+bot exchanges (exclude welcome message)
+    const messagesToStore = messages.filter(m => m.id !== "welcome").slice(-MAX_HISTORY_MESSAGES * 2);
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${sessionId}`, JSON.stringify(messagesToStore));
+  } catch (error) {
+    console.error("Failed to save conversation history:", error);
+  }
+};
+
 export const SystemGuideBot = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "bot",
-      text: "I am Xlink-Sage. The inventory system has its patterns : Ask, and I'll help you read them.",
-    },
-  ]);
+  const [sessionId] = useState(() => generateSessionId());
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const history = loadConversationHistory(sessionId);
+    return [
+      {
+        id: "welcome",
+        role: "bot",
+        text: "I am Xlink-Sage. The inventory system has its patterns : Ask, and I'll help you read them.",
+      },
+      ...history,
+    ];
+  });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -32,6 +70,11 @@ export const SystemGuideBot = () => {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isOpen]);
+
+  // Save conversation history whenever messages change
+  useEffect(() => {
+    saveConversationHistory(sessionId, messages);
+  }, [messages, sessionId]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -47,13 +90,25 @@ export const SystemGuideBot = () => {
       // Check if we have a direct chat endpoint (preferred) or use n8n
       const chatEndpoint = import.meta.env.VITE_CHAT_ENDPOINT;
 
+      // Prepare conversation history (last 5 exchanges, excluding welcome message)
+      const conversationHistory = messages
+        .filter(m => m.id !== "welcome")
+        .slice(-MAX_HISTORY_MESSAGES * 2)
+        .map(m => ({
+          role: m.role === "user" ? "user" : "assistant",
+          content: m.text
+        }));
+
       let response;
       if (chatEndpoint) {
-        // Use direct Netlify function
+        // Use direct Netlify function with conversation history
         const res = await fetch(chatEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: userText }),
+          body: JSON.stringify({
+            message: userText,
+            conversationHistory
+          }),
         });
 
         if (!res.ok) {
