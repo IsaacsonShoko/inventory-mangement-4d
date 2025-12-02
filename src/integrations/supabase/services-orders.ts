@@ -351,7 +351,7 @@ export const ordersService = {
   async create(input: CreateOrderInput, cartItems: CartItem[]): Promise<{ orderId: string; orderNumber: number }> {
     // Create the order
     const { data: order, error: orderError } = await supabase
-      .from('orders')
+      .from('unique_orders')
       .insert({
         date_ordered: input.date_ordered || new Date().toISOString().split('T')[0],
         item_category: input.item_category,
@@ -407,7 +407,7 @@ export const ordersService = {
     search?: string;
   }): Promise<OrderRow[]> {
     let query = supabase
-      .from('orders')
+      .from('unique_orders')
       .select('*')
       .order('date_ordered', { ascending: false });
 
@@ -441,7 +441,7 @@ export const ordersService = {
 
   async getById(id: string): Promise<OrderRow | null> {
     const { data, error } = await supabase
-      .from('orders')
+      .from('unique_orders')
       .select('*')
       .eq('id', id)
       .single();
@@ -452,7 +452,7 @@ export const ordersService = {
 
   async getByOrderNumber(orderNumber: number): Promise<OrderRow | null> {
     const { data, error } = await supabase
-      .from('orders')
+      .from('unique_orders')
       .select('*')
       .eq('order_number', orderNumber)
       .single();
@@ -463,7 +463,7 @@ export const ordersService = {
 
   async update(id: string, updates: Partial<OrderRow>): Promise<OrderRow> {
     const { data, error } = await supabase
-      .from('orders')
+      .from('unique_orders')
       .update(updates)
       .eq('id', id)
       .select()
@@ -498,7 +498,7 @@ export const ordersService = {
 
   async getPickingQueue(): Promise<OrderRow[]> {
     const { data, error } = await supabase
-      .from('orders')
+      .from('unique_orders')
       .select('*')
       .or('pick_status.is.null,pick_status.eq.Not Picked,pick_status.eq.Partially Picked')
       .order('date_ordered', { ascending: true })
@@ -510,7 +510,7 @@ export const ordersService = {
 
   async getDispatchQueue(): Promise<OrderRow[]> {
     const { data, error } = await supabase
-      .from('orders')
+      .from('unique_orders')
       .select('*')
       .eq('pick_status', 'Picked')
       .or('dispatch_status.is.null,dispatch_status.eq.Pending,dispatch_status.eq.Partially Dispatched')
