@@ -1,12 +1,10 @@
 """
 Convert client-facing markdown documents to professional DOCX format.
-Removes emojis and formats for professional presentation.
 """
 
 try:
     from docx import Document
     from docx.shared import Pt, Inches, RGBColor
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
     import re
     import os
 except ImportError:
@@ -32,7 +30,6 @@ def remove_emojis(text):
     return emoji_pattern.sub('', text)
 
 def clean_markdown(text):
-    """Remove markdown formatting and emojis"""
     text = remove_emojis(text)
     text = re.sub(r'\*\*\*(.+?)\*\*\*', r'\1', text)
     text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
@@ -48,7 +45,6 @@ def clean_markdown(text):
     return text.strip()
 
 def add_heading(doc, text, level):
-    """Add a heading with proper formatting"""
     text = clean_markdown(text)
     if not text:
         return
@@ -70,7 +66,6 @@ def add_heading(doc, text, level):
     return heading
 
 def add_paragraph(doc, text, is_bullet=False, indent_level=0):
-    """Add a paragraph with proper formatting"""
     text = clean_markdown(text)
     if not text or text == '---':
         return
@@ -83,7 +78,6 @@ def add_paragraph(doc, text, is_bullet=False, indent_level=0):
     return para
 
 def process_table(doc, lines, start_index):
-    """Process markdown table and add to document"""
     table_lines = []
     i = start_index
     while i < len(lines) and lines[i].strip().startswith('|'):
@@ -106,7 +100,6 @@ def process_table(doc, lines, start_index):
     return i - start_index
 
 def process_markdown_file(md_path, docx_path):
-    """Convert markdown file to DOCX"""
     print(f"Reading {os.path.basename(md_path)}...")
     with open(md_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
@@ -137,14 +130,11 @@ def process_markdown_file(md_path, docx_path):
         elif line.startswith('#### '):
             add_heading(doc, line[5:], 4)
         elif line.startswith('- '):
-            text = line[2:]
-            add_paragraph(doc, text, is_bullet=True, indent_level=0)
+            add_paragraph(doc, line[2:], is_bullet=True, indent_level=0)
         elif line.startswith('  - '):
-            text = line[4:]
-            add_paragraph(doc, text, is_bullet=True, indent_level=1)
+            add_paragraph(doc, line[4:], is_bullet=True, indent_level=1)
         elif line.startswith('    - '):
-            text = line[6:]
-            add_paragraph(doc, text, is_bullet=True, indent_level=2)
+            add_paragraph(doc, line[6:], is_bullet=True, indent_level=2)
         elif line.startswith('|'):
             lines_processed = process_table(doc, lines, i)
             i += lines_processed
@@ -158,42 +148,55 @@ def process_markdown_file(md_path, docx_path):
         i += 1
     print(f"Saving to {os.path.basename(docx_path)}...")
     doc.save(docx_path)
-    print(f"  Created: {docx_path}")
+    print(f"  Created successfully\n")
 
 def main():
-    """Convert all client documents"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_dir = os.path.dirname(script_dir)
     docs_dir = os.path.join(project_dir, 'docs')
+
+    # Three documents to send to client
     documents = [
-        ('SYSTEM_OVERVIEW.md', 'SYSTEM_OVERVIEW.docx'),
+        ('PRODUCT_DOCUMENTATION.md', 'PRODUCT_DOCUMENTATION.docx'),
+        ('IMPLEMENTATION_GUIDE.md', 'IMPLEMENTATION_GUIDE.docx'),
+        ('KNOWLEDGE_BASE.md', 'KNOWLEDGE_BASE.docx'),
     ]
+
     print("\n" + "="*60)
     print("XLINK CLIENT DOCUMENT CONVERTER")
     print("="*60 + "\n")
+
     converted = 0
     failed = 0
+
     for md_file, docx_file in documents:
         md_path = os.path.join(docs_dir, md_file)
         docx_path = os.path.join(docs_dir, docx_file)
+
         if not os.path.exists(md_path):
             print(f"SKIP: {md_file} (not found)")
             failed += 1
             continue
+
         try:
             process_markdown_file(md_path, docx_path)
             converted += 1
         except Exception as e:
-            print(f"ERROR converting {md_file}: {e}")
+            print(f"ERROR converting {md_file}: {e}\n")
             failed += 1
-        print()
+
     print("="*60)
-    print(f"CONVERSION COMPLETE")
-    print(f"  Successful: {converted}")
-    print(f"  Failed: {failed}")
+    print(f"COMPLETE: {converted} documents converted")
+    if failed > 0:
+        print(f"FAILED: {failed} documents")
     print("="*60)
+
     if converted > 0:
-        print(f"\nDOCX files created in: {docs_dir}")
+        print(f"\nReady to send:")
+        for _, docx_file in documents:
+            docx_path = os.path.join(docs_dir, docx_file)
+            if os.path.exists(docx_path):
+                print(f"  - {docx_file}")
 
 if __name__ == '__main__':
     main()
