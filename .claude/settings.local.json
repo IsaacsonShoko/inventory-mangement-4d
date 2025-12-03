@@ -4,7 +4,8 @@
       "Bash(python ingest_documents.py:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(python scripts/ingest_documents.py:*)"
     ],
     "deny": [],
     "ask": []

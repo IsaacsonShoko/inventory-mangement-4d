@@ -985,6 +985,228 @@ All planned features have been successfully implemented:
 
 ---
 
+### 15. Xlink-Sage (AI-Powered System Guide)
+
+**Purpose**: Intelligent, context-aware chatbot that serves as an "Old Sage of Inventory Wisdom" - providing instant answers to user questions by searching through comprehensive system documentation using AI-powered vector similarity search.
+
+**Feature Implementation Status**: Fully implemented with conversation memory, role-based responses, and navigable links
+
+#### Key Features
+
+**Conversational Intelligence**:
+- **Conversation Memory**: Remembers the last 5 message exchanges in each session for natural multi-turn interactions
+- **Session Persistence**: Conversations persist across page refreshes using localStorage
+- **Context-Aware**: Maintains conversation context to understand follow-up questions
+- **Smart Persona**: Responds in plain, jargon-free language with light wit and sage-like wisdom
+
+**Knowledge Retrieval**:
+- **Vector Similarity Search**: Uses OpenAI embeddings (`text-embedding-3-small`) to find the most relevant documentation
+- **Real-time Context**: Searches knowledge base in real-time for every query
+- **Source Attribution**: Shows which documentation sections were used in the response
+- **Accuracy-First**: Only provides information from actual documentation - never guesses or makes up answers
+
+**Role-Based Guidance**:
+- **Admin Users**: Advanced tips about 90-day forecasting, user management, approval workflows, and system configuration
+- **Back Office Users**: Focus on order management, reporting, asset tracking, KPI dashboard, and picking queue operations
+- **Field Users**: Mobile-friendly workflows like stock ordering, barcode scanning, stock counts, device tracking, and repair logging
+- **User Context**: Automatically detects user profile (role, warehouse, company) and personalizes responses
+
+**Navigable Links**:
+- **In-App Navigation**: Bot responses can include clickable buttons using syntax `[NAVIGATE:Label|/path]`
+- **Quick Access**: Direct navigation to relevant pages like `/stock-order`, `/kpi`, `/user-management`, `/tracking`
+- **Seamless Flow**: Users can ask "How do I create an order?" and click a button to go directly to the order page
+
+**System-Specific Guidance**:
+- **Dropdown Instructions**: Guides users to "select the appropriate option" instead of hardcoding dropdown values
+- **Workflow Assistance**: Understands all system workflows (orders, picking, dispatch, assets, repairs, stock counts)
+- **Best Practices**: Provides context-aware tips based on user role and current workflow
+
+#### Technical Architecture
+
+**Frontend Component**: `src/components/SystemGuideBot.tsx`
+- Session ID generation for conversation isolation
+- localStorage-based conversation history (last 5 exchanges)
+- Auto-save on message changes
+- Supports both direct Netlify function and n8n fallback
+- Navigable link parsing with regex
+- User context extraction from profile
+- Error handling with user-friendly messages
+
+**Backend Function**: `netlify/functions/chat.js`
+
+Workflow:
+1. Receive user message + conversation history + user context
+2. Generate embedding using OpenAI (`text-embedding-3-small`)
+3. Search Supabase for similar documents using pgvector
+4. Format context from top 5 matching documents
+5. Generate response using OpenAI (`gpt-4o-mini`) with:
+   - System prompt (Xlink-Sage persona with role-specific guidance)
+   - Conversation history (last 5 exchanges)
+   - Retrieved knowledge context
+   - Current user message
+6. Return answer + sources
+
+**Knowledge Base Sources**:
+- `PRODUCT_DOCUMENTATION.md`: Complete product documentation (70 chunks)
+- `KNOWLEDGE_BASE_WORKFLOW_GUIDE.md`: Step-by-step workflows (75 chunks)
+
+**Update Process**:
+1. Edit documentation markdown files
+2. Run ingestion script: `python scripts/ingest_documents.py`
+3. Documents automatically chunked and embedded using LangChain
+4. Bot uses updated information immediately on next query
+
+#### Bot Analytics & Usage Tracking
+
+**Database Table**: `bot_usage_logs`
+
+Comprehensive analytics system tracks all bot interactions for insights and improvements:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | UUID | References user_profiles(id) |
+| user_email | TEXT | User email for reporting |
+| user_role | TEXT | admin, back_office, user |
+| user_company | TEXT | Company name |
+| user_warehouse | TEXT | Warehouse location |
+| session_id | TEXT | Conversation session identifier |
+| query | TEXT | User's question |
+| response | TEXT | Bot's answer |
+| sources | JSONB | Documentation sources used |
+| tokens_used | INTEGER | OpenAI tokens consumed |
+| response_time_ms | INTEGER | Response latency |
+| is_work_related | BOOLEAN | Query classification |
+| satisfaction_rating | INTEGER | 1-5 star rating |
+| satisfaction_feedback | TEXT | User feedback comments |
+| created_at | TIMESTAMPTZ | Query timestamp |
+| rated_at | TIMESTAMPTZ | Rating timestamp |
+
+**Metrics Captured**:
+1. **Usage Metrics**: Total queries per period, queries per user, peak usage times, average response time, token consumption
+2. **Quality Metrics**: User satisfaction ratings (1-5 stars), satisfaction feedback text, most helpful responses, common question patterns
+3. **Work Classification**: Work-related vs. non-work queries, most common work topics, off-topic usage patterns
+4. **User Insights**: Top users by query count, role-specific usage patterns, question types by role, time to resolution
+
+**KPI Dashboard Integration**: Dedicated "Xlink-Sage Analytics" tab displays:
+- **Overview Cards**: Total queries this month, average satisfaction rating, most active user, total sessions
+- **Usage Trends** (Line Chart): Queries over time, satisfaction ratings trend, work vs. non-work split
+- **Top Questions** (Table): Most frequently asked questions, average satisfaction per question type, response time per question type
+- **User Engagement** (Bar Chart): Queries by user role, top 10 users by query count, average queries per session
+- **Satisfaction Breakdown** (Pie Chart): Distribution of 1-5 star ratings
+- **Response Performance** (Histogram): Response time distribution, token usage distribution, session length distribution
+- **Topic Analysis** (Word Cloud): Most common keywords in queries, top documentation sections accessed
+- **Work Classification** (Donut Chart): Work-related vs. non-work queries percentage
+
+**Satisfaction Rating UI**:
+- After each bot response, users can rate the answer with 1-5 stars
+- Optional feedback textarea appears after rating
+- "Skip" option to dismiss without rating
+- Thank you message after submission
+
+#### System Prompt & Persona
+
+The bot operates with a carefully crafted personality:
+
+> "You are Xlink-Sage, a witty but grounded guide to the inventory system. Think of yourself as that friend who's seen it all and can point people in the right direction without the corporate speak.
+>
+> **Your style**:
+> - Plain talk, no jargon storms. If a 10-year-old can't get it, rephrase it.
+> - Witty but not silly. A light touch of humor keeps things human.
+> - Sage-like: you know the patterns, you've read the docs, you stick to what's real.
+> - Short answers win. Give them the path, not the entire forest.
+>
+> **Your rules**:
+> - Only say what the docs actually say. No making stuff up, no guessing, no 'probably works like...'
+> - If the answer's in the context, give it straight: 'Go here, click this, you'll see that.'
+> - If it's not in the context, be honest: 'That's not in my scrolls. Check the guide or ask support.'
+> - Keep it friendly but factual. You're helpful, not a salesperson."
+
+#### Error Handling
+
+User-friendly error messages for common issues:
+
+| Error Type | User-Friendly Message |
+|-----------|---------------------|
+| Quota exceeded | "⚠️ The AI service has reached its usage quota. Please contact your system administrator to add credits at platform.openai.com" |
+| Rate limit | "⏱️ Too many requests at once. Please wait a moment and try again." |
+| Invalid API key | "🔑 The AI service is not properly configured. Please contact your system administrator." |
+| Service unavailable | "🔧 The AI service is temporarily down. Please try again in a few minutes." |
+| Network error | "I couldn't reach the knowledge base. Please try again or contact support." |
+
+#### Configuration
+
+**Environment Variables Required**:
+```env
+# Supabase credentials (for vector search)
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# OpenAI API key (for embeddings + chat)
+OPENAI_API_KEY=sk-your-openai-api-key
+
+# Chat endpoint (set automatically in Netlify)
+VITE_CHAT_ENDPOINT=/.netlify/functions/chat
+```
+
+#### Cost Analysis
+
+**Current Usage**:
+- **Embedding Model**: text-embedding-3-small ($0.00002 / 1K tokens)
+- **Chat Model**: gpt-4o-mini ($0.000150 / 1K input, $0.000600 / 1K output)
+
+**Example Monthly Costs (1000 queries)**:
+```
+Embeddings: 1000 queries × 50 tokens avg × $0.00002 = $1.00
+Chat Input: 1000 queries × 500 tokens avg × $0.00015 = $75.00
+Chat Output: 1000 queries × 150 tokens avg × $0.00060 = $90.00
+
+Total: ~$166/month for 1000 queries
+      ~$0.17 per query
+```
+
+**Cost Optimization**:
+- Conversation memory reduces redundant context
+- Document chunking minimizes token usage
+- Cache common queries (future enhancement)
+
+#### Performance
+
+- **Average Response Time**: 2-4 seconds
+- **Embedding Generation**: ~500ms
+- **Vector Search**: ~200ms
+- **Chat Completion**: 1-3 seconds
+- **Total Latency**: Primarily driven by OpenAI API
+
+#### Best Practices
+
+**For Users**:
+- Ask specific questions about features or workflows
+- Use clear, simple language (e.g., "How do I add items to a cart?")
+- Refer to specific modules by name
+- Use follow-ups - the bot remembers your last 5 exchanges
+- Rate responses to help improve answer quality
+
+**For Administrators**:
+- Keep documentation up-to-date and comprehensive
+- Re-run ingestion after major documentation updates
+- Monitor OpenAI costs monthly via KPI dashboard
+- Set API spending limits as needed
+- Review feedback for low-rated responses to improve documentation
+- Check Netlify function logs for technical issues
+
+#### User Experience
+
+- **Fixed Position**: Always accessible from bottom-right corner (z-index 9999)
+- **Responsive Design**: Works on desktop and mobile devices
+- **Loading Indicators**: Clear visual feedback during processing
+- **Accessibility**: Screen reader support and keyboard navigation
+- **Branding**: "Old Sage of Inventory Wisdom" subtitle reinforces sage-like persona
+
+**Navigation Path**: Fixed floating button (bottom-right corner, all pages)
+
+---
+
 ## Backend Integrations & Storage
 
 ### Database Architecture (Supabase PostgreSQL)
@@ -1792,6 +2014,6 @@ The system is built on modern, scalable technology and designed to grow with you
 
 ---
 
-*Document Version: 2.1*
-*Last Updated: November 28, 2024*
+*Document Version: 2.2*
+*Last Updated: December 3, 2025*
 *Prepared for: 4D Analytics Clients*

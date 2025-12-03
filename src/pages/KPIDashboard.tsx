@@ -27,6 +27,10 @@ import {
   PackageX,
   TrendingDown,
   Activity,
+  Bot,
+  MessageCircle,
+  Star,
+  ThumbsDown,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -243,7 +247,21 @@ const KPIDashboard = () => {
   const { data: pickingQueue = [], isLoading: pickingLoading } = usePickingQueue();
   const { data: dispatchQueue = [], isLoading: dispatchQueueLoading } = useDispatchQueue();
 
-  const isLoading = ordersLoading || stockLoading || dispatchLoading || stockLevelsLoading || pickingLoading || dispatchQueueLoading || repairTicketsLoading || stockCountsLoading || deviceRegistryLoading;
+  // Fetch bot usage logs for analytics
+  const { data: botUsageLogs = [], isLoading: botLogsLoading } = useQuery({
+    queryKey: ['botUsageLogs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bot_usage_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const isLoading = ordersLoading || stockLoading || dispatchLoading || stockLevelsLoading || pickingLoading || dispatchQueueLoading || repairTicketsLoading || stockCountsLoading || deviceRegistryLoading || botLogsLoading;
   const isFetching = ordersFetching;
 
   // Filter orders based on date selection AND business line
@@ -683,6 +701,48 @@ const KPIDashboard = () => {
       total: orphanedStockCountSerials.length + duplicateSerials.length,
     };
 
+    // Bot Analytics
+    const totalBotQueries = botUsageLogs.length;
+    const ratedQueries = botUsageLogs.filter(log => log.satisfaction_rating !== null);
+    const averageSatisfaction = ratedQueries.length > 0
+      ? ratedQueries.reduce((sum, log) => sum + (log.satisfaction_rating || 0), 0) / ratedQueries.length
+      : 0;
+
+    const queriesByRole = botUsageLogs.reduce((acc, log) => {
+      const role = log.user_role || 'anonymous';
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const topUsers = Object.entries(
+      botUsageLogs.reduce((acc, log) => {
+        const email = log.user_email || 'anonymous';
+        acc[email] = (acc[email] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>)
+    )
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10);
+
+    const satisfactionBreakdown = {
+      5: botUsageLogs.filter(log => log.satisfaction_rating === 5).length,
+      4: botUsageLogs.filter(log => log.satisfaction_rating === 4).length,
+      3: botUsageLogs.filter(log => log.satisfaction_rating === 3).length,
+      2: botUsageLogs.filter(log => log.satisfaction_rating === 2).length,
+      1: botUsageLogs.filter(log => log.satisfaction_rating === 1).length,
+    };
+
+    const workRelatedQueries = botUsageLogs.filter(log => log.is_work_related).length;
+    const nonWorkQueries = botUsageLogs.filter(log => !log.is_work_related).length;
+
+    const avgResponseTime = botUsageLogs.filter(log => log.response_time_ms).length > 0
+      ? botUsageLogs.filter(log => log.response_time_ms).reduce((sum, log) => sum + (log.response_time_ms || 0), 0) / botUsageLogs.filter(log => log.response_time_ms).length
+      : 0;
+
+    const totalTokensUsed = botUsageLogs.reduce((sum, log) => sum + (log.tokens_used || 0), 0);
+
+    const sessionCount = new Set(botUsageLogs.map(log => log.session_id)).size;
+
     return {
       // Summary
       totalOrders,
@@ -756,8 +816,20 @@ const KPIDashboard = () => {
       exceptionCounts,
       orphanedStockCountSerials,
       duplicateSerials,
+
+      // Bot Analytics
+      totalBotQueries,
+      averageSatisfaction,
+      queriesByRole,
+      topUsers,
+      satisfactionBreakdown,
+      workRelatedQueries,
+      nonWorkQueries,
+      avgResponseTime,
+      totalTokensUsed,
+      sessionCount,
     };
-  }, [filteredOrders, filteredDispatchLogs, pickingQueue, dispatchQueue, stockLevels, repairTickets, stockCounts, deviceRegistry]);
+  }, [filteredOrders, filteredDispatchLogs, pickingQueue, dispatchQueue, stockLevels, repairTickets, stockCounts, deviceRegistry, botUsageLogs]);
 
   const handleRefresh = () => {
     refetchOrders();
@@ -956,7 +1028,7 @@ const KPIDashboard = () => {
         </Card>
 
         <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 lg:w-auto lg:inline-flex">
+            <TabsList className="grid w-full grid-cols-4 md:grid-cols-9 lg:w-auto lg:inline-flex">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
               <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -986,6 +1058,7 @@ const KPIDashboard = () => {
                 )}
               </TabsTrigger>
               <TabsTrigger value="distribution">Distribution</TabsTrigger>
+              <TabsTrigger value="bot-analytics">Bot Analytics</TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
@@ -2278,6 +2351,319 @@ const KPIDashboard = () => {
                           <div className="text-sm text-muted-foreground mt-1">{warehouse}</div>
                         </div>
                       ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Bot Analytics Tab */}
+            <TabsContent value="bot-analytics" className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {/* Total Queries */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Queries</CardTitle>
+                    <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{kpis.totalBotQueries}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Across {kpis.sessionCount} sessions
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Average Satisfaction */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Avg Satisfaction</CardTitle>
+                    <Star className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{kpis.averageSatisfaction.toFixed(2)} ⭐</div>
+                    <p className="text-xs text-muted-foreground">
+                      From {botUsageLogs.filter(log => log.satisfaction_rating !== null).length} ratings
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Most Active User */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Most Active User</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm font-bold truncate">
+                      {kpis.topUsers.length > 0 ? kpis.topUsers[0][0] : 'N/A'}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {kpis.topUsers.length > 0 ? `${kpis.topUsers[0][1]} queries` : 'No data'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Avg Response Time */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+                    <Timer className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{(kpis.avgResponseTime / 1000).toFixed(1)}s</div>
+                    <p className="text-xs text-muted-foreground">
+                      {kpis.totalTokensUsed.toLocaleString()} tokens used
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* User Engagement by Role */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Engagement by Role</CardTitle>
+                  <CardDescription>Queries by user role</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {Object.entries(kpis.queriesByRole)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([role, count]) => (
+                        <div key={role} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium capitalize">{role}</span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="w-32 bg-muted rounded-full h-2">
+                              <div
+                                className="bg-primary h-2 rounded-full"
+                                style={{ width: `${(count / kpis.totalBotQueries) * 100}%` }}
+                              />
+                            </div>
+                            <Badge variant="secondary">{count}</Badge>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Top 10 Users */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top 10 Users by Query Count</CardTitle>
+                  <CardDescription>Most frequent bot users</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {kpis.topUsers.map(([email, count], index) => (
+                      <div key={email} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-muted-foreground w-6">#{index + 1}</span>
+                          <span className="text-sm truncate max-w-[200px]">{email}</span>
+                        </div>
+                        <Badge variant="secondary">{count} queries</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Satisfaction Breakdown */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Satisfaction Breakdown</CardTitle>
+                    <CardDescription>Distribution of ratings</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {[5, 4, 3, 2, 1].map((rating) => {
+                        const count = kpis.satisfactionBreakdown[rating as keyof typeof kpis.satisfactionBreakdown];
+                        const totalRatings = Object.values(kpis.satisfactionBreakdown).reduce((a, b) => a + b, 0);
+                        const percentage = totalRatings > 0 ? (count / totalRatings) * 100 : 0;
+
+                        return (
+                          <div key={rating} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {rating >= 4 ? (
+                                <ThumbsUp className="h-4 w-4 text-green-500" />
+                              ) : rating === 3 ? (
+                                <Star className="h-4 w-4 text-yellow-500" />
+                              ) : (
+                                <ThumbsDown className="h-4 w-4 text-red-500" />
+                              )}
+                              <span className="text-sm font-medium">{rating} {'⭐'.repeat(rating)}</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="w-32 bg-muted rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full ${
+                                    rating >= 4 ? 'bg-green-500' : rating === 3 ? 'bg-yellow-500' : 'bg-red-500'
+                                  }`}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <Badge variant="secondary">{count}</Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Work Classification */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Work Classification</CardTitle>
+                    <CardDescription>Work vs. non-work queries</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <span className="text-sm font-medium">Work-Related</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="w-32 bg-muted rounded-full h-2">
+                            <div
+                              className="bg-green-500 h-2 rounded-full"
+                              style={{
+                                width: `${kpis.totalBotQueries > 0 ? (kpis.workRelatedQueries / kpis.totalBotQueries) * 100 : 0}%`
+                              }}
+                            />
+                          </div>
+                          <Badge variant="secondary">{kpis.workRelatedQueries}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <XCircle className="h-4 w-4 text-orange-500" />
+                          <span className="text-sm font-medium">Non-Work</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="w-32 bg-muted rounded-full h-2">
+                            <div
+                              className="bg-orange-500 h-2 rounded-full"
+                              style={{
+                                width: `${kpis.totalBotQueries > 0 ? (kpis.nonWorkQueries / kpis.totalBotQueries) * 100 : 0}%`
+                              }}
+                            />
+                          </div>
+                          <Badge variant="secondary">{kpis.nonWorkQueries}</Badge>
+                        </div>
+                      </div>
+                      <div className="pt-4 border-t">
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-green-600">
+                            {kpis.totalBotQueries > 0 ? ((kpis.workRelatedQueries / kpis.totalBotQueries) * 100).toFixed(1) : 0}%
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">Work-related queries</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Queries Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Queries</CardTitle>
+                  <CardDescription>Latest bot interactions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {botUsageLogs.slice(0, 10).map((log) => (
+                      <div key={log.id} className="border-l-4 border-primary/30 pl-4 py-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{log.query}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {log.user_email} • {log.user_role} • {new Date(log.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {log.satisfaction_rating && (
+                              <Badge variant={log.satisfaction_rating >= 4 ? 'default' : log.satisfaction_rating === 3 ? 'secondary' : 'destructive'}>
+                                {log.satisfaction_rating} ⭐
+                              </Badge>
+                            )}
+                            {log.response_time_ms && (
+                              <Badge variant="outline">{(log.response_time_ms / 1000).toFixed(1)}s</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Performance Metrics */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Performance Metrics</CardTitle>
+                  <CardDescription>Response times and token usage</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div>
+                      <h4 className="text-sm font-medium mb-3">Response Time Distribution</h4>
+                      <div className="space-y-2">
+                        {[
+                          { label: '< 2s', min: 0, max: 2000, color: 'bg-green-500' },
+                          { label: '2-4s', min: 2000, max: 4000, color: 'bg-yellow-500' },
+                          { label: '4-6s', min: 4000, max: 6000, color: 'bg-orange-500' },
+                          { label: '> 6s', min: 6000, max: Infinity, color: 'bg-red-500' },
+                        ].map(({ label, min, max, color }) => {
+                          const count = botUsageLogs.filter(
+                            log => log.response_time_ms && log.response_time_ms >= min && log.response_time_ms < max
+                          ).length;
+                          const total = botUsageLogs.filter(log => log.response_time_ms).length;
+                          const percentage = total > 0 ? (count / total) * 100 : 0;
+
+                          return (
+                            <div key={label} className="flex items-center gap-2">
+                              <span className="text-xs font-medium w-12">{label}</span>
+                              <div className="flex-1 bg-muted rounded-full h-2">
+                                <div className={`${color} h-2 rounded-full`} style={{ width: `${percentage}%` }} />
+                              </div>
+                              <span className="text-xs text-muted-foreground w-8">{count}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium mb-3">Cost Estimate</h4>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Total Tokens</span>
+                          <span className="text-sm font-medium">{kpis.totalTokensUsed.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Estimated Cost</span>
+                          <span className="text-sm font-medium">
+                            ${((kpis.totalTokensUsed / 1000) * 0.0002).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Avg Tokens/Query</span>
+                          <span className="text-sm font-medium">
+                            {kpis.totalBotQueries > 0 ? Math.round(kpis.totalTokensUsed / kpis.totalBotQueries) : 0}
+                          </span>
+                        </div>
+                        <div className="pt-3 border-t">
+                          <p className="text-xs text-muted-foreground">
+                            💡 Monitor costs at <a href="https://platform.openai.com/usage" target="_blank" rel="noopener noreferrer" className="text-primary underline">OpenAI Dashboard</a>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -1,19 +1,26 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { n8nService } from "@/integrations/n8n";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, X, Send, Bot, User, Loader2, ArrowRight } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { MessageCircle, X, Send, Bot, User, Loader2, ArrowRight, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface Message {
   id: string;
   role: "user" | "bot";
   text: string;
   sources?: { title: string; url?: string }[];
+  rating?: number | null;
+  ratingFeedback?: string;
+  showRating?: boolean;
+  logId?: string; // Database log ID for this interaction
 }
 
 interface NavigableLink {
@@ -125,6 +132,8 @@ export const SystemGuideBot = () => {
   });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [ratingMessageId, setRatingMessageId] = useState<string | null>(null);
+  const [ratingFeedback, setRatingFeedback] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -147,6 +156,8 @@ export const SystemGuideBot = () => {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
+
+    const startTime = Date.now();
 
     try {
       // Check if we have a direct chat endpoint (preferred) or use n8n
@@ -194,6 +205,37 @@ export const SystemGuideBot = () => {
       }
 
       const botText = response.answer || response.output || "Please check the documentation.";
+      const responseTime = Date.now() - startTime;
+
+      // Log usage to database
+      let logId: string | undefined;
+      try {
+        const { data: logData, error: logError } = await supabase
+          .from('bot_usage_logs')
+          .insert({
+            user_id: profile?.id || null,
+            user_email: profile?.email || null,
+            user_role: profile?.role || null,
+            user_company: profile?.company || null,
+            user_warehouse: profile?.warehouse || null,
+            session_id: sessionId,
+            query: userText,
+            response: botText,
+            sources: response.sources || [],
+            response_time_ms: responseTime,
+            is_work_related: true, // Default to true, can be improved with classification
+          })
+          .select('id')
+          .single();
+
+        if (!logError && logData) {
+          logId = logData.id;
+        } else if (logError) {
+          console.error('Failed to log bot usage:', logError);
+        }
+      } catch (logError) {
+        console.error('Failed to log bot usage:', logError);
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -201,7 +243,9 @@ export const SystemGuideBot = () => {
           id: (Date.now() + 1).toString(),
           role: "bot",
           text: botText,
-          sources: response.sources
+          sources: response.sources,
+          showRating: true,
+          logId: logId
         },
       ]);
     } catch (error) {
@@ -239,6 +283,85 @@ export const SystemGuideBot = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRating = async (messageId: string, rating: number) => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message || !message.logId) {
+      toast.error("Unable to submit rating");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('bot_usage_logs')
+        .update({
+          satisfaction_rating: rating,
+          rated_at: new Date().toISOString(),
+        })
+        .eq('id', message.logId);
+
+      if (error) throw error;
+
+      // Update message in state
+      setMessages(prev => prev.map(m =>
+        m.id === messageId
+          ? { ...m, rating, showRating: rating < 4 } // Show feedback only for ratings < 4
+          : m
+      ));
+
+      setRatingMessageId(rating < 4 ? messageId : null);
+
+      if (rating >= 4) {
+        toast.success("Thank you for your feedback!");
+      }
+    } catch (error) {
+      console.error('Failed to submit rating:', error);
+      toast.error("Failed to submit rating");
+    }
+  };
+
+  const handleRatingFeedback = async (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message || !message.logId) {
+      toast.error("Unable to submit feedback");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('bot_usage_logs')
+        .update({
+          satisfaction_feedback: ratingFeedback,
+        })
+        .eq('id', message.logId);
+
+      if (error) throw error;
+
+      // Update message in state
+      setMessages(prev => prev.map(m =>
+        m.id === messageId
+          ? { ...m, ratingFeedback, showRating: false }
+          : m
+      ));
+
+      setRatingMessageId(null);
+      setRatingFeedback("");
+      toast.success("Thank you for your feedback!");
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+      toast.error("Failed to submit feedback");
+    }
+  };
+
+  const skipRating = (messageId: string) => {
+    setMessages(prev => prev.map(m =>
+      m.id === messageId
+        ? { ...m, showRating: false }
+        : m
+    ));
+    setRatingMessageId(null);
+    setRatingFeedback("");
   };
 
   return (
@@ -307,6 +430,73 @@ export const SystemGuideBot = () => {
                             msg.text
                           )}
                         </div>
+
+                        {/* Rating UI - Only show for bot messages */}
+                        {msg.role === "bot" && msg.showRating && !msg.rating && (
+                          <div className="mt-2 p-3 bg-background/80 rounded-lg border border-primary/20">
+                            <p className="text-xs text-muted-foreground mb-2">Was this answer helpful?</p>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map((rating) => (
+                                <Button
+                                  key={rating}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 hover:bg-primary/10"
+                                  onClick={() => handleRating(msg.id, rating)}
+                                >
+                                  <Star className={cn("h-4 w-4", rating <= 3 ? "text-muted-foreground" : "text-yellow-500")} />
+                                </Button>
+                              ))}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mt-2 h-6 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={() => skipRating(msg.id)}
+                            >
+                              Skip
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Feedback textarea - Show after rating < 4 */}
+                        {msg.role === "bot" && msg.rating && msg.rating < 4 && ratingMessageId === msg.id && (
+                          <div className="mt-2 p-3 bg-background/80 rounded-lg border border-primary/20">
+                            <p className="text-xs text-muted-foreground mb-2">Tell us more (optional):</p>
+                            <Textarea
+                              value={ratingFeedback}
+                              onChange={(e) => setRatingFeedback(e.target.value)}
+                              placeholder="What could be improved?"
+                              className="text-xs min-h-[60px] mb-2"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleRatingFeedback(msg.id)}
+                                className="h-7 text-xs"
+                              >
+                                Submit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => skipRating(msg.id)}
+                                className="h-7 text-xs"
+                              >
+                                Skip
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Rating submitted confirmation */}
+                        {msg.role === "bot" && msg.rating && !msg.showRating && (
+                          <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
+                            <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                            <span>Rated {msg.rating}/5</span>
+                            {msg.ratingFeedback && <span className="ml-1">• Feedback provided</span>}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
