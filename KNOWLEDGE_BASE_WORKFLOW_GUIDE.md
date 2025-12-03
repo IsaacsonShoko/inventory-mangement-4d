@@ -740,7 +740,7 @@ When placing an order on the Stock Order page, the system automatically handles 
    - **Business Line**: Select (Cash Connect, ABSA, VPS, Accessories, Modems)
    - **Device Scanning**:
      - **Cash Connect**: Scan QR code (auto-parses serials)
-     - **Other Lines**: Enter individual serial numbers
+     - **Other Lines**: Scan individual serial numbers
    - **Scanning Methods**:
      - Camera scan (click camera icon)
      - USB scanner (focus and scan)
@@ -854,7 +854,7 @@ Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
    - **Business Line**: Select category
    - **Device Scanning**:
      - **Cash Connect**: Scan QR code
-     - **Other Lines**: Enter serial numbers
+     - **Other Lines**: Scan serial numbers
    - **Scanning Options**: Camera or USB scanner
 4. **Supplier Information**:
    - Supplier name
@@ -1152,7 +1152,7 @@ Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
    - **Item Nature**: Serialised/Non-serialised
 4. **Serial Number Processing**:
    - **Cash Connect**: Scan QR code (auto-parses multiple serials)
-   - **Other Lines**: Enter individual serial fields
+   - **Other Lines**: Scan individual serial numbers
    - **Bulk Paste**: Paste multiple serials at once
    - **Validation**: Real-time duplicate detection
 5. **Batch Processing**:
