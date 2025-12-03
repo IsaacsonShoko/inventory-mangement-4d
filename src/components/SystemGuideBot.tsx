@@ -131,8 +131,13 @@ const parseMessageWithLinks = (text: string): ParsedMessage => {
 };
 
 export const SystemGuideBot = () => {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const navigate = useNavigate();
+
+  // Only show bot to authenticated users
+  if (!user) {
+    return null;
+  }
   const [isOpen, setIsOpen] = useState(false);
   const [sessionId] = useState(() => generateSessionId());
   const [messages, setMessages] = useState<Message[]>(() => {
