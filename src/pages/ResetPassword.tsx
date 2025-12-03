@@ -31,10 +31,10 @@ const ResetPassword = () => {
     }
 
     // Validate password strength
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       toast({
         title: 'Password too short',
-        description: 'Password must be at least 6 characters long.',
+        description: 'Password must be at least 8 characters long.',
         variant: 'destructive',
       });
       return;
@@ -111,11 +111,11 @@ const ResetPassword = () => {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 autoFocus
               />
               <p className="text-xs text-muted-foreground">
-                Must be at least 6 characters long
+                Minimum 8 characters required
               </p>
             </div>
             <div className="space-y-2">
@@ -127,7 +127,7 @@ const ResetPassword = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
