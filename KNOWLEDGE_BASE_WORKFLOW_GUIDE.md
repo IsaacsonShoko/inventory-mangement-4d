@@ -72,6 +72,41 @@ The system uses dropdown menus for many selections to ensure data consistency. C
 - Required fields are marked with an asterisk (*)
 - Contact your supervisor or admin if you're unsure which option applies to your situation
 
+### Navigable Links in Bot Responses
+
+**IMPORTANT FOR XLINK-SAGE BOT**:
+
+When providing guidance to users, you can include clickable navigation links that take users directly to the relevant page in the system.
+
+**Syntax**: `[NAVIGATE:Button Label|/page-path]`
+
+**Example Responses**:
+- "To create a new order, [NAVIGATE:click here|/stock-order]. You'll need to fill in the order details and add items to your cart."
+- "Check your order status in the [NAVIGATE:Tracking page|/tracking]."
+- "View inventory levels on the [NAVIGATE:KPI Dashboard|/kpi]."
+- "Admin users can manage user approvals in [NAVIGATE:User Management|/user-management]."
+
+**Available Page Paths**:
+- `/stock-order` - Create new stock orders
+- `/picking-queue` - Warehouse picking operations
+- `/dispatch` - Order dispatch and fulfillment
+- `/stock-counts` - Inventory counting
+- `/asset-management` - Device registry and tracking
+- `/repair-tickets` - Repair and fault management
+- `/stock-admin` - Product catalog management
+- `/stock-ingestion` - Batch device registration
+- `/user-management` - User approvals and roles
+- `/kpi` - KPI Dashboard and analytics
+- `/tracking` - Order tracking
+- `/point-of-presence` - Technician roster
+
+**Usage Guidelines**:
+- Use navigable links when directing users to specific pages
+- Place the link naturally within your response
+- Use descriptive button labels (e.g., "Go to Orders" instead of just "here")
+- You can include multiple links in a single response
+- Links automatically close the bot when clicked
+
 ---
 
 ## User Roles & Access Control

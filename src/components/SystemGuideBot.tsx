@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { n8nService } from "@/integrations/n8n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -13,6 +14,15 @@ interface Message {
   role: "user" | "bot";
   text: string;
   sources?: { title: string; url?: string }[];
+}
+
+interface NavigableLink {
+  label: string;
+  path: string;
+}
+
+interface ParsedMessage {
+  parts: { type: 'text' | 'link'; content: string; link?: NavigableLink }[];
 }
 
 // Conversation memory constants
@@ -48,8 +58,58 @@ const saveConversationHistory = (sessionId: string, messages: Message[]) => {
   }
 };
 
+// Parse bot message for navigable links
+// Syntax: [NAVIGATE:Label|/path]
+const parseMessageWithLinks = (text: string): ParsedMessage => {
+  const linkRegex = /\[NAVIGATE:([^\]]+)\|([^\]]+)\]/g;
+  const parts: ParsedMessage['parts'] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    // Add text before the link
+    if (match.index > lastIndex) {
+      parts.push({
+        type: 'text',
+        content: text.substring(lastIndex, match.index)
+      });
+    }
+
+    // Add the link
+    parts.push({
+      type: 'link',
+      content: match[1], // Label
+      link: {
+        label: match[1],
+        path: match[2]
+      }
+    });
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text after last link
+  if (lastIndex < text.length) {
+    parts.push({
+      type: 'text',
+      content: text.substring(lastIndex)
+    });
+  }
+
+  // If no links found, return the whole text as a single part
+  if (parts.length === 0) {
+    parts.push({
+      type: 'text',
+      content: text
+    });
+  }
+
+  return { parts };
+};
+
 export const SystemGuideBot = () => {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [sessionId] = useState(() => generateSessionId());
   const [messages, setMessages] = useState<Message[]>(() => {
@@ -206,18 +266,51 @@ export const SystemGuideBot = () => {
           <CardContent className="flex-1 flex flex-col p-0 overflow-hidden relative">
             <ScrollArea className="flex-1 p-4">
               <div className="flex flex-col gap-4 pb-4">
-                {messages.map((msg) => (
-                  <div key={msg.id} className={cn("flex gap-3 max-w-[90%]", msg.role === "user" ? "self-end flex-row-reverse" : "self-start")}>
-                    <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0 border shadow-sm", msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted")}>
-                      {msg.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <div className={cn("rounded-2xl p-3 text-sm shadow-sm", msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted text-foreground rounded-tl-sm")}>
-                        {msg.text}
+                {messages.map((msg) => {
+                  const parsed = msg.role === "bot" ? parseMessageWithLinks(msg.text) : null;
+
+                  return (
+                    <div key={msg.id} className={cn("flex gap-3 max-w-[90%]", msg.role === "user" ? "self-end flex-row-reverse" : "self-start")}>
+                      <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0 border shadow-sm", msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted")}>
+                        {msg.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <div className={cn("rounded-2xl p-3 text-sm shadow-sm", msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted text-foreground rounded-tl-sm")}>
+                          {msg.role === "user" ? (
+                            msg.text
+                          ) : parsed ? (
+                            <div className="flex flex-col gap-2">
+                              {parsed.parts.map((part, idx) => {
+                                if (part.type === 'text') {
+                                  return <span key={idx}>{part.content}</span>;
+                                } else if (part.type === 'link' && part.link) {
+                                  return (
+                                    <Button
+                                      key={idx}
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-fit mt-1 bg-background/50 hover:bg-background"
+                                      onClick={() => {
+                                        navigate(part.link!.path);
+                                        setIsOpen(false);
+                                      }}
+                                    >
+                                      <ArrowRight className="h-3 w-3 mr-1" />
+                                      {part.link.label}
+                                    </Button>
+                                  );
+                                }
+                                return null;
+                              })}
+                            </div>
+                          ) : (
+                            msg.text
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {isLoading && (
                   <div className="flex gap-3 self-start max-w-[90%]">
                     <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border"><Bot className="h-4 w-4" /></div>
