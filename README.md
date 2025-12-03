@@ -98,6 +98,7 @@ VITE_N8N_ORDER_PLACED_WEBHOOK_URL=https://your-n8n-host/webhook/order-placed
 9. **Stock Administration**: Product catalog and inventory item management
 10. **Stock Ingestion**: Batch device registration with barcode scanning
 11. **Tracking**: Real-time shipment tracking with courier integration
+12. **Xlink-Sage Bot**: AI-powered system guide with conversation memory and vector search (see [Bot Documentation](docs/XLINK_SAGE_BOT.md))
 
 ### Key Capabilities
 
@@ -108,6 +109,7 @@ VITE_N8N_ORDER_PLACED_WEBHOOK_URL=https://your-n8n-host/webhook/order-placed
 - **Offline Mode**: Progressive Web App with offline capability
 - **Data Integrity**: Exception monitoring for orphaned scans and duplicates
 - **Audit Trail**: Comprehensive logging across all operations
+- **AI-Powered Help**: Xlink-Sage bot with contextual guidance and conversation memory
 
 ## User Roles
 
@@ -158,10 +160,19 @@ Ensure environment variables are properly configured for each deployment environ
 ## Support and Documentation
 
 - **Product Documentation**: See `PRODUCT_DOCUMENTATION.md` for comprehensive feature documentation
+- **Xlink-Sage Bot Guide**: See [docs/XLINK_SAGE_BOT.md](docs/XLINK_SAGE_BOT.md) for AI chatbot features and analytics
+- **N8N Integration**: See [docs/N8N_INTEGRATION_GUIDE.md](docs/N8N_INTEGRATION_GUIDE.md) for notification workflows
 - **API Documentation**: Supabase auto-generated API docs
 - **Support**: Contact 4D Analytics support team
 
 ## Version History
+
+- **v2.2** (December 3, 2025): AI-powered system guide and UX improvements
+  - Xlink-Sage bot with conversation memory and vector search
+  - Removed legacy "Order On Behalf Of" field
+  - Company dropdown for data consistency
+  - Dropdown field guidance in knowledge base
+  - Old Sage branding and persona
 
 - **v2.1** (November 28, 2024): Repair ticket management enhancements
   - Edit fault assessments
@@ -187,4 +198,4 @@ For technical support or inquiries, contact your account manager or support team
 
 ---
 
-*Last Updated: November 28, 2024*
+*Last Updated: December 3, 2025*
