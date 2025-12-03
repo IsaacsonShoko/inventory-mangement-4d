@@ -6,7 +6,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
-import { AdminRoute } from "@/components/ProtectedRoute";
+import { ProtectedRoute, AdminRoute, BackOfficeRoute } from "@/components/ProtectedRoute";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { SessionTimeoutDialog } from "@/components/SessionTimeoutDialog";
@@ -75,27 +75,37 @@ function AppContent() {
       />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          {/* Public routes - No authentication required */}
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/stock-order" element={<StockOrder />} />
-          <Route path="/asset-management" element={<AssetManagement />} />
-          <Route path="/stock-ingestion" element={<StockIngestion />} />
-          <Route path="/stock-admin" element={<StockAdmin />} />
-          <Route path="/stock-counts" element={<StockCounts />} />
-          <Route path="/stock-counts-cart" element={<StockCountsCart />} />
-          <Route path="/stock-counts-report" element={<StockCountsReport />} />
-          <Route path="/exceptions-report" element={<ExceptionsReport />} />
-          <Route path="/tracking" element={<Tracking />} />
-          <Route path="/point-of-presence" element={<PointOfPresence />} />
-          <Route path="/stock-alerts" element={<StockAlerts />} />
-          <Route path="/picking" element={<PickingQueue />} />
-          <Route path="/picking/cart/:recordId" element={<PickingCart />} />
-          <Route path="/dispatching" element={<DispatchQueue />} />
-          <Route path="/dispatching/cart/:recordId" element={<DispatchCart />} />
-          <Route path="/kpi" element={<KPIDashboard />} />
-          <Route path="/supabase-test" element={<SupabaseTest />} />
-          <Route path="/admin/users" element={<UserManagement />} />
+
+          {/* Landing page - Protected (requires authentication) */}
+          <Route path="/" element={<ProtectedRoute><Landing /></ProtectedRoute>} />
+
+          {/* General authenticated routes - All approved users */}
+          <Route path="/stock-order" element={<ProtectedRoute><StockOrder /></ProtectedRoute>} />
+          <Route path="/asset-management" element={<ProtectedRoute><AssetManagement /></ProtectedRoute>} />
+          <Route path="/stock-counts" element={<ProtectedRoute><StockCounts /></ProtectedRoute>} />
+          <Route path="/stock-counts-cart" element={<ProtectedRoute><StockCountsCart /></ProtectedRoute>} />
+          <Route path="/stock-counts-report" element={<ProtectedRoute><StockCountsReport /></ProtectedRoute>} />
+          <Route path="/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
+          <Route path="/point-of-presence" element={<ProtectedRoute><PointOfPresence /></ProtectedRoute>} />
+
+          {/* Back Office routes - Back office users and admins only */}
+          <Route path="/stock-ingestion" element={<BackOfficeRoute><StockIngestion /></BackOfficeRoute>} />
+          <Route path="/stock-admin" element={<BackOfficeRoute><StockAdmin /></BackOfficeRoute>} />
+          <Route path="/exceptions-report" element={<BackOfficeRoute><ExceptionsReport /></BackOfficeRoute>} />
+          <Route path="/stock-alerts" element={<BackOfficeRoute><StockAlerts /></BackOfficeRoute>} />
+          <Route path="/picking" element={<BackOfficeRoute><PickingQueue /></BackOfficeRoute>} />
+          <Route path="/picking/cart/:recordId" element={<BackOfficeRoute><PickingCart /></BackOfficeRoute>} />
+          <Route path="/dispatching" element={<BackOfficeRoute><DispatchQueue /></BackOfficeRoute>} />
+          <Route path="/dispatching/cart/:recordId" element={<BackOfficeRoute><DispatchCart /></BackOfficeRoute>} />
+          <Route path="/kpi" element={<BackOfficeRoute><KPIDashboard /></BackOfficeRoute>} />
+
+          {/* Admin routes - Admins only */}
+          <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
+          <Route path="/supabase-test" element={<AdminRoute><SupabaseTest /></AdminRoute>} />
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

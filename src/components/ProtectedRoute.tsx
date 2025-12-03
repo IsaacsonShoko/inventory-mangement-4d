@@ -12,29 +12,101 @@ export function ProtectedRoute({
   requiredRoles,
   redirectTo = '/login',
 }: ProtectedRouteProps) {
-  // TEMPORARY: Bypass authentication for testing
-  // TODO: Re-enable authentication checks before production
-  return <>{children}</>;
-
-  // Original authentication code (commented out for testing)
-  /*
   const { isLoading, isAuthenticated, isAuthorized } = useRequireAuth(requiredRoles);
   const { isApproved, isPending, profile } = useAuth();
   const location = useLocation();
 
+  // Show loading spinner while checking authentication
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
 
+  // Redirect to login if not authenticated
   if (!isAuthenticated) {
-    // Redirect to login, but save the attempted location
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
-  */
+
+  // Check if user account is approved
+  if (isPending) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="max-w-md p-8 bg-card rounded-lg shadow-lg text-center">
+          <div className="mb-4 text-4xl">⏳</div>
+          <h2 className="text-2xl font-bold mb-2">Account Pending Approval</h2>
+          <p className="text-muted-foreground mb-4">
+            Your account is awaiting approval from an administrator. You'll be able to access the system once approved.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Email: <span className="font-mono">{profile?.email}</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.href = '/login'}
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user is not approved (rejected)
+  if (!isApproved) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="max-w-md p-8 bg-card rounded-lg shadow-lg text-center">
+          <div className="mb-4 text-4xl">🚫</div>
+          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+          <p className="text-muted-foreground mb-4">
+            Your account has been rejected or revoked. Please contact your administrator for more information.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.href = '/login'}
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Check role-based authorization if roles are specified
+  if (requiredRoles && !isAuthorized) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="max-w-md p-8 bg-card rounded-lg shadow-lg text-center">
+          <div className="mb-4 text-4xl">🔒</div>
+          <h2 className="text-2xl font-bold mb-2">Insufficient Permissions</h2>
+          <p className="text-muted-foreground mb-4">
+            You don't have permission to access this page. This area is restricted to {requiredRoles.join(' and ')} users.
+          </p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Your role: <span className="font-semibold capitalize">{profile?.role}</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.href = '/'}
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // All checks passed - render the protected content
+  return <>{children}</>;
 }
 
 // Convenience components for common role requirements

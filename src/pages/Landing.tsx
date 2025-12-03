@@ -17,8 +17,9 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "@/components/theme-toggle";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, UserRole } from "@/hooks/useAuth";
 import { usePendingApprovals } from "@/hooks/usePendingApprovals";
+import { RoleGate } from "@/components/ProtectedRoute";
 
 type ModuleCard = {
   title: string;
@@ -28,6 +29,7 @@ type ModuleCard = {
   color: string;
   status?: "active" | "soon";
   testId?: string;
+  requiredRoles?: UserRole[]; // Roles that can access this module (undefined = all authenticated)
 };
 
 const fieldOperationModules: ModuleCard[] = [
@@ -78,6 +80,7 @@ const adminWorkspaceModules: ModuleCard[] = [
     color: "from-purple-500 to-purple-600",
     status: "active",
     testId: "card-picking",
+    requiredRoles: ['admin', 'back_office'],
   },
   {
     title: "Dispatching Queue",
@@ -87,6 +90,7 @@ const adminWorkspaceModules: ModuleCard[] = [
     color: "from-fuchsia-500 to-pink-600",
     status: "active",
     testId: "card-dispatching",
+    requiredRoles: ['admin', 'back_office'],
   },
   {
     title: "Analytics Dashboard",
@@ -96,6 +100,7 @@ const adminWorkspaceModules: ModuleCard[] = [
     color: "from-emerald-500 to-teal-600",
     status: "active",
     testId: "card-analytics",
+    requiredRoles: ['admin', 'back_office'],
   },
   {
     title: "Point of Presence",
@@ -105,6 +110,7 @@ const adminWorkspaceModules: ModuleCard[] = [
     color: "from-violet-600 to-purple-600",
     status: "active",
     testId: "card-point-of-presence",
+    requiredRoles: ['admin', 'back_office'],
   },
   {
     title: "Product Catalog",
@@ -114,6 +120,7 @@ const adminWorkspaceModules: ModuleCard[] = [
     color: "from-amber-500 to-orange-600",
     status: "active",
     testId: "card-product-catalog",
+    requiredRoles: ['admin', 'back_office'],
   },
   {
     title: "Stock Ingestion",
@@ -123,6 +130,7 @@ const adminWorkspaceModules: ModuleCard[] = [
     color: "from-teal-500 to-cyan-600",
     status: "active",
     testId: "card-stock-ingestion",
+    requiredRoles: ['admin', 'back_office'],
   },
   {
     title: "User Management",
@@ -132,13 +140,17 @@ const adminWorkspaceModules: ModuleCard[] = [
     color: "from-red-500 to-pink-600",
     status: "active",
     testId: "card-user-management",
+    requiredRoles: ['admin'], // Admin only
   },
 ];
 
 const Landing = () => {
-  const { profile } = useAuth();
+  const { profile, hasRole } = useAuth();
   const { data: pendingCount = 0 } = usePendingApprovals();
   const userName = profile?.full_name || profile?.email || "User";
+
+  // Check if user has access to any admin workspace modules
+  const hasAdminAccess = hasRole(['admin', 'back_office']);
 
   return (
     <div className="min-h-screen bg-background text-foreground relative overflow-hidden">
@@ -208,47 +220,52 @@ const Landing = () => {
             </div>
           </section>
 
-          <section className="space-y-2.5">
-            <div className="text-center">
-              <h2 className="text-base font-semibold">Admin Workspace</h2>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {adminWorkspaceModules.map(({ icon: Icon, title, description, path, color, status }, index) => (
-                <Link key={title} to={path} className="group relative">
-                  {title === "User Management" && pendingCount > 0 && (
-                    <Badge className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 rounded-full h-6 w-6 flex items-center justify-center p-0 text-xs font-bold">
-                      {pendingCount > 99 ? '99+' : pendingCount}
-                    </Badge>
-                  )}
-                  <Card
-                    className="h-full border-border/50 bg-card/80 backdrop-blur hover:border-primary/50 hover:shadow-lg transition-all duration-300 animate-fade-in"
-                    style={{ animationDelay: `${index * 80}ms` }}
-                  >
-                    <CardContent className="p-4 relative">
-                      <Badge
-                        variant={status === "active" ? "default" : "outline"}
-                        className="absolute top-4 right-4 uppercase text-[9px] px-1.5 py-0.5"
+          {/* Admin Workspace - Only show if user has back_office or admin role */}
+          {hasAdminAccess && (
+            <section className="space-y-2.5">
+              <div className="text-center">
+                <h2 className="text-base font-semibold">Admin Workspace</h2>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {adminWorkspaceModules.map(({ icon: Icon, title, description, path, color, status, requiredRoles }, index) => (
+                  <RoleGate key={title} allowedRoles={requiredRoles || ['admin', 'back_office', 'user']}>
+                    <Link to={path} className="group relative">
+                      {title === "User Management" && pendingCount > 0 && (
+                        <Badge className="absolute -top-2 -right-2 z-10 bg-red-600 hover:bg-red-700 rounded-full h-6 w-6 flex items-center justify-center p-0 text-xs font-bold">
+                          {pendingCount > 99 ? '99+' : pendingCount}
+                        </Badge>
+                      )}
+                      <Card
+                        className="h-full border-border/50 bg-card/80 backdrop-blur hover:border-primary/50 hover:shadow-lg transition-all duration-300 animate-fade-in"
+                        style={{ animationDelay: `${index * 80}ms` }}
                       >
-                        {status === "active" ? "Active" : "Coming Soon"}
-                      </Badge>
-                      <div className={`w-8 h-8 rounded-md bg-gradient-to-br ${color} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform`}>
-                        <Icon className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="space-y-2 mt-3">
-                        <h3 className="text-sm font-semibold text-left flex items-center gap-1">
-                          {title}
-                          <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                        </h3>
-                        <p className="text-[10px] text-muted-foreground leading-relaxed text-left min-h-[2.5rem]">
-                          {description}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          </section>
+                        <CardContent className="p-4 relative">
+                          <Badge
+                            variant={status === "active" ? "default" : "outline"}
+                            className="absolute top-4 right-4 uppercase text-[9px] px-1.5 py-0.5"
+                          >
+                            {status === "active" ? "Active" : "Coming Soon"}
+                          </Badge>
+                          <div className={`w-8 h-8 rounded-md bg-gradient-to-br ${color} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform`}>
+                            <Icon className="h-4 w-4 text-white" />
+                          </div>
+                          <div className="space-y-2 mt-3">
+                            <h3 className="text-sm font-semibold text-left flex items-center gap-1">
+                              {title}
+                              <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                            </h3>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed text-left min-h-[2.5rem]">
+                              {description}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  </RoleGate>
+                ))}
+              </div>
+            </section>
+          )}
         </main>
       </div>
     </div>
