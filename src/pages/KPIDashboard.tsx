@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { format, parseISO, differenceInHours, differenceInDays, isAfter, setHours, setMinutes, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { Link } from 'react-router-dom';
 import {
@@ -65,6 +65,66 @@ const SLA_CONFIG = {
   afterNoonNextDay3PM: 15, // Orders after 12 PM must be done by 3 PM next day
 };
 
+// OpenAI Pricing (USD per 1K tokens)
+const OPENAI_PRICING = {
+  embedding: 0.00002, // text-embedding-3-small
+  chatInput: 0.00015, // gpt-4o-mini input
+  chatOutput: 0.00060, // gpt-4o-mini output
+};
+
+// Currency Exchange Rate Configuration
+const EXCHANGE_RATE_API_KEY = '8067d57debaf72cd1e990b62';
+const EXCHANGE_RATE_CACHE_KEY = 'usd-zar-exchange-rate';
+const EXCHANGE_RATE_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+const DEFAULT_USD_TO_ZAR = 18.5; // Fallback rate if API fails
+
+// Fetch USD/ZAR exchange rate from API
+async function fetchExchangeRate(): Promise<number> {
+  try {
+    const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_RATE_API_KEY}/latest/USD`);
+    if (!response.ok) throw new Error('Exchange rate API request failed');
+
+    const data = await response.json();
+    if (data.result === 'success' && data.conversion_rates?.ZAR) {
+      const rate = data.conversion_rates.ZAR;
+
+      // Cache the rate with timestamp
+      localStorage.setItem(EXCHANGE_RATE_CACHE_KEY, JSON.stringify({
+        rate,
+        timestamp: Date.now()
+      }));
+
+      console.log(`USD/ZAR rate updated: R${rate}`);
+      return rate;
+    }
+    throw new Error('Invalid exchange rate data');
+  } catch (error) {
+    console.error('Failed to fetch exchange rate:', error);
+    return DEFAULT_USD_TO_ZAR;
+  }
+}
+
+// Get USD/ZAR exchange rate (from cache or API)
+async function getExchangeRate(): Promise<number> {
+  try {
+    const cached = localStorage.getItem(EXCHANGE_RATE_CACHE_KEY);
+    if (cached) {
+      const { rate, timestamp } = JSON.parse(cached);
+      const age = Date.now() - timestamp;
+
+      // Use cached rate if less than 7 days old
+      if (age < EXCHANGE_RATE_CACHE_DURATION) {
+        return rate;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to read cached exchange rate:', error);
+  }
+
+  // Cache expired or invalid, fetch new rate
+  return await fetchExchangeRate();
+}
+
 // Helper functions
 const calculateCycleTime = (startDate?: string, endDate?: string): number | null => {
   if (!startDate || !endDate) return null;
@@ -128,6 +188,10 @@ const KPIDashboard = () => {
 
   // Business Line filter state
   const [selectedBusinessLine, setSelectedBusinessLine] = useState<string>('all');
+
+  // Exchange rate state
+  const [usdToZar, setUsdToZar] = useState<number>(DEFAULT_USD_TO_ZAR);
+  const [exchangeRateLastUpdated, setExchangeRateLastUpdated] = useState<Date | null>(null);
 
   // Business Line options
   const businessLineOptions = ['Accessories', 'Absa', 'Cash Connect', 'Modems', 'Sim Management', 'VPS', 'Other'];
@@ -260,6 +324,27 @@ const KPIDashboard = () => {
     },
     staleTime: 60 * 1000,
   });
+
+  // Fetch exchange rate on mount
+  useEffect(() => {
+    const loadExchangeRate = async () => {
+      const rate = await getExchangeRate();
+      setUsdToZar(rate);
+
+      // Get last updated timestamp from cache
+      try {
+        const cached = localStorage.getItem(EXCHANGE_RATE_CACHE_KEY);
+        if (cached) {
+          const { timestamp } = JSON.parse(cached);
+          setExchangeRateLastUpdated(new Date(timestamp));
+        }
+      } catch (error) {
+        console.error('Failed to read exchange rate timestamp:', error);
+      }
+    };
+
+    loadExchangeRate();
+  }, []);
 
   const isLoading = ordersLoading || stockLoading || dispatchLoading || stockLevelsLoading || pickingLoading || dispatchQueueLoading || repairTicketsLoading || stockCountsLoading || deviceRegistryLoading || botLogsLoading;
   const isFetching = ordersFetching;
@@ -2639,29 +2724,69 @@ const KPIDashboard = () => {
                       </div>
                     </div>
                     <div>
-                      <h4 className="text-sm font-medium mb-3">Cost Estimate</h4>
+                      <h4 className="text-sm font-medium mb-3">Cost Estimate (ZAR)</h4>
                       <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Total Tokens</span>
-                          <span className="text-sm font-medium">{kpis.totalTokensUsed.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Estimated Cost</span>
-                          <span className="text-sm font-medium">
-                            ${((kpis.totalTokensUsed / 1000) * 0.0002).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Avg Tokens/Query</span>
-                          <span className="text-sm font-medium">
-                            {kpis.totalBotQueries > 0 ? Math.round(kpis.totalTokensUsed / kpis.totalBotQueries) : 0}
-                          </span>
-                        </div>
-                        <div className="pt-3 border-t">
-                          <p className="text-xs text-muted-foreground">
-                            💡 Monitor costs at <a href="https://platform.openai.com/usage" target="_blank" rel="noopener noreferrer" className="text-primary underline">OpenAI Dashboard</a>
-                          </p>
-                        </div>
+                        {(() => {
+                          // Estimate token split: ~10% embeddings, ~40% chat input, ~50% chat output
+                          const totalTokens = kpis.totalTokensUsed;
+                          const embeddingTokens = Math.round(totalTokens * 0.1);
+                          const chatInputTokens = Math.round(totalTokens * 0.4);
+                          const chatOutputTokens = Math.round(totalTokens * 0.5);
+
+                          // Calculate costs in USD
+                          const embeddingCostUSD = (embeddingTokens / 1000) * OPENAI_PRICING.embedding;
+                          const chatInputCostUSD = (chatInputTokens / 1000) * OPENAI_PRICING.chatInput;
+                          const chatOutputCostUSD = (chatOutputTokens / 1000) * OPENAI_PRICING.chatOutput;
+                          const totalCostUSD = embeddingCostUSD + chatInputCostUSD + chatOutputCostUSD;
+
+                          // Convert to ZAR (using dynamic exchange rate)
+                          const totalCostZAR = totalCostUSD * usdToZar;
+                          const embeddingCostZAR = embeddingCostUSD * usdToZar;
+                          const chatCostZAR = (chatInputCostUSD + chatOutputCostUSD) * usdToZar;
+
+                          return (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Total Tokens</span>
+                                <span className="text-sm font-medium">{totalTokens.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Embeddings</span>
+                                <span className="text-sm font-medium">R{embeddingCostZAR.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Chat (I/O)</span>
+                                <span className="text-sm font-medium">R{chatCostZAR.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between pt-2 border-t">
+                                <span className="text-sm font-semibold">Total Cost</span>
+                                <span className="text-sm font-bold text-primary">
+                                  R{totalCostZAR.toFixed(2)}
+                                  <span className="text-xs text-muted-foreground ml-1">(${totalCostUSD.toFixed(2)})</span>
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-muted-foreground">Avg Cost/Query</span>
+                                <span className="text-sm font-medium">
+                                  R{kpis.totalBotQueries > 0 ? (totalCostZAR / kpis.totalBotQueries).toFixed(2) : '0.00'}
+                                </span>
+                              </div>
+                              <div className="pt-3 border-t">
+                                <p className="text-xs text-muted-foreground">
+                                  💱 Exchange rate: R{usdToZar.toFixed(2)} per USD
+                                </p>
+                                {exchangeRateLastUpdated && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    🕐 Updated: {exchangeRateLastUpdated.toLocaleDateString()} (refreshes weekly)
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  📊 Monitor at <a href="https://platform.openai.com/usage" target="_blank" rel="noopener noreferrer" className="text-primary underline">OpenAI Dashboard</a>
+                                </p>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

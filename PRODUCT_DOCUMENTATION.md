@@ -1157,13 +1157,24 @@ VITE_CHAT_ENDPOINT=/.netlify/functions/chat
 
 **Example Monthly Costs (1000 queries)**:
 ```
+USD Pricing:
 Embeddings: 1000 queries × 50 tokens avg × $0.00002 = $1.00
 Chat Input: 1000 queries × 500 tokens avg × $0.00015 = $75.00
 Chat Output: 1000 queries × 150 tokens avg × $0.00060 = $90.00
+Total: ~$166/month USD (~R3,071/month ZAR at R18.5 exchange rate)
 
-Total: ~$166/month for 1000 queries
-      ~$0.17 per query
+Per Query: ~$0.17 USD (~R3.07 ZAR)
 ```
+
+**KPI Dashboard Display**:
+
+- Costs displayed in South African Rand (ZAR) with USD reference
+- Breakdown: Embeddings cost vs. Chat cost
+- Average cost per query in ZAR
+- **Automatic exchange rate updates**: Fetches current USD/ZAR rate weekly from Exchange Rate API
+- Cached in localStorage for 7 days
+- Fallback to R18.5 if API unavailable
+- Shows last updated timestamp
 
 **Cost Optimization**:
 - Conversation memory reduces redundant context
