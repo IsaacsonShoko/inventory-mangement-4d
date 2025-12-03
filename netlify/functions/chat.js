@@ -59,6 +59,7 @@ export async function handler(event, context) {
     const body = JSON.parse(event.body || '{}');
     const userMessage = (body.message || '').trim();
     const conversationHistory = body.conversationHistory || [];
+    const userContext = body.userContext || null;
 
     if (!userMessage) {
       return errorResponse('Message is required', 400, headers);
@@ -66,6 +67,7 @@ export async function handler(event, context) {
 
     console.log(`Processing chat request: ${userMessage.substring(0, 50)}...`);
     console.log(`Conversation history: ${conversationHistory.length} messages`);
+    console.log(`User context: ${userContext ? `${userContext.role} (${userContext.email})` : 'anonymous'}`);
 
     // Step 1: Generate embedding for user message
     const embedding = await getEmbedding(userMessage, OPENAI_API_KEY);
@@ -76,8 +78,8 @@ export async function handler(event, context) {
     // Step 3: Format context from documents
     const { context, sources } = formatContext(documents);
 
-    // Step 4: Generate AI response using context and conversation history
-    const answer = await generateChatResponse(userMessage, context, conversationHistory, OPENAI_API_KEY);
+    // Step 4: Generate AI response using context, conversation history, and user context
+    const answer = await generateChatResponse(userMessage, context, conversationHistory, userContext, OPENAI_API_KEY);
 
     return {
       statusCode: 200,
@@ -212,9 +214,36 @@ function formatContext(documents) {
 }
 
 /**
- * Generate chat response using OpenAI with context and conversation history
+ * Generate chat response using OpenAI with context, conversation history, and user context
  */
-async function generateChatResponse(userMessage, context, conversationHistory, apiKey) {
+async function generateChatResponse(userMessage, context, conversationHistory, userContext, apiKey) {
+  // Build role-specific guidance
+  let roleGuidance = '';
+  if (userContext && userContext.role) {
+    const role = userContext.role;
+    const warehouse = userContext.warehouse || 'your warehouse';
+
+    if (role === 'admin') {
+      roleGuidance = `\n\nUser Profile: Admin user${userContext.fullName ? ` (${userContext.fullName})` : ''}
+- Provide advanced tips and pro-tips for system administration
+- Include insights about 90-day forecasting when relevant
+- Mention user management, approval workflows, and system configuration features
+- Explain how to monitor system-wide metrics and KPIs`;
+    } else if (role === 'back_office') {
+      roleGuidance = `\n\nUser Profile: Back Office user${userContext.fullName ? ` (${userContext.fullName})` : ''}
+- Focus on order management, reporting, and asset tracking workflows
+- Explain how to use the KPI dashboard and generate reports
+- Guide through picking queue management and dispatch operations
+- Highlight features for inventory control and stock administration`;
+    } else if (role === 'user') {
+      roleGuidance = `\n\nUser Profile: Field user${userContext.fullName ? ` (${userContext.fullName})` : ''} at ${warehouse}
+- Emphasize mobile-friendly workflows like stock ordering and barcode scanning
+- Guide through stock counts, device tracking, and repair logging
+- Explain how to check order status and delivery tracking
+- Keep instructions simple for field operations`;
+    }
+  }
+
   const systemPrompt = `You are Xlink-Sage, a witty but grounded guide to the inventory system. Think of yourself as that friend who's seen it all and can point people in the right direction without the corporate speak.
 
 Your style:
@@ -228,6 +257,7 @@ Your rules:
 - If the answer's in the context, give it straight: "Go here, click this, you'll see that."
 - If it's not in the context, be honest: "That's not in my scrolls. Check the guide or ask support."
 - Keep it friendly but factual. You're helpful, not a salesperson.
+${roleGuidance}
 
 The context below is what you know. Stick to it.
 

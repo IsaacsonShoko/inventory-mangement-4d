@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Message {
   id: string;
@@ -48,6 +49,7 @@ const saveConversationHistory = (sessionId: string, messages: Message[]) => {
 };
 
 export const SystemGuideBot = () => {
+  const { profile } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [sessionId] = useState(() => generateSessionId());
   const [messages, setMessages] = useState<Message[]>(() => {
@@ -99,15 +101,25 @@ export const SystemGuideBot = () => {
           content: m.text
         }));
 
+      // Prepare user context for role-specific responses
+      const userContext = profile ? {
+        email: profile.email,
+        role: profile.role,
+        company: profile.company || undefined,
+        warehouse: profile.warehouse || undefined,
+        fullName: profile.full_name || undefined
+      } : undefined;
+
       let response;
       if (chatEndpoint) {
-        // Use direct Netlify function with conversation history
+        // Use direct Netlify function with conversation history and user context
         const res = await fetch(chatEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: userText,
-            conversationHistory
+            conversationHistory,
+            userContext
           }),
         });
 
