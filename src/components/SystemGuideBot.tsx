@@ -36,6 +36,22 @@ interface ParsedMessage {
 const STORAGE_KEY_PREFIX = "xlink-sage-chat-";
 const MAX_HISTORY_MESSAGES = 5; // Store last 5 exchanges (10 messages total)
 
+// Old Sage loading messages - mystical and wise
+const SAGE_LOADING_MESSAGES = [
+  "Unravelling ancient scrolls...",
+  "Consulting the inventory archives...",
+  "Deciphering warehouse wisdom...",
+  "Reading the patterns in the data...",
+  "Peering through the mists of knowledge...",
+  "Searching the sacred texts...",
+  "Contemplating the flow of inventory...",
+  "Divining insights from the ledgers...",
+  "Awakening dormant knowledge...",
+  "Channeling the spirits of logistics...",
+  "Parsing the runes of supply chain...",
+  "Meditating on your query...",
+];
+
 // Generate session ID
 const generateSessionId = () => {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -132,6 +148,7 @@ export const SystemGuideBot = () => {
   });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [ratingMessageId, setRatingMessageId] = useState<string | null>(null);
   const [ratingFeedback, setRatingFeedback] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -146,6 +163,21 @@ export const SystemGuideBot = () => {
   useEffect(() => {
     saveConversationHistory(sessionId, messages);
   }, [messages, sessionId]);
+
+  // Cycle through loading messages while the Sage is thinking
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingMessageIndex(0);
+      return;
+    }
+
+    // Change loading message every 2 seconds
+    const interval = setInterval(() => {
+      setLoadingMessageIndex((prev) => (prev + 1) % SAGE_LOADING_MESSAGES.length);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -504,7 +536,12 @@ export const SystemGuideBot = () => {
                 {isLoading && (
                   <div className="flex gap-3 self-start max-w-[90%]">
                     <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border text-base">🧙‍♂️</div>
-                    <div className="bg-muted rounded-2xl rounded-tl-sm p-3 flex items-center shadow-sm"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                    <div className="bg-muted rounded-2xl rounded-tl-sm p-3 flex items-center gap-2 shadow-sm">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground shrink-0" />
+                      <span className="text-xs text-muted-foreground italic animate-pulse">
+                        {SAGE_LOADING_MESSAGES[loadingMessageIndex]}
+                      </span>
+                    </div>
                   </div>
                 )}
                 <div ref={scrollRef} />
