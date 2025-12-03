@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageCircle, X, Send, Bot, User, Loader2, ArrowRight, Star } from "lucide-react";
+import { MessageCircle, X, Send, User, Loader2, ArrowRight, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -368,10 +368,10 @@ export const SystemGuideBot = () => {
     // UPDATED Z-INDEX TO 9999 TO FORCE VISIBILITY
     <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end space-y-4 font-sans">
       {isOpen && (
-        <Card className="w-[380px] h-[600px] shadow-2xl flex flex-col border-primary/20 animate-in slide-in-from-bottom-5 fade-in duration-300 bg-background/95 backdrop-blur-sm">
-          <CardHeader className="bg-primary text-primary-foreground p-4 rounded-t-lg flex flex-row items-center justify-between space-y-0 shrink-0">
+        <Card className="w-[380px] max-h-[85vh] h-[500px] shadow-2xl flex flex-col border-primary/20 animate-in slide-in-from-bottom-5 fade-in duration-300 bg-background/95 backdrop-blur-sm">
+          <CardHeader className="bg-primary text-primary-foreground p-3 rounded-t-lg flex flex-row items-center justify-between space-y-0 shrink-0">
             <div className="flex items-center gap-2">
-              <Bot className="h-5 w-5" />
+              <div className="text-xl">🧙‍♂️</div>
               <div>
                 <CardTitle className="text-base">Xlink-Sage</CardTitle>
                 <p className="text-xs text-primary-foreground/80 font-normal">Old Sage of Inventory Wisdom</p>
@@ -394,11 +394,11 @@ export const SystemGuideBot = () => {
 
                   return (
                     <div key={msg.id} className={cn("flex gap-3 max-w-[90%]", msg.role === "user" ? "self-end flex-row-reverse" : "self-start")}>
-                      <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0 border shadow-sm", msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted")}>
-                        {msg.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                      <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0 border shadow-sm text-base", msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted")}>
+                        {msg.role === "user" ? <User className="h-4 w-4" /> : "🧙‍♂️"}
                       </div>
                       <div className="flex flex-col gap-2">
-                        <div className={cn("rounded-2xl p-3 text-sm shadow-sm", msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted text-foreground rounded-tl-sm")}>
+                        <div className={cn("rounded-2xl p-2.5 text-xs shadow-sm", msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted text-foreground rounded-tl-sm")}>
                           {msg.role === "user" ? (
                             msg.text
                           ) : parsed ? (
@@ -503,8 +503,8 @@ export const SystemGuideBot = () => {
                 })}
                 {isLoading && (
                   <div className="flex gap-3 self-start max-w-[90%]">
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border"><Bot className="h-4 w-4" /></div>
-                    <div className="bg-muted rounded-2xl rounded-tl-sm p-4 flex items-center shadow-sm"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 border text-base">🧙‍♂️</div>
+                    <div className="bg-muted rounded-2xl rounded-tl-sm p-3 flex items-center shadow-sm"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
                   </div>
                 )}
                 <div ref={scrollRef} />
