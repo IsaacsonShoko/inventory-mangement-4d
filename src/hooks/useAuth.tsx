@@ -45,8 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile with role
-  const fetchProfile = async (userId: string) => {
+  // Fetch user profile with role (with retry for new signups)
+  const fetchProfile = async (userId: string, retryCount = 0): Promise<UserProfile | null> => {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -56,6 +56,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error fetching profile:', error);
+
+        // If profile not found and this is a new signup, retry a few times
+        // The database trigger might still be creating the profile
+        if (error.code === 'PGRST116' && retryCount < 3) {
+          console.log(`[Auth] Profile not found, retrying in ${(retryCount + 1) * 500}ms... (attempt ${retryCount + 1}/3)`);
+          await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 500));
+          return fetchProfile(userId, retryCount + 1);
+        }
+
         return null;
       }
 
