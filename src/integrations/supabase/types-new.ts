@@ -1,4 +1,2 @@
-npm warn exec The following package was not found and will be installed: supabase@2.65.0
-npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
-Cannot find project ref. Have you run supabase link?
+failed to parse connection string: cannot parse `postgresql://postgres.[PROJECT-REF]:xxxxxx@aws-0-us-east-1.pooler.supabase.com:6543/postgres`: failed to parse as URL (parse "postgresql://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:6543/postgres": net/url: invalid userinfo)
 Try rerunning the command with --debug to troubleshoot the error.

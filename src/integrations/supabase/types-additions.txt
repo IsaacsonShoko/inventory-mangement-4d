@@ -1,0 +1,563 @@
+// MISSING TABLE TYPE DEFINITIONS TO ADD TO types.ts
+// Add these to the Tables section
+
+stock_levels: {
+  Row: {
+    id: string
+    device_type: string
+    item_description: string | null
+    item_category: string | null
+    item_nature: string | null
+    item_code: string | null
+    bin_location: string | null
+    quantity: number
+    manufacture_serial_number: string | null
+    qr_code_serial_number: string | null
+    xlink_serial_number: string | null
+    cradle_serial_number: string | null
+    charger_serial_number: string | null
+    stock_holder: string | null
+    name_or_location: string | null
+    contractor_company: string | null
+    contractor_region: string | null
+    technician_name: string | null
+    tech_id: string | null
+    item_status: string | null
+    fault_reason: string | null
+    overall_condition: string | null
+    xli_case_ref: string | null
+    count_type: string | null
+    count_id: string | null
+    created_at: string
+    updated_at: string
+  }
+  Insert: {
+    id?: string
+    device_type: string
+    item_description?: string | null
+    item_category?: string | null
+    item_nature?: string | null
+    item_code?: string | null
+    bin_location?: string | null
+    quantity?: number
+    manufacture_serial_number?: string | null
+    qr_code_serial_number?: string | null
+    xlink_serial_number?: string | null
+    cradle_serial_number?: string | null
+    charger_serial_number?: string | null
+    stock_holder?: string | null
+    name_or_location?: string | null
+    contractor_company?: string | null
+    contractor_region?: string | null
+    technician_name?: string | null
+    tech_id?: string | null
+    item_status?: string | null
+    fault_reason?: string | null
+    overall_condition?: string | null
+    xli_case_ref?: string | null
+    count_type?: string | null
+    count_id?: string | null
+    created_at?: string
+    updated_at?: string
+  }
+  Update: {
+    id?: string
+    device_type?: string
+    item_description?: string | null
+    item_category?: string | null
+    item_nature?: string | null
+    item_code?: string | null
+    bin_location?: string | null
+    quantity?: number
+    manufacture_serial_number?: string | null
+    qr_code_serial_number?: string | null
+    xlink_serial_number?: string | null
+    cradle_serial_number?: string | null
+    charger_serial_number?: string | null
+    stock_holder?: string | null
+    name_or_location?: string | null
+    contractor_company?: string | null
+    contractor_region?: string | null
+    technician_name?: string | null
+    tech_id?: string | null
+    item_status?: string | null
+    fault_reason?: string | null
+    overall_condition?: string | null
+    xli_case_ref?: string | null
+    count_type?: string | null
+    count_id?: string | null
+    created_at?: string
+    updated_at?: string
+  }
+}
+
+stock_counts: {
+  Row: {
+    id: string
+    count_type: string
+    stock_holder: string | null
+    name_or_location: string | null
+    item_category: string | null
+    bin_location: string | null
+    device_type: string
+    item_nature: string | null
+    item_code: string | null
+    item_description: string | null
+    quantity: number
+    manufacture_serial_number: string | null
+    qr_code_serial_number: string | null
+    xlink_serial_number: string | null
+    cradle_serial_number: string | null
+    charger_serial_number: string | null
+    item_status: string | null
+    fault_reason: string | null
+    overall_condition: string | null
+    xli_case_ref: string | null
+    contractor_company: string | null
+    contractor_region: string | null
+    technician_name: string | null
+    tech_id: string | null
+    created_at: string
+    updated_at: string
+    user_email: string | null
+  }
+  Insert: {
+    id?: string
+    count_type: string
+    stock_holder?: string | null
+    name_or_location?: string | null
+    item_category?: string | null
+    bin_location?: string | null
+    device_type: string
+    item_nature?: string | null
+    item_code?: string | null
+    item_description?: string | null
+    quantity?: number
+    manufacture_serial_number?: string | null
+    qr_code_serial_number?: string | null
+    xlink_serial_number?: string | null
+    cradle_serial_number?: string | null
+    charger_serial_number?: string | null
+    item_status?: string | null
+    fault_reason?: string | null
+    overall_condition?: string | null
+    xli_case_ref?: string | null
+    contractor_company?: string | null
+    contractor_region?: string | null
+    technician_name?: string | null
+    tech_id?: string | null
+    created_at?: string
+    updated_at?: string
+    user_email?: string | null
+  }
+  Update: {
+    id?: string
+    count_type?: string
+    stock_holder?: string | null
+    name_or_location?: string | null
+    item_category?: string | null
+    bin_location?: string | null
+    device_type?: string
+    item_nature?: string | null
+    item_code?: string | null
+    item_description?: string | null
+    quantity?: number
+    manufacture_serial_number?: string | null
+    qr_code_serial_number?: string | null
+    xlink_serial_number?: string | null
+    cradle_serial_number?: string | null
+    charger_serial_number?: string | null
+    item_status?: string | null
+    fault_reason?: string | null
+    overall_condition?: string | null
+    xli_case_ref?: string | null
+    contractor_company?: string | null
+    contractor_region?: string | null
+    technician_name?: string | null
+    tech_id?: string | null
+    created_at?: string
+    updated_at?: string
+    user_email?: string | null
+  }
+}
+
+device_registry: {
+  Row: {
+    id: string
+    serial_number: string
+    device_type: string
+    item_category: string
+    item_nature: string
+    item_code: string | null
+    item_description: string | null
+    status: string
+    current_holder_type: string | null
+    current_holder_id: string | null
+    cradle_serial_number: string | null
+    charger_serial_number: string | null
+    qr_code_serial_number: string | null
+    date_acquired: string | null
+    warranty_expiry: string | null
+    last_verified_date: string | null
+    last_maintenance_date: string | null
+    supplier: string | null
+    purchase_order_number: string | null
+    ingestion_batch_id: string | null
+    overall_condition: string | null
+    created_at: string
+    updated_at: string
+    created_by: string | null
+  }
+  Insert: {
+    id?: string
+    serial_number: string
+    device_type: string
+    item_category: string
+    item_nature?: string
+    item_code?: string | null
+    item_description?: string | null
+    status?: string
+    current_holder_type?: string | null
+    current_holder_id?: string | null
+    cradle_serial_number?: string | null
+    charger_serial_number?: string | null
+    qr_code_serial_number?: string | null
+    date_acquired?: string | null
+    warranty_expiry?: string | null
+    last_verified_date?: string | null
+    last_maintenance_date?: string | null
+    supplier?: string | null
+    purchase_order_number?: string | null
+    ingestion_batch_id?: string | null
+    overall_condition?: string | null
+    created_at?: string
+    updated_at?: string
+    created_by?: string | null
+  }
+  Update: {
+    id?: string
+    serial_number?: string
+    device_type?: string
+    item_category?: string
+    item_nature?: string
+    item_code?: string | null
+    item_description?: string | null
+    status?: string
+    current_holder_type?: string | null
+    current_holder_id?: string | null
+    cradle_serial_number?: string | null
+    charger_serial_number?: string | null
+    qr_code_serial_number?: string | null
+    date_acquired?: string | null
+    warranty_expiry?: string | null
+    last_verified_date?: string | null
+    last_maintenance_date?: string | null
+    supplier?: string | null
+    purchase_order_number?: string | null
+    ingestion_batch_id?: string | null
+    overall_condition?: string | null
+    created_at?: string
+    updated_at?: string
+    created_by?: string | null
+  }
+}
+
+repair_tickets: {
+  Row: {
+    id: string
+    ticket_number: number
+    device_id: string
+    reported_by: string
+    reported_date: string
+    fault_category: string
+    fault_description: string | null
+    fault_severity: string | null
+    fault_images: string[] | null
+    assessed_by: string | null
+    assessment_date: string | null
+    assessment_notes: string | null
+    is_repairable: boolean | null
+    estimated_repair_hours: number | null
+    repaired_by: string | null
+    repair_start_date: string | null
+    repair_end_date: string | null
+    repair_actions: string | null
+    parts_used: string | null
+    repair_cost: number | null
+    quality_checked_by: string | null
+    quality_check_date: string | null
+    quality_check_passed: boolean | null
+    quality_check_notes: string | null
+    status: string
+    returned_to_stock_date: string | null
+    returned_to_warehouse: string | null
+    created_at: string
+    updated_at: string
+  }
+  Insert: {
+    id?: string
+    ticket_number?: number
+    device_id: string
+    reported_by: string
+    reported_date?: string
+    fault_category: string
+    fault_description?: string | null
+    fault_severity?: string | null
+    fault_images?: string[] | null
+    assessed_by?: string | null
+    assessment_date?: string | null
+    assessment_notes?: string | null
+    is_repairable?: boolean | null
+    estimated_repair_hours?: number | null
+    repaired_by?: string | null
+    repair_start_date?: string | null
+    repair_end_date?: string | null
+    repair_actions?: string | null
+    parts_used?: string | null
+    repair_cost?: number | null
+    quality_checked_by?: string | null
+    quality_check_date?: string | null
+    quality_check_passed?: boolean | null
+    quality_check_notes?: string | null
+    status?: string
+    returned_to_stock_date?: string | null
+    returned_to_warehouse?: string | null
+    created_at?: string
+    updated_at?: string
+  }
+  Update: {
+    id?: string
+    ticket_number?: number
+    device_id?: string
+    reported_by?: string
+    reported_date?: string
+    fault_category?: string
+    fault_description?: string | null
+    fault_severity?: string | null
+    fault_images?: string[] | null
+    assessed_by?: string | null
+    assessment_date?: string | null
+    assessment_notes?: string | null
+    is_repairable?: boolean | null
+    estimated_repair_hours?: number | null
+    repaired_by?: string | null
+    repair_start_date?: string | null
+    repair_end_date?: string | null
+    repair_actions?: string | null
+    parts_used?: string | null
+    repair_cost?: number | null
+    quality_checked_by?: string | null
+    quality_check_date?: string | null
+    quality_check_passed?: boolean | null
+    quality_check_notes?: string | null
+    status?: string
+    returned_to_stock_date?: string | null
+    returned_to_warehouse?: string | null
+    created_at?: string
+    updated_at?: string
+  }
+}
+
+device_movements: {
+  Row: {
+    id: string
+    device_id: string
+    movement_type: string
+    movement_date: string
+    from_holder_type: string | null
+    from_holder_id: string | null
+    to_holder_type: string | null
+    to_holder_id: string | null
+    performed_by: string
+    reference_id: string | null
+    reference_type: string | null
+    notes: string | null
+    created_at: string
+  }
+  Insert: {
+    id?: string
+    device_id: string
+    movement_type: string
+    movement_date?: string
+    from_holder_type?: string | null
+    from_holder_id?: string | null
+    to_holder_type?: string | null
+    to_holder_id?: string | null
+    performed_by: string
+    reference_id?: string | null
+    reference_type?: string | null
+    notes?: string | null
+    created_at?: string
+  }
+  Update: {
+    id?: string
+    device_id?: string
+    movement_type?: string
+    movement_date?: string
+    from_holder_type?: string | null
+    from_holder_id?: string | null
+    to_holder_type?: string | null
+    to_holder_id?: string | null
+    performed_by?: string
+    reference_id?: string | null
+    reference_type?: string | null
+    notes?: string | null
+    created_at?: string
+  }
+}
+
+ingestion_batches: {
+  Row: {
+    id: string
+    batch_number: number
+    receiving_warehouse: string
+    supplier: string | null
+    date_received: string
+    purchase_order_number: string | null
+    notes: string | null
+    total_devices: number
+    successful_count: number
+    failed_count: number
+    ingested_by: string
+    created_at: string
+  }
+  Insert: {
+    id?: string
+    batch_number?: number
+    receiving_warehouse: string
+    supplier?: string | null
+    date_received: string
+    purchase_order_number?: string | null
+    notes?: string | null
+    total_devices?: number
+    successful_count?: number
+    failed_count?: number
+    ingested_by: string
+    created_at?: string
+  }
+  Update: {
+    id?: string
+    batch_number?: number
+    receiving_warehouse?: string
+    supplier?: string | null
+    date_received?: string
+    purchase_order_number?: string | null
+    notes?: string | null
+    total_devices?: number
+    successful_count?: number
+    failed_count?: number
+    ingested_by?: string
+    created_at?: string
+  }
+}
+
+bot_usage_logs: {
+  Row: {
+    id: string
+    user_id: string | null
+    user_email: string | null
+    user_role: string | null
+    user_company: string | null
+    user_warehouse: string | null
+    session_id: string
+    query: string
+    response: string
+    sources: any
+    tokens_used: number | null
+    response_time_ms: number | null
+    is_work_related: boolean
+    satisfaction_rating: number | null
+    satisfaction_feedback: string | null
+    created_at: string
+    rated_at: string | null
+  }
+  Insert: {
+    id?: string
+    user_id?: string | null
+    user_email?: string | null
+    user_role?: string | null
+    user_company?: string | null
+    user_warehouse?: string | null
+    session_id: string
+    query: string
+    response: string
+    sources?: any
+    tokens_used?: number | null
+    response_time_ms?: number | null
+    is_work_related?: boolean
+    satisfaction_rating?: number | null
+    satisfaction_feedback?: string | null
+    created_at?: string
+    rated_at?: string | null
+  }
+  Update: {
+    id?: string
+    user_id?: string | null
+    user_email?: string | null
+    user_role?: string | null
+    user_company?: string | null
+    user_warehouse?: string | null
+    session_id?: string
+    query?: string
+    response?: string
+    sources?: any
+    tokens_used?: number | null
+    response_time_ms?: number | null
+    is_work_related?: boolean
+    satisfaction_rating?: number | null
+    satisfaction_feedback?: string | null
+    created_at?: string
+    rated_at?: string | null
+  }
+}
+
+user_profiles: {
+  Row: {
+    id: string
+    email: string
+    full_name: string | null
+    first_name: string | null
+    last_name: string | null
+    company: string | null
+    job_title: string | null
+    role: string
+    approval_status: string
+    approved_by: string | null
+    approved_at: string | null
+    warehouse: string | null
+    created_at: string
+    updated_at: string
+  }
+  Insert: {
+    id: string
+    email: string
+    full_name?: string | null
+    first_name?: string | null
+    last_name?: string | null
+    company?: string | null
+    job_title?: string | null
+    role?: string
+    approval_status?: string
+    approved_by?: string | null
+    approved_at?: string | null
+    warehouse?: string | null
+    created_at?: string
+    updated_at?: string
+  }
+  Update: {
+    id?: string
+    email?: string
+    full_name?: string | null
+    first_name?: string | null
+    last_name?: string | null
+    company?: string | null
+    job_title?: string | null
+    role?: string
+    approval_status?: string
+    approved_by?: string | null
+    approved_at?: string | null
+    warehouse?: string | null
+    created_at?: string
+    updated_at?: string
+  }
+}
