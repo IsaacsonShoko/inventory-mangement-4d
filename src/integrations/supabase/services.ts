@@ -564,10 +564,21 @@ export const orderService = {
 
   async getStockOrderItems(orderNumber: number): Promise<StockOrder[]> {
     try {
+      // Check if orderNumber is a string that starts with 'ORD-'
+      const normalizedOrderNumber = typeof orderNumber === 'string' && (orderNumber as string).startsWith('ORD-')
+        ? parseInt((orderNumber as string).replace('ORD-', ''), 10)
+        : orderNumber;
+
+      // If parsing failed or it's not a number, handle gracefully
+      if (isNaN(normalizedOrderNumber)) {
+        console.warn('Invalid order number passed to getStockOrderItems:', orderNumber);
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('stock_order')
         .select('*')
-        .eq('order_id', orderNumber)
+        .eq('order_id', normalizedOrderNumber)
         .order('device_type', { ascending: true });
 
       if (error) throw error;
@@ -582,10 +593,20 @@ export const orderService = {
     try {
       if (orderNumbers.length === 0) return {};
 
+      // Normalize order numbers: convert strings like 'ORD-0056' to integers
+      const normalizedOrderNumbers = orderNumbers.map(orderNumber => {
+        const normalized = typeof orderNumber === 'string' && (orderNumber as string).startsWith('ORD-')
+          ? parseInt((orderNumber as string).replace('ORD-', ''), 10)
+          : orderNumber;
+        return isNaN(normalized) ? null : normalized;
+      }).filter((num): num is number => num !== null);
+
+      if (normalizedOrderNumbers.length === 0) return {};
+
       const { data, error } = await supabase
         .from('stock_order')
         .select('*')
-        .in('order_id', orderNumbers)
+        .in('order_id', normalizedOrderNumbers)
         .order('order_id', { ascending: true });
 
       if (error) throw error;
@@ -608,10 +629,20 @@ export const orderService = {
 
   async getDispatchLog(orderNumber: number): Promise<DispatchLog[]> {
     try {
+      // Normalize order number: convert string like 'ORD-0056' to integer
+      const normalizedOrderNumber = typeof orderNumber === 'string' && (orderNumber as string).startsWith('ORD-')
+        ? parseInt((orderNumber as string).replace('ORD-', ''), 10)
+        : orderNumber;
+
+      if (isNaN(normalizedOrderNumber)) {
+        console.warn('Invalid order number passed to getDispatchLog:', orderNumber);
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('dispatch_log')
         .select('*')
-        .eq('order_id', orderNumber)
+        .eq('order_id', normalizedOrderNumber)
         .order('date_dispatched', { ascending: false });
 
       if (error) throw error;
