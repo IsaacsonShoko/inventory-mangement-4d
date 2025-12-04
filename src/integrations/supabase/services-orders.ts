@@ -378,7 +378,7 @@ export const ordersService = {
     // Create line items
     const lineItems: CreateOrderLineItemInput[] = cartItems.map(item => ({
       order_id: order.id,
-      inventory_item_id: item.id || undefined,
+      // inventory_item_id removed - column doesn't exist in database
       device_type: item.itemName,
       item_description: item.itemDescription,
       item_category: item.itemCategory as ItemCategoryEnum,
