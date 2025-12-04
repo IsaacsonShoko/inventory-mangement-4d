@@ -39,7 +39,6 @@ interface PickedItemData {
   stockOrderId: string;
   deviceType: string;
   quantity: number;
-  stockAvailability: 'In Stock' | 'Out of stock' | '';
   pickStatus: 'Picked in full' | 'Partially picked' | 'Not picked' | '';
   packer: string;
   // Serial numbers
@@ -82,7 +81,6 @@ const PickingCartNew = () => {
 
   // Form state
   const [formData, setFormData] = useState<Partial<PickedItemData>>({
-    stockAvailability: '',
     pickStatus: '',
     packer: '', // Will default to user email in real implementation
     chargerPacked: '',
@@ -173,7 +171,6 @@ const PickingCartNew = () => {
   const handleOpenPickDialog = (item: StockOrderLineItem) => {
     setSelectedLineItem(item);
     setFormData({
-      stockAvailability: '',
       pickStatus: '',
       packer: 'user@example.com', // Replace with actual user email
       chargerPacked: '',
@@ -185,10 +182,10 @@ const PickingCartNew = () => {
   };
 
   const handleAddPickedItem = () => {
-    if (!selectedLineItem || !formData.stockAvailability || !formData.pickStatus) {
+    if (!selectedLineItem || !formData.pickStatus) {
       toast({
         title: 'Missing required fields',
-        description: 'Please fill in Stock Availability and Pick Status',
+        description: 'Please fill in Pick Status',
         variant: 'destructive',
       });
       return;
@@ -267,7 +264,6 @@ const PickingCartNew = () => {
       stockOrderId: selectedLineItem.id,
       deviceType: selectedLineItem.device_type,
       quantity: isSerialised ? 1 : (formData.quantity ?? 1),
-      stockAvailability: formData.stockAvailability!,
       pickStatus: formData.pickStatus!,
       packer: formData.packer!,
       terminalSerialNumber: formData.terminalSerialNumber,
@@ -310,7 +306,6 @@ const PickingCartNew = () => {
       const stockOrderUpdates: StockOrderPickedUpdateInput[] = pickedItems.map((item) => ({
         stockOrderId: item.stockOrderId,
         quantity: item.quantity,
-        stockAvailability: item.stockAvailability,
         pickStatus: item.pickStatus,
       }));
 
@@ -363,7 +358,6 @@ const PickingCartNew = () => {
           stockOrderId: item.stockOrderId,
           deviceType: item.deviceType,
           quantity: item.quantity,
-          stockAvailability: item.stockAvailability,
           pickStatus: item.pickStatus,
           packer: item.packer,
           terminalSerialNumber: item.terminalSerialNumber || null,
@@ -732,27 +726,6 @@ const PickingCartNew = () => {
             <DialogTitle>Pick Item: {selectedLineItem?.device_type}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* Stock Availability */}
-            <div className="space-y-2">
-              <Label htmlFor="stockAvailability">
-                Stock Availability <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={formData.stockAvailability}
-                onValueChange={(value) => {
-                  setFormData({ ...formData, stockAvailability: value as any, pickStatus: '' });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="In Stock">In Stock</SelectItem>
-                  <SelectItem value="Out of stock">Out of stock</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Pick Status */}
             <div className="space-y-2">
               <Label htmlFor="pickStatus">
@@ -761,20 +734,14 @@ const PickingCartNew = () => {
               <Select
                 value={formData.pickStatus}
                 onValueChange={(value) => setFormData({ ...formData, pickStatus: value as any })}
-                disabled={!formData.stockAvailability}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {formData.stockAvailability === 'In Stock' ? (
-                    <>
-                      <SelectItem value="Picked in full">Picked in full</SelectItem>
-                      <SelectItem value="Partially picked">Partially picked</SelectItem>
-                    </>
-                  ) : (
-                    <SelectItem value="Not picked">Not picked</SelectItem>
-                  )}
+                  <SelectItem value="Picked in full">Picked in full</SelectItem>
+                  <SelectItem value="Partially picked">Partially picked</SelectItem>
+                  <SelectItem value="Not picked">Not picked</SelectItem>
                 </SelectContent>
               </Select>
             </div>

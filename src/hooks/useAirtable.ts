@@ -612,7 +612,6 @@ export const useUpdateStockOrderLines = () => {
         await ordersService.updateLineItem(item.stockOrderId, {
           quantity_dispatched: item.quantity,
           pick_status: item.pickStatus as PickStatusEnum,
-          stock_availability: item.stockAvailability as any,
         });
       }
     },
@@ -644,7 +643,6 @@ export const useUpdateDispatchLogEntries = () => {
 export type StockOrderPickedUpdateInput = {
   stockOrderId: string;
   quantity: number;
-  stockAvailability: string;
   pickStatus: string;
 };
 
