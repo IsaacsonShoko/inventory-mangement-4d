@@ -67,32 +67,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    console.log('[Auth] Initial auth check starting');
     // Get initial session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('[Auth] Session retrieved:', session ? 'User logged in' : 'No session');
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
+        console.log('[Auth] Fetching profile for user:', session.user.id);
         const profile = await fetchProfile(session.user.id);
+        console.log('[Auth] Profile fetched:', profile ? 'Success' : 'Failed/Null');
         setProfile(profile);
       }
 
+      console.log('[Auth] Setting loading to false');
       setLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('[Auth] Auth state changed:', event, session ? 'User present' : 'No user');
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          console.log('[Auth] Fetching profile after state change');
           const profile = await fetchProfile(session.user.id);
+          console.log('[Auth] Profile after state change:', profile ? 'Success' : 'Failed/Null');
           setProfile(profile);
         } else {
           setProfile(null);
         }
 
+        console.log('[Auth] Setting loading to false after state change');
         setLoading(false);
       }
     );

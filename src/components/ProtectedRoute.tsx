@@ -16,6 +16,17 @@ export function ProtectedRoute({
   const { isApproved, isPending, profile } = useAuth();
   const location = useLocation();
 
+  console.log('[ProtectedRoute]', {
+    isLoading,
+    isAuthenticated,
+    isAuthorized,
+    isApproved,
+    isPending,
+    hasProfile: !!profile,
+    profileStatus: profile?.approval_status,
+    location: location.pathname
+  });
+
   // Show loading spinner while checking authentication
   if (isLoading) {
     return (
