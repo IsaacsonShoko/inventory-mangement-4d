@@ -168,6 +168,7 @@ export interface CreateOrderLineItemInput {
   item_nature?: ItemNatureEnum;
   item_url?: string;
   quantity_ordered: number;
+  unique_order_record_id?: string;
 }
 
 export interface CartItem {
@@ -385,6 +386,7 @@ export const ordersService = {
       item_nature: item.itemNature as ItemNatureEnum,
       // item_url: item.itemUrl, // Column does not exist in stock_order table
       quantity_ordered: item.quantity,
+      unique_order_record_id: order.id,
     }));
 
     const { error: lineItemsError } = await supabase
