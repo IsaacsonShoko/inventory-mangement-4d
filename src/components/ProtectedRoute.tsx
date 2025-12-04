@@ -13,7 +13,7 @@ export function ProtectedRoute({
   redirectTo = '/login',
 }: ProtectedRouteProps) {
   const { isLoading, isAuthenticated, isAuthorized } = useRequireAuth(requiredRoles);
-  const { isApproved, isPending, profile } = useAuth();
+  const { isApproved, isPending, profile, signOut } = useAuth();
   const location = useLocation();
 
   console.log('[ProtectedRoute]', {
@@ -59,7 +59,10 @@ export function ProtectedRoute({
           </p>
           <button
             type="button"
-            onClick={() => window.location.href = '/login'}
+            onClick={async () => {
+              await signOut();
+              window.location.href = '/login';
+            }}
             className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
           >
             Back to Login
@@ -81,7 +84,10 @@ export function ProtectedRoute({
           </p>
           <button
             type="button"
-            onClick={() => window.location.href = '/login'}
+            onClick={async () => {
+              await signOut();
+              window.location.href = '/login';
+            }}
             className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
           >
             Back to Login

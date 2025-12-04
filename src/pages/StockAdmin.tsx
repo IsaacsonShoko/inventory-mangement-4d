@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -11,6 +12,7 @@ import {
   Loader2,
   Upload,
   Image as ImageIcon,
+  Home,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -285,9 +287,17 @@ const StockAdmin = () => {
   return (
     <div className="container mx-auto p-4 space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-2">
-        <Package className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Stock Admin Module</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Package className="h-6 w-6" />
+          <h1 className="text-2xl font-bold">Stock Admin Module</h1>
+        </div>
+        <Link to="/">
+          <Button variant="outline">
+            <Home className="h-4 w-4 mr-2" />
+            Home
+          </Button>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

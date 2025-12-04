@@ -50,9 +50,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log(`[Auth] fetchProfile called for ${userId}`);
 
-      // Create timeout promise (3 seconds max)
+      // Create timeout promise (10 seconds max)
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000);
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
       });
 
       // Race between fetch and timeout

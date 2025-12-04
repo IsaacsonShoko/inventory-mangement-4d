@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth, UserRole, ApprovalStatus } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { Home } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,11 +131,19 @@ export default function UserManagement() {
               Approve pending user signups, manage user roles, and control system access. Users who sign up are placed in "pending" status until approved.
             </p>
           </div>
-          {pendingCount > 0 && (
-            <Badge variant="destructive" className="text-lg px-4 py-2">
-              {pendingCount} Pending Approval{pendingCount !== 1 ? 's' : ''}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            <Link to="/">
+              <Button variant="outline">
+                <Home className="h-4 w-4 mr-2" />
+                Home
+              </Button>
+            </Link>
+            {pendingCount > 0 && (
+              <Badge variant="destructive" className="text-lg px-4 py-2">
+                {pendingCount} Pending Approval{pendingCount !== 1 ? 's' : ''}
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 

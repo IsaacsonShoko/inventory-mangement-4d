@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Home } from 'lucide-react';
+import { Home } from 'lucide-react';
 
 import { DeviceRegistryTab } from '@/components/asset-management/DeviceRegistryTab';
 import { RepairsTab } from '@/components/asset-management/RepairsTab';
@@ -38,22 +38,12 @@ function AssetManagementContent() {
               : 'View and manage your assigned devices'}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link to="/">
-            <Button variant="outline">
-              <Home className="h-4 w-4 mr-2" />
-              Home
-            </Button>
-          </Link>
-          {isAdminOrBackOffice && (
-            <Link to="/stock-ingestion">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Stock Ingestion
-              </Button>
-            </Link>
-          )}
-        </div>
+        <Link to="/">
+          <Button variant="outline">
+            <Home className="h-4 w-4 mr-2" />
+            Home
+          </Button>
+        </Link>
       </div>
 
       {/* Summary Cards */}
