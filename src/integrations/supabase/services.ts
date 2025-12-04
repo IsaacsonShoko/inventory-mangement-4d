@@ -111,6 +111,22 @@ const formatOrderNumber = (orderNumber: number): string => {
   return `ORD-${String(orderNumber).padStart(4, '0')}`;
 };
 
+// Stock availability utilities
+const normalizeStockAvailabilityValue = (value?: string | null): string | undefined => {
+  if (!value) return undefined;
+
+  const lower = value.toLowerCase().trim();
+
+  // Map UI values to database values
+  if (lower === 'in stock') return 'Available';
+  if (lower === 'out of stock') return 'Not Available';
+  if (lower === 'available') return 'Available';
+  if (lower === 'not available') return 'Not Available';
+  if (lower === 'backordered') return 'Backordered';
+  if (lower === 'partial') return 'Partial';
+
+  return undefined;
+};
 
 // Pick status utilities
 const normalizePickStatusValue = (value?: string | null): PickStatusEnum | undefined => {
@@ -616,6 +632,12 @@ export const orderService = {
           pick_status: normalizePickStatusValue(item.pickStatus) || 'Pending',
         };
 
+        // Add stock_availability if provided
+        const normalizedAvailability = normalizeStockAvailabilityValue(item.stockAvailability);
+        if (normalizedAvailability) {
+          (updateData as any).stock_availability = normalizedAvailability;
+        }
+
         const { error } = await supabase
           .from('stock_order')
           .update(updateData)
@@ -842,15 +864,147 @@ export const slaService = {
 };
 
 // ============================================
-// BACKORDER SERVICE - REMOVED
-// Backorder functionality has been removed because the required database columns
-// (backorder_status, qty_backordered, backorder_created_at, backorder_notes,
-// backorder_reactivated_at, stock_availability) do not exist in the stock_order table.
+// BACKORDER SERVICE
+// ============================================
+export type BackorderStatus = 'none' | 'backordered' | 'reactivated' | 'fulfilled';
+
+export interface BackorderItem {
+  stock_order_id: number;
+  order_id: number;
+  device_type: string;
+  quantity_ordered: number;
+  qty_dispatched: number;
+  qty_backordered: number;
+  backorder_created_at: string | null;
+  technician: string | null;
+  recipient_name: string | null;
+  date_ordered: string;
+}
+
+export const backorderService = {
+  async getBackorderQueue(): Promise<BackorderItem[]> {
+    try {
+      const { data, error } = await supabase
+        .from('stock_order')
+        .select(`id, order_id, device_type, quantity_ordered, qty_dispatched, qty_backordered, backorder_created_at, technician, unique_orders!inner (recipient_name, date_ordered)`)
+        .eq('backorder_status', 'backordered')
+        .order('backorder_created_at', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map((item: any) => ({
+        stock_order_id: item.id,
+        order_id: item.order_id,
+        device_type: item.device_type,
+        quantity_ordered: item.quantity_ordered,
+        qty_dispatched: item.qty_dispatched || 0,
+        qty_backordered: item.qty_backordered || 0,
+        backorder_created_at: item.backorder_created_at,
+        technician: item.technician,
+        recipient_name: item.unique_orders?.recipient_name || null,
+        date_ordered: item.unique_orders?.date_ordered || ''
+      }));
+    } catch (error) {
+      console.error('Error fetching backorder queue:', error);
+      throw formatSupabaseError(error, 'backorder queue fetch');
+    }
+  },
+
+  async markAsBackordered(stockOrderId: number, qtyBackordered: number, notes?: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('stock_order')
+        .update({
+          backorder_status: 'backordered',
+          qty_backordered: qtyBackordered,
+          backorder_created_at: new Date().toISOString(),
+          backorder_notes: notes || null,
+          stock_availability: 'Backordered'
+        })
+        .eq('id', stockOrderId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error marking item as backordered:', error);
+      throw formatSupabaseError(error, 'backorder marking');
+    }
+  },
+
+  async reactivateBackorder(stockOrderId: number, notes?: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('stock_order')
+        .update({
+          backorder_status: 'reactivated',
+          backorder_reactivated_at: new Date().toISOString(),
+          backorder_notes: notes || null,
+          stock_availability: 'Available',
+          pick_status: 'Pending'
+        })
+        .eq('id', stockOrderId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error reactivating backorder:', error);
+      throw formatSupabaseError(error, 'backorder reactivation');
+    }
+  },
+
+  async bulkReactivate(stockOrderIds: number[], notes?: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('stock_order')
+        .update({
+          backorder_status: 'reactivated',
+          backorder_reactivated_at: new Date().toISOString(),
+          backorder_notes: notes || null,
+          stock_availability: 'Available',
+          pick_status: 'Pending'
+        })
+        .in('id', stockOrderIds);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error bulk reactivating backorders:', error);
+      throw formatSupabaseError(error, 'bulk backorder reactivation');
+    }
+  },
+
+  async findByDeviceType(deviceType: string): Promise<BackorderItem[]> {
+    try {
+      const { data, error } = await supabase
+        .from('stock_order')
+        .select(`id, order_id, device_type, quantity_ordered, qty_dispatched, qty_backordered, backorder_created_at, technician, unique_orders!inner (recipient_name, date_ordered)`)
+        .eq('backorder_status', 'backordered')
+        .ilike('device_type', `%${deviceType}%`)
+        .order('backorder_created_at', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map((item: any) => ({
+        stock_order_id: item.id,
+        order_id: item.order_id,
+        device_type: item.device_type,
+        quantity_ordered: item.quantity_ordered,
+        qty_dispatched: item.qty_dispatched || 0,
+        qty_backordered: item.qty_backordered || 0,
+        backorder_created_at: item.backorder_created_at,
+        technician: item.technician,
+        recipient_name: item.unique_orders?.recipient_name || null,
+        date_ordered: item.unique_orders?.date_ordered || ''
+      }));
+    } catch (error) {
+      console.error('Error finding backorders by device type:', error);
+      throw formatSupabaseError(error, 'backorder search');
+    }
+  }
+};
 
 // Input types for updates
 export type StockOrderPickedUpdateInput = {
   stockOrderId: number;
   quantity: number;
+  stockAvailability: string;
   pickStatus: string;
 };
 

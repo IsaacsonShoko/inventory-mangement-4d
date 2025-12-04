@@ -160,7 +160,8 @@ export interface CreateOrderInput {
 }
 
 export interface CreateOrderLineItemInput {
-  unique_order_record_id: string;
+  order_id: string;
+  inventory_item_id?: string;
   device_type: string;
   item_description?: string;
   item_category?: ItemCategoryEnum;
@@ -376,7 +377,8 @@ export const ordersService = {
 
     // Create line items
     const lineItems: CreateOrderLineItemInput[] = cartItems.map(item => ({
-      unique_order_record_id: order.id,
+      order_id: order.id,
+      // inventory_item_id removed - column doesn't exist in database
       device_type: item.itemName,
       item_description: item.itemDescription,
       item_category: item.itemCategory as ItemCategoryEnum,
