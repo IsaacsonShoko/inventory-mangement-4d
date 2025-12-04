@@ -45,32 +45,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile with role (with retry for new signups)
+  // Fetch user profile with aggressive timeout to prevent hanging
   const fetchProfile = async (userId: string, retryCount = 0): Promise<UserProfile | null> => {
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      console.log(`[Auth] fetchProfile called for ${userId}`);
+
+      // Create timeout promise (3 seconds max)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000);
+      });
+
+      // Race between fetch and timeout
+      const { data, error } = await Promise.race([
+        supabase.from('user_profiles').select('*').eq('id', userId).single(),
+        timeoutPromise
+      ]);
 
       if (error) {
-        console.error('Error fetching profile:', error);
+        console.error('[Auth] Profile fetch error:', error);
 
-        // If profile not found and this is a new signup, retry a few times
-        // The database trigger might still be creating the profile
-        if (error.code === 'PGRST116' && retryCount < 3) {
-          console.log(`[Auth] Profile not found, retrying in ${(retryCount + 1) * 500}ms... (attempt ${retryCount + 1}/3)`);
-          await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 500));
+        // If profile not found and this is a new signup, retry once
+        if (error.code === 'PGRST116' && retryCount < 1) {
+          console.log(`[Auth] Profile not found, retrying in 1s...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
           return fetchProfile(userId, retryCount + 1);
         }
 
         return null;
       }
 
+      console.log('[Auth] Profile fetched successfully');
       return data as UserProfile;
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('[Auth] Profile fetch failed:', error);
       return null;
     }
   };
