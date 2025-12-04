@@ -501,7 +501,6 @@ const StockCountsCart = () => {
         overall_condition: item.overallCondition,
         counted_by: userEmail || 'Unknown',
         business_line: item.itemCategory,
-        item_nature: item.itemNature,
       }));
 
       const { error } = await supabase

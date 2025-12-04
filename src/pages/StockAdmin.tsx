@@ -13,6 +13,7 @@ import {
   Upload,
   Image as ImageIcon,
   Home,
+  RefreshCw,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -275,6 +276,97 @@ const StockAdmin = () => {
     }
   };
 
+  // Sync stock levels from device registry
+  const handleSyncStock = async () => {
+    try {
+      toast({
+        title: 'Syncing Stock Levels',
+        description: 'Recalculating stock levels from device registry...',
+      });
+
+      // 1. Fetch all warehouse devices
+      const { data: devices, error: fetchError } = await supabase
+        .from('device_registry')
+        .select('device_type, item_category, item_nature, item_code, item_description, holder_id')
+        .eq('holder_type', 'Warehouse')
+        .in('status', ['In Stock', 'Available']);
+
+      if (fetchError) throw fetchError;
+
+      // 2. Aggregate
+      const stockMap = new Map<string, any>();
+
+      devices?.forEach(device => {
+        const key = `${device.device_type}-${device.holder_id || 'Main'}`;
+        if (!stockMap.has(key)) {
+          stockMap.set(key, {
+            device_type: device.device_type,
+            item_category: device.item_category,
+            item_nature: device.item_nature,
+            item_code: device.item_code,
+            item_description: device.item_description,
+            location: device.holder_id || 'Main',
+            quantity: 0
+          });
+        }
+        stockMap.get(key).quantity++;
+      });
+
+      // 3. Update stock_levels
+      for (const level of stockMap.values()) {
+        // Check if exists
+        const { data: existing } = await supabase
+          .from('stock_levels')
+          .select('id')
+          .eq('device_type', level.device_type)
+          .eq('location', level.location)
+          .eq('stock_holder', 'Warehouse')
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from('stock_levels')
+            .update({
+              quantity: level.quantity,
+              quantity_on_hand: level.quantity,
+              quantity_available: level.quantity,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id);
+        } else {
+          await supabase
+            .from('stock_levels')
+            .insert({
+              device_type: level.device_type,
+              item_category: level.item_category,
+              item_nature: level.item_nature,
+              item_code: level.item_code,
+              item_description: level.item_description,
+              quantity: level.quantity,
+                    quantity_on_hand: level.quantity,
+                    quantity_available: level.quantity,
+                    item_status: 'Available',
+                    stock_holder: 'Warehouse',
+                    location: level.location,
+                    updated_at: new Date().toISOString()
+                  });
+        }
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Stock levels synced successfully',
+      });
+    } catch (error: any) {
+      console.error('Sync error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to sync stock levels: ' + error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -292,12 +384,18 @@ const StockAdmin = () => {
           <Package className="h-6 w-6" />
           <h1 className="text-2xl font-bold">Stock Admin Module</h1>
         </div>
-        <Link to="/">
-          <Button variant="outline">
-            <Home className="h-4 w-4 mr-2" />
-            Home
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleSyncStock}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Sync Stock
           </Button>
-        </Link>
+          <Link to="/">
+            <Button variant="outline">
+              <Home className="h-4 w-4 mr-2" />
+              Home
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

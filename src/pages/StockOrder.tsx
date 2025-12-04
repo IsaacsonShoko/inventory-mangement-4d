@@ -198,10 +198,11 @@ const StockOrder = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_levels')
-        .select('device_type, quantity, item_status')
-        .not('item_status', 'eq', 'Faulty');
+        .select('device_type, quantity, item_status');
+      
       if (error) throw error;
-      return data || [];
+      // Filter out faulty items in memory to safely handle nulls
+      return data?.filter(item => item.item_status !== 'Faulty') || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -211,8 +212,10 @@ const StockOrder = () => {
     const map = new Map<string, number>();
     stockLevels.forEach(level => {
       if (level.device_type) {
-        const current = map.get(level.device_type) || 0;
-        map.set(level.device_type, current + (level.quantity || 0));
+        // Normalize to lowercase for case-insensitive matching
+        const key = level.device_type.toLowerCase().trim();
+        const current = map.get(key) || 0;
+        map.set(key, current + (level.quantity || 0));
       }
     });
     return map;
@@ -220,7 +223,9 @@ const StockOrder = () => {
 
   // Helper to get stock status for an item
   const getStockStatus = (itemName: string): { status: 'in_stock' | 'low_stock' | 'out_of_stock'; quantity: number } => {
-    const quantity = stockAvailabilityMap.get(itemName) || 0;
+    // Normalize lookup key
+    const key = itemName?.toLowerCase().trim() || '';
+    const quantity = stockAvailabilityMap.get(key) || 0;
     if (quantity === 0) {
       return { status: 'out_of_stock', quantity };
     } else if (quantity <= 5) {

@@ -22,6 +22,7 @@ import { CalendarIcon, Trash2, Check, X, ArrowLeft, AlertCircle } from 'lucide-r
 
 import { BackOfficeRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { useInventoryItems, useItemCategories } from '@/hooks/useSupabase';
 import {
   useCreateIngestionBatch,
@@ -387,6 +388,66 @@ function StockIngestionContent() {
         // Update progress
         const progress = 80 + ((i + 1) / movementBatches) * 20; // Use remaining 20% for movements
         setSubmitProgress(progress);
+      }
+
+      // Update stock levels
+      toast.info('Updating stock levels...');
+      
+      // Group devices by type to aggregate quantities
+      const devicesByType = validDevices.reduce((acc, device) => {
+        const key = device.deviceType;
+        if (!acc[key]) {
+          acc[key] = {
+            deviceType: device.deviceType,
+            quantity: 0,
+            itemCategory: device.itemCategory,
+            itemNature: device.itemNature,
+            itemCode: device.itemCode,
+            itemDescription: device.itemDescription,
+          };
+        }
+        acc[key].quantity += 1;
+        return acc;
+      }, {} as Record<string, { deviceType: string; quantity: number; itemCategory: string; itemNature: string; itemCode?: string; itemDescription?: string }>);
+
+      for (const typeGroup of Object.values(devicesByType)) {
+        // Check if record exists for this warehouse
+        const { data: existingLevel } = await supabase
+          .from('stock_levels')
+          .select('id, quantity, quantity_on_hand, quantity_available')
+          .eq('device_type', typeGroup.deviceType)
+          .eq('stock_holder', 'Warehouse')
+          .eq('location', batchData.receivingWarehouse)
+          .maybeSingle();
+
+        if (existingLevel) {
+          await supabase
+            .from('stock_levels')
+            .update({
+              quantity: (existingLevel.quantity || 0) + typeGroup.quantity,
+              quantity_on_hand: (existingLevel.quantity_on_hand || 0) + typeGroup.quantity,
+              quantity_available: (existingLevel.quantity_available || 0) + typeGroup.quantity,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingLevel.id);
+        } else {
+          await supabase
+            .from('stock_levels')
+            .insert({
+              device_type: typeGroup.deviceType,
+              item_category: typeGroup.itemCategory,
+              item_nature: typeGroup.itemNature,
+              item_code: typeGroup.itemCode,
+              item_description: typeGroup.itemDescription,
+              quantity: typeGroup.quantity,
+              quantity_on_hand: typeGroup.quantity,
+              quantity_available: typeGroup.quantity,
+              stock_holder: 'Warehouse',
+              location: batchData.receivingWarehouse,
+              item_status: 'Available',
+              updated_at: new Date().toISOString()
+            });
+        }
       }
 
       setSubmitProgress(100);

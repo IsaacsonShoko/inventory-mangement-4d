@@ -27,9 +27,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-import { useRepairTickets, useRepairMetrics, useUpdateRepairTicket, useCreateRepairTicket, useDeviceBySerial } from '@/hooks/useAssetManagement';
+import { useRepairTickets, useRepairMetrics, useUpdateRepairTicket, useCreateRepairTicket, useDeviceBySerial, useCreateDeviceMovement } from '@/hooks/useAssetManagement';
 import { useAuth } from '@/hooks/useAuth';
-import type { RepairStatusEnum, FaultCategoryEnum } from '@/integrations/supabase/services-asset';
+import { deviceRegistryService, type RepairStatusEnum, type FaultCategoryEnum } from '@/integrations/supabase/services-asset';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
 
 // Status badge colors
@@ -122,6 +122,7 @@ export function RepairsTab() {
   // Mutations
   const updateTicket = useUpdateRepairTicket();
   const createTicket = useCreateRepairTicket();
+  const createDeviceMovement = useCreateDeviceMovement();
 
   // Device lookup query
   const { data: deviceLookup, isLoading: isLoadingDevice } = useDeviceBySerial(serialLookup);
@@ -267,15 +268,34 @@ export function RepairsTab() {
 
     try {
       await createTicket.mutateAsync({
-        device_id: deviceLookup.id,
-        reported_by: profile?.full_name || profile?.email || 'Unknown',
-        fault_category: createFormData.fault_category as FaultCategoryEnum,
-        fault_description: createFormData.fault_description || null,
-        fault_severity: createFormData.fault_severity || null,
-        status: 'Reported',
-      });
+              device_id: deviceLookup.id,
+              reported_by: profile?.full_name || profile?.email || 'Unknown',
+              fault_category: createFormData.fault_category as FaultCategoryEnum,
+              fault_description: createFormData.fault_description || null,
+              fault_severity: createFormData.fault_severity || null,
+              status: 'Reported',
+            });
 
-      toast.success('Repair ticket created successfully');
+            // Update device status to Maintenance
+            await deviceRegistryService.updateStatus(
+              deviceLookup.id,
+              'Maintenance'
+            );
+
+            // Log device movement
+            await createDeviceMovement.mutateAsync({
+              device_id: deviceLookup.id,
+              movement_type: 'Repair-In',
+              movement_date: new Date().toISOString(),
+              from_holder_type: 'Technician', // Assuming coming from tech/field
+              from_holder_id: null, // We might not know the exact tech without more context, or could use profile.id if they are the tech
+              to_holder_type: 'Warehouse', // Repairs usually happen at warehouse/hub
+              to_holder_id: 'Main',
+              performed_by: profile?.id || 'System',
+              notes: `Device submitted for repair: ${createFormData.fault_category}`,
+            });
+
+            toast.success('Repair ticket created successfully');
       setShowCreateDialog(false);
       setCreateFormData({
         serial_number: '',
@@ -431,6 +451,8 @@ export function RepairsTab() {
                 <TableRow>
                   <TableHead>Ticket #</TableHead>
                   <TableHead>Serial Number</TableHead>
+                  <TableHead>Device Type</TableHead>
+                  <TableHead>Business Line</TableHead>
                   <TableHead>Fault Category</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Reported By</TableHead>
@@ -447,6 +469,8 @@ export function RepairsTab() {
                     <TableCell className="font-mono">
                       {ticket.device?.serial_number || 'N/A'}
                     </TableCell>
+                    <TableCell>{ticket.device?.device_type || 'N/A'}</TableCell>
+                    <TableCell>{ticket.device?.item_category || 'N/A'}</TableCell>
                     <TableCell>{ticket.fault_category}</TableCell>
                     <TableCell>
                       <Badge className={statusColors[ticket.status as RepairStatusEnum] || ''}>

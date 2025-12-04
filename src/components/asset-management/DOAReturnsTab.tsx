@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Search, PackageX, ArrowLeftRight, Plus, MoreHorizontal, Eye, Camera } from 'lucide-react';
 import { toast } from 'sonner';
@@ -33,9 +33,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { useAuth } from '@/hooks/useAuth';
-import { useRepairTickets, useCreateRepairTicket } from '@/hooks/useAssetManagement';
+import { useRepairTickets, useCreateRepairTicket, useCreateDeviceMovement } from '@/hooks/useAssetManagement';
 import { supabase } from '@/integrations/supabase/client';
-import type { FaultCategoryEnum } from '@/integrations/supabase/services-asset';
+import type { FaultCategoryEnum, MovementTypeEnum } from '@/integrations/supabase/services-asset';
 
 // RMA Status
 type RMAStatus = 'Pending' | 'Shipped' | 'Received by Supplier' | 'Replaced' | 'Refunded' | 'Rejected';
@@ -90,11 +90,49 @@ export function DOAReturnsTab() {
   const [searchDOA, setSearchDOA] = useState('');
   const [rmaStatusFilter, setRmaStatusFilter] = useState<string | undefined>(undefined);
 
+  // Auto-fetch device details when serial number changes
+  useEffect(() => {
+    const fetchDeviceDetails = async () => {
+      if (!serialNumber || serialNumber.length < 4) return;
+
+      // Don't fetch if we're already submitting or if device type is already set (optional, but maybe we want to overwrite?)
+      // Let's overwrite to ensure accuracy.
+
+      try {
+        const { data, error } = await supabase
+          .from('device_registry')
+          .select('device_type, item_category')
+          .or(`manufacture_serial_number.eq.${serialNumber},qr_code_serial_number.eq.${serialNumber},xlink_serial_number.eq.${serialNumber},serial_number.eq.${serialNumber}`)
+          .maybeSingle();
+
+        if (data) {
+          if (data.device_type) setDeviceType(data.device_type);
+          
+          if (data.item_category) {
+            // Map item_category to Business Line if it matches
+            const validLines = ['Cash Connect', 'ABSA', 'Accessories', 'Modems'];
+            if (validLines.includes(data.item_category)) {
+              setBusinessLine(data.item_category);
+            }
+          }
+          
+          toast.success(`Device found: ${data.device_type}`);
+        }
+      } catch (err) {
+        console.error('Error fetching device details:', err);
+      }
+    };
+
+    const timer = setTimeout(fetchDeviceDetails, 800);
+    return () => clearTimeout(timer);
+  }, [serialNumber]);
+
   // Queries
   const { data: doaTickets, isLoading, refetch } = useRepairTickets({
     faultCategory: 'Dead On Arrival',
   });
   const createTicket = useCreateRepairTicket();
+  const createDeviceMovement = useCreateDeviceMovement();
 
   // Parse Cash Connect QR code - EXACT logic from Stock Counts
   const parseCashConnectSerial = (qrCode: string): { itemCode: string; serialNumber: string } => {
@@ -188,7 +226,7 @@ export function DOAReturnsTab() {
       // Find device by serial number
       const { data: device, error: deviceError } = await supabase
         .from('device_registry')
-        .select('id, serial_number, device_type')
+        .select('id, serial_number, device_type, holder_type, holder_id')
         .eq('serial_number', serialNumber)
         .single();
 
@@ -213,6 +251,19 @@ export function DOAReturnsTab() {
         .from('device_registry')
         .update({ status: 'Faulty' })
         .eq('id', device.id);
+
+      // Log device movement
+      await createDeviceMovement.mutateAsync({
+        device_id: device.id,
+        movement_type: 'Return',
+        movement_date: new Date().toISOString(),
+        from_holder_type: device.holder_type || 'Technician',
+        from_holder_id: device.holder_id,
+        to_holder_type: 'Warehouse',
+        to_holder_id: 'Main',
+        performed_by: profile?.id || 'System',
+        notes: `DOA Return: ${faultDescription}`,
+      });
 
       toast.success('DOA device logged successfully');
       clearForm();

@@ -50,9 +50,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log(`[Auth] fetchProfile called for ${userId}`);
 
-      // Create timeout promise (10 seconds max)
+      // Create timeout promise (15 seconds max)
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 15000);
       });
 
       // Race between fetch and timeout
@@ -64,8 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('[Auth] Profile fetch error:', error);
 
-        // If profile not found and this is a new signup, retry once
-        if (error.code === 'PGRST116' && retryCount < 1) {
+        // If profile not found and this is a new signup, retry twice
+        if (error.code === 'PGRST116' && retryCount < 2) {
           console.log(`[Auth] Profile not found, retrying in 1s...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
           return fetchProfile(userId, retryCount + 1);
