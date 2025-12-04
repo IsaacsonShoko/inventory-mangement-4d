@@ -133,11 +133,6 @@ const parseMessageWithLinks = (text: string): ParsedMessage => {
 export const SystemGuideBot = () => {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
-
-  // Only show bot to authenticated users
-  if (!user) {
-    return null;
-  }
   const [isOpen, setIsOpen] = useState(false);
   const [sessionId] = useState(() => generateSessionId());
   const [messages, setMessages] = useState<Message[]>(() => {
@@ -400,6 +395,11 @@ export const SystemGuideBot = () => {
     setRatingMessageId(null);
     setRatingFeedback("");
   };
+
+  // Only show bot to authenticated users
+  if (!user) {
+    return null;
+  }
 
   return (
     // UPDATED Z-INDEX TO 9999 TO FORCE VISIBILITY
