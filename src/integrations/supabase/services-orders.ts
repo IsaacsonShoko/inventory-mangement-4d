@@ -383,7 +383,7 @@ export const ordersService = {
       item_description: item.itemDescription,
       item_category: item.itemCategory as ItemCategoryEnum,
       item_nature: item.itemNature as ItemNatureEnum,
-      item_url: item.itemUrl,
+      // item_url: item.itemUrl, // Column does not exist in stock_order table
       quantity_ordered: item.quantity,
     }));
 
