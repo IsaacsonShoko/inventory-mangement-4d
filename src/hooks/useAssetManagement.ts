@@ -370,18 +370,6 @@ export function useCreateDeviceMovement() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['deviceMovements'] });
       queryClient.invalidateQueries({ queryKey: ['deviceMovements', variables.device_id] });
-    },
-  });
-}
-
-export function useCreateDeviceMovement() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (movement: DeviceMovementInsert) => deviceMovementService.create(movement),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['deviceMovements'] });
-      queryClient.invalidateQueries({ queryKey: ['deviceMovements', 'device', variables.device_id] });
       queryClient.invalidateQueries({ queryKey: ['deviceRegistry'] });
     },
   });
