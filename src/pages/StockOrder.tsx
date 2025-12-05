@@ -201,8 +201,8 @@ const StockOrder = () => {
         .select('device_type, quantity, item_status');
       
       if (error) throw error;
-      // Filter out faulty items in memory to safely handle nulls
-      return data?.filter(item => item.item_status !== 'Faulty') || [];
+      // Allow 'Available' status items to be ordered
+      return data?.filter(item => item.item_status === 'Available') || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

@@ -517,7 +517,7 @@ export function RepairsTab() {
                   <TableHead>Status</TableHead>
                   <TableHead>Reported By</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead></TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -533,32 +533,48 @@ export function RepairsTab() {
                     <TableCell>{ticket.device?.item_category || 'N/A'}</TableCell>
                     <TableCell>{ticket.fault_category}</TableCell>
                     <TableCell>
-                      <Badge className={statusColors[ticket.status as RepairStatusEnum] || ''}>
-                        {statusLabels[ticket.status as RepairStatusEnum] || ticket.status}
-                      </Badge>
+                      <Select
+                        value={ticket.status}
+                        onValueChange={(newStatus) => {
+                          updateTicketStatus.mutate({ id: ticket.id, status: newStatus as RepairStatusEnum });
+                          toast.success(`Status updated to ${newStatus}`);
+                        }}
+                      >
+                        <SelectTrigger className={`w-[140px] h-8 ${statusColors[ticket.status as RepairStatusEnum]}`}>
+                          <SelectValue>{statusLabels[ticket.status as RepairStatusEnum] || ticket.status}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statuses.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {statusLabels[status]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>{ticket.reported_by}</TableCell>
                     <TableCell>
                       {format(new Date(ticket.reported_date), 'PP')}
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setSelectedTicket(ticket)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditClick(ticket)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit Fault Assessment
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => setSelectedTicket(ticket)}
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleEditClick(ticket)}
+                          title="Edit Fault Assessment"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
