@@ -191,27 +191,87 @@ export const inventoryCatalogService = {
     nature?: ItemNatureEnum;
     search?: string;
   }): Promise<InventoryCatalogRow[]> {
-    let query = supabase
-      .from('inventory_items')
-      .select('*')
-      .order('item_name', { ascending: true });
+    try {
+      // Reduced column set to avoid 500 errors from schema issues
+      let query = supabase
+        .from('inventory_items')
+        .select('id, item_name, item_category, item_description, item_nature')
+        .order('item_name', { ascending: true });
 
-    if (filters?.category) {
-      query = query.eq('item_category', filters.category);
+      if (filters?.category) {
+        query = query.eq('item_category', filters.category);
+      }
+
+      if (filters?.nature) {
+        query = query.eq('item_nature', filters.nature);
+      }
+
+      if (filters?.search) {
+        query = query.or(`item_name.ilike.%${filters.search}%,item_description.ilike.%${filters.search}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching inventory (orders service), attempting fallback:', error);
+      
+      try {
+        // Fallback: Try to construct inventory list from stock_levels
+        let fallbackQuery = supabase
+          .from('stock_levels')
+          .select('device_type, item_category, item_description, item_nature');
+
+        if (filters?.category) {
+          fallbackQuery = fallbackQuery.eq('item_category', filters.category);
+        }
+        
+        if (filters?.nature) {
+          fallbackQuery = fallbackQuery.eq('item_nature', filters.nature);
+        }
+
+        const { data: stockData, error: fallbackError } = await fallbackQuery;
+
+        if (fallbackError) throw fallbackError;
+
+        // Deduplicate based on device_type
+        const uniqueItems = new Map<string, InventoryCatalogRow>();
+        
+        stockData?.forEach((item, index) => {
+          if (item.device_type && !uniqueItems.has(item.device_type)) {
+            uniqueItems.set(item.device_type, {
+              id: String(index), // Mock ID as string for orders service
+              item_name: item.device_type,
+              item_category: (item.item_category as ItemCategoryEnum) || 'Other',
+              item_description: item.item_description || '',
+              item_nature: (item.item_nature as ItemNatureEnum) || 'Non-serialised',
+              item_url: null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+          }
+        });
+
+        let results = Array.from(uniqueItems.values()).sort((a, b) => 
+          a.item_name.localeCompare(b.item_name)
+        );
+
+        if (filters?.search) {
+          const searchLower = filters.search.toLowerCase();
+          results = results.filter(item => 
+            item.item_name.toLowerCase().includes(searchLower) ||
+            item.item_description?.toLowerCase().includes(searchLower)
+          );
+        }
+
+        return results;
+
+      } catch (secondError) {
+        console.error('Fallback inventory fetch failed (orders service):', secondError);
+        return [];
+      }
     }
-
-    if (filters?.nature) {
-      query = query.eq('item_nature', filters.nature);
-    }
-
-    if (filters?.search) {
-      query = query.or(`item_name.ilike.%${filters.search}%,item_description.ilike.%${filters.search}%`);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-    return data || [];
   },
 
   async getCategories(): Promise<ItemCategoryEnum[]> {

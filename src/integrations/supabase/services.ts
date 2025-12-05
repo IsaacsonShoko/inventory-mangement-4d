@@ -179,9 +179,52 @@ export const inventoryService = {
       if (error) throw error;
       return data || [];
     } catch (error) {
-      console.error('Error fetching inventory:', error);
-      // Return empty array instead of throwing to prevent app crash loop
-      return [];
+      console.error('Error fetching inventory, attempting fallback to stock_levels:', error);
+      
+      try {
+        // Fallback: Try to construct inventory list from stock_levels if inventory_items is broken
+        let fallbackQuery = supabase
+          .from('stock_levels')
+          .select('device_type, item_category, item_description, item_nature');
+
+        if (filters?.category) {
+          fallbackQuery = fallbackQuery.eq('item_category', filters.category);
+        }
+        
+        if (filters?.serialized) {
+          fallbackQuery = fallbackQuery.eq('item_nature', filters.serialized);
+        }
+
+        const { data: stockData, error: fallbackError } = await fallbackQuery;
+
+        if (fallbackError) throw fallbackError;
+
+        // Deduplicate based on device_type
+        const uniqueItems = new Map<string, InventoryItem>();
+        
+        stockData?.forEach((item, index) => {
+          if (item.device_type && !uniqueItems.has(item.device_type)) {
+            uniqueItems.set(item.device_type, {
+              id: index, // Mock ID
+              item_name: item.device_type,
+              item_category: item.item_category || 'Other',
+              item_description: item.item_description || '',
+              item_nature: item.item_nature || 'Non-serialised',
+              item_url: null,
+              created_at: null,
+              updated_at: null
+            });
+          }
+        });
+
+        return Array.from(uniqueItems.values()).sort((a, b) => 
+          a.item_name.localeCompare(b.item_name)
+        );
+
+      } catch (secondError) {
+        console.error('Fallback inventory fetch failed:', secondError);
+        return [];
+      }
     }
   },
 
