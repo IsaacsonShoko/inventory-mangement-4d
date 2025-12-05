@@ -224,46 +224,49 @@ const KPIDashboard = () => {
   // Fetch all data
   const { data: allOrders = [], isLoading: ordersLoading, refetch: refetchOrders, isFetching: ordersFetching } = useUniqueOrders();
 
-  // Fetch all stock orders
+  // Fetch all stock orders (reduced columns)
   const { data: stockOrders = [], isLoading: stockLoading } = useQuery({
     queryKey: ['allStockOrders'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_order')
-        .select('*')
+        .select('id, date_ordered, pick_status, dispatch_status, order_id')
         .order('date_ordered', { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    staleTime: 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
   });
 
-  // Fetch all dispatch logs
+  // Fetch all dispatch logs (reduced columns)
   const { data: dispatchLogs = [], isLoading: dispatchLoading } = useQuery({
     queryKey: ['allDispatchLogs'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('dispatch_log')
-        .select('*')
+        .select('id, date_dispatched, dispatcher, item_category, region, contractor_company, quantity')
         .order('date_dispatched', { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    staleTime: 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
   });
 
-  // Fetch stock levels for device condition analysis
+  // Fetch stock levels for device condition analysis (reduced columns)
   const { data: stockLevels = [], isLoading: stockLevelsLoading } = useQuery({
     queryKey: ['stockLevelsKPI'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_levels')
-        .select('*')
+        .select('id, item_status, overall_condition, fault_reason, item_code, item_category, warehouse, quantity')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    staleTime: 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
   });
 
   // Fetch repair tickets for fault analysis
@@ -277,24 +280,26 @@ const KPIDashboard = () => {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
   });
 
-  // Fetch stock counts for exceptions analysis
+  // Fetch stock counts for exceptions analysis (reduced columns)
   const { data: stockCounts = [], isLoading: stockCountsLoading } = useQuery({
     queryKey: ['stockCountsKPI'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_counts')
-        .select('*')
+        .select('id, variance, count_date, count_type, stock_holder, region, contractor_company')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    staleTime: 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
   });
 
-  // Fetch device registry for exceptions cross-check
+  // Fetch device registry for exceptions cross-check (reduced columns)
   const { data: deviceRegistry = [], isLoading: deviceRegistryLoading } = useQuery({
     queryKey: ['deviceRegistryKPI'],
     queryFn: async () => {
@@ -305,24 +310,26 @@ const KPIDashboard = () => {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
   });
 
   const { data: pickingQueue = [], isLoading: pickingLoading } = usePickingQueue();
   const { data: dispatchQueue = [], isLoading: dispatchQueueLoading } = useDispatchQueue();
 
-  // Fetch bot usage logs for analytics
+  // Fetch bot usage logs for analytics (reduced columns)
   const { data: botUsageLogs = [], isLoading: botLogsLoading } = useQuery({
     queryKey: ['botUsageLogs'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bot_usage_logs')
-        .select('*')
+        .select('id, tokens_used, created_at')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    staleTime: 60 * 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
   });
 
   // Fetch exchange rate on mount

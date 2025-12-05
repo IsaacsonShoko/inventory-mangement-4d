@@ -758,7 +758,7 @@ export const orderService = {
     try {
       const { data, error } = await supabase
         .from('unique_orders')
-        .select('*')
+        .select('id, order_id, date_ordered, item_category, pick_status, dispatch_status, quantity_ordered, recipient_name, technician, region, contractor_company')
         .or('pick_status.is.null,pick_status.eq.Pending')
         .order('date_ordered', { ascending: true })
         .order('item_category', { ascending: true });
@@ -776,7 +776,7 @@ export const orderService = {
       // Get orders that are picked but not dispatched
       const { data: orders, error: ordersError } = await supabase
         .from('unique_orders')
-        .select('*')
+        .select('id, order_id, date_ordered, item_category, pick_status, dispatch_status, quantity_ordered, recipient_name, technician, region, contractor_company')
         .in('pick_status', ['Picked', 'Partially Picked'])
         .or('dispatch_status.is.null,dispatch_status.eq.Pending')
         .order('date_ordered', { ascending: true })
@@ -790,7 +790,7 @@ export const orderService = {
       const orderIds = orders.map(o => o.order_id);
       const { data: dispatchLogs, error: logsError } = await supabase
         .from('dispatch_log')
-        .select('*')
+        .select('id, order_id, date_dispatched, dispatcher, item_category, quantity')
         .in('order_id', orderIds)
         .order('date_dispatched', { ascending: false });
 
@@ -801,7 +801,7 @@ export const orderService = {
       dispatchLogs?.forEach(log => {
         if (log.order_id) {
           const existing = logsByOrderId.get(log.order_id) || [];
-          existing.push(log);
+          existing.push(log as any);
           logsByOrderId.set(log.order_id, existing);
         }
       });
@@ -810,7 +810,7 @@ export const orderService = {
       const ordersWithLogs: DispatchQueueOrder[] = orders.map(order => ({
         ...order,
         dispatchLogEntries: logsByOrderId.get(order.order_id) || [],
-      }));
+      })) as DispatchQueueOrder[];
 
       return ordersWithLogs;
     } catch (error) {
