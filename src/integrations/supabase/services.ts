@@ -202,7 +202,10 @@ export const inventoryService = {
         .select('item_category')
         .not('item_category', 'is', null);
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Error fetching categories from DB, using fallback:', error);
+        return sortCategories([...CATEGORY_SORT_ORDER]);
+      }
 
       const categories = new Set<string>();
       data?.forEach(record => {
@@ -211,10 +214,16 @@ export const inventoryService = {
         }
       });
 
+      // If no categories found in DB (e.g. empty table), return all possible categories
+      if (categories.size === 0) {
+        return sortCategories([...CATEGORY_SORT_ORDER]);
+      }
+
       return sortCategories(Array.from(categories));
     } catch (error) {
       console.error('Error fetching inventory categories:', error);
-      throw formatSupabaseError(error, 'inventory categories fetch');
+      // Fallback to default categories on error
+      return sortCategories([...CATEGORY_SORT_ORDER]);
     }
   },
 
