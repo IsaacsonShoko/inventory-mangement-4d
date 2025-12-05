@@ -247,14 +247,19 @@ export const inventoryCatalogService = {
   },
 
   async getById(id: string): Promise<InventoryCatalogRow | null> {
-    const { data, error } = await supabase
-      .from('inventory_items')
-      .select('id, item_name, item_url, item_category, item_description, item_nature, created_at, updated_at')
-      .eq('id', id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('id, item_name, item_category, item_description, item_nature')
+        .eq('id', id)
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching inventory item by ID:', error);
+      return null;
+    }
   }
 };
 

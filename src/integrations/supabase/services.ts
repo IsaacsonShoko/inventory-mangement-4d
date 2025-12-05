@@ -160,9 +160,10 @@ const pickStatusPriority = (value?: string | null): number => {
 export const inventoryService = {
   async getAll(filters?: { category?: string; serialized?: string }): Promise<InventoryItem[]> {
     try {
+      // Reduced column set to avoid 500 errors from schema issues
       let query = supabase
         .from('inventory_items')
-        .select('id, item_name, item_url, item_category, item_description, item_nature, created_at, updated_at')
+        .select('id, item_name, item_category, item_description, item_nature')
         .order('item_name', { ascending: true });
 
       if (filters?.category) {
@@ -179,7 +180,8 @@ export const inventoryService = {
       return data || [];
     } catch (error) {
       console.error('Error fetching inventory:', error);
-      throw formatSupabaseError(error, 'inventory fetch');
+      // Return empty array instead of throwing to prevent app crash loop
+      return [];
     }
   },
 

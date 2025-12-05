@@ -102,13 +102,18 @@ const StockAdmin = () => {
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['inventoryItems'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('inventory_items')
-        .select('id, item_name, item_url, item_category, item_description, item_nature, created_at, updated_at')
-        .order('item_name', { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from('inventory_items')
+          .select('id, item_name, item_category, item_description, item_nature')
+          .order('item_name', { ascending: true });
 
-      if (error) throw error;
-      return data || [];
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        console.error('Error fetching items:', error);
+        return [];
+      }
     },
   });
 
