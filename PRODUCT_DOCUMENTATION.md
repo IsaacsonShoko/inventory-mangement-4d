@@ -817,6 +817,13 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
 - Transfer records between locations
 - Assignment to technicians or warehouses
 
+#### Installations Tab
+- **End-of-Lifecycle Management**: Record the final installation of devices at customer sites.
+- **Scanning Integration**: Barcode scanning to quickly identify devices for installation.
+- **Status Updates**: Automatically updates device status to 'Installed' and holder to 'Customer'.
+- **Movement Logging**: Creates an audit trail of the installation movement.
+- **History View**: View a log of recent installations.
+
 **Scanning Consistency**:
 All scanning workflows use identical patterns:
 - Cash Connect: QR code parsing with comma-counting logic
@@ -1097,6 +1104,10 @@ Comprehensive analytics system tracks all bot interactions for insights and impr
 - **Response Performance** (Histogram): Response time distribution, token usage distribution, session length distribution
 - **Topic Analysis** (Word Cloud): Most common keywords in queries, top documentation sections accessed
 - **Work Classification** (Donut Chart): Work-related vs. non-work queries percentage
+
+**Installations Analytics**:
+- Dedicated "Installations" tab in the KPI Dashboard.
+- Currently displays "Awaiting Vendor Information" until analytics requirements are finalized.
 
 **Satisfaction Rating UI**:
 - After each bot response, users can rate the answer with 1-5 stars

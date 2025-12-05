@@ -958,30 +958,30 @@ Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
 - Location history reports
 
 ### Device Installation
-**Purpose**: Deploy devices to field locations
+**Purpose**: Record the installation of devices at customer locations, marking the end of the device's inventory lifecycle.
 
 **Required Role**: Technician, Back Office, Admin
 
 **Steps**:
-1. Navigate to **Asset Management** → **Installations**
-2. Click "New Installation"
-3. **Device Selection**:
-   - Choose device from registry
-   - Verify device status (must be "Available")
+1. Navigate to **Asset Management** → **Installations** tab.
+2. Click **"New Installation"** button.
+3. **Device Entry**:
+   - **Scan Serial**: Use the barcode scanner or manually enter the device serial number.
+   - **Verification**: System automatically verifies the device exists in the registry.
 4. **Installation Details**:
-   - **Location**: Select vendor/site
-   - **Installation Date**: Current date
-   - **Installed By**: Auto-populated
-   - **Installation Notes**: Details of installation
-5. **Submit Installation**:
-   - Updates device status to "Installed"
-   - Creates movement record
-   - Updates location tracking
+   - **Customer Location**: Enter the specific customer name or location.
+   - **Installation Date**: Select the date (defaults to today).
+   - **Notes**: Add any relevant installation notes.
+5. **Confirm Installation**:
+   - Click **"Record Installation"**.
+   - System updates status to **"Installed"**.
+   - System updates holder to **"Customer"**.
+   - A movement record is created with type **"Installation"**.
 
 **Notes**:
-- Installation history maintained
-- Device location updates
-- Maintenance scheduling
+- This action removes the device from "Available" inventory.
+- The device location is permanently tracked as the Customer Location until returned or decommissioned.
+- Recent installations are listed in the history table on the main Installations tab.
 
 ### Device Decommissioning
 **Purpose**: Retire devices from service
@@ -1457,6 +1457,11 @@ When SLA is breached:
 
 **Notes**:
 - Integrated across all dashboard tabs
+
+### Installations Analytics
+**Purpose**: Future tracking of installation performance and metrics.
+**Status**: Placeholder (Awaiting Vendor Information).
+**Location**: KPI Dashboard → Installations Tab.
 - Real-time filtering
 - Performance benchmarking
 

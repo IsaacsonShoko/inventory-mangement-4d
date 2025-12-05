@@ -91,6 +91,13 @@
 4. Upload images if needed
 5. Log repairs or status changes
 
+### Device Installation
+1. Go to **Asset Management** → **Installations**
+2. Click **New Installation**
+3. Scan device serial number
+4. Enter customer location and notes
+5. Submit to mark as "Installed"
+
 ---
 
 ## Technician Registry (PoP)
