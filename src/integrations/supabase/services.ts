@@ -162,7 +162,7 @@ export const inventoryService = {
     try {
       let query = supabase
         .from('inventory_items')
-        .select('*')
+        .select('id, item_name, item_url, item_category, item_description, item_nature, created_at, updated_at')
         .order('item_name', { ascending: true });
 
       if (filters?.category) {

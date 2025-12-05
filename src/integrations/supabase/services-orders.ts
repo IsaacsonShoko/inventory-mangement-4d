@@ -249,7 +249,7 @@ export const inventoryCatalogService = {
   async getById(id: string): Promise<InventoryCatalogRow | null> {
     const { data, error } = await supabase
       .from('inventory_items')
-      .select('*')
+      .select('id, item_name, item_url, item_category, item_description, item_nature, created_at, updated_at')
       .eq('id', id)
       .single();
 
