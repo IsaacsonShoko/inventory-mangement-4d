@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CalendarIcon, Trash2, Check, X, ArrowLeft, AlertCircle, AlertTriangle } from 'lucide-react';
+import { CalendarIcon, Trash2, Check, X, ArrowLeft, AlertCircle } from 'lucide-react';
 
 import { BackOfficeRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
@@ -80,7 +80,10 @@ function StockIngestionContent() {
 
   // Queries
   const { data: categories } = useItemCategories();
-  const { data: inventoryItems } = useInventoryItems({ category: selectedCategory });
+  const { data: inventoryItems } = useInventoryItems({ 
+    category: selectedCategory,
+    serialized: selectedNature 
+  });
 
   // Mutations
   const createBatch = useCreateIngestionBatch();
@@ -656,20 +659,6 @@ function StockIngestionContent() {
             {selectedCategory && (
               <div className="space-y-2">
                 <Label>Device Type *</Label>
-                {(!inventoryItems || inventoryItems.length === 0) && (
-                  <div className="mb-2">
-                    <Input 
-                      placeholder="Enter device type manually (Inventory list unavailable)" 
-                      value={selectedDevice}
-                      onChange={(e) => setSelectedDevice(e.target.value)}
-                      className="border-dashed border-amber-300 focus:border-amber-500"
-                    />
-                    <p className="text-xs text-amber-600 mt-1 flex items-center">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
-                      Inventory list offline. Manual entry enabled.
-                    </p>
-                  </div>
-                )}
                 <ScrollArea className="h-32 border rounded-md p-2">
                   <div className="grid grid-cols-3 gap-2">
                     {inventoryItems?.map((item) => (
