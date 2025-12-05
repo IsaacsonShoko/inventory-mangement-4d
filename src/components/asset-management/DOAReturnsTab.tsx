@@ -33,9 +33,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { useAuth } from '@/hooks/useAuth';
-import { useRepairTickets, useCreateRepairTicket, useCreateDeviceMovement } from '@/hooks/useAssetManagement';
+import { useRepairTickets, useCreateRepairTicket, useCreateDeviceMovement, useDeviceTypes } from '@/hooks/useAssetManagement';
 import { supabase } from '@/integrations/supabase/client';
-import type { FaultCategoryEnum, MovementTypeEnum } from '@/integrations/supabase/services-asset';
+import { deviceRegistryService, type FaultCategoryEnum, type MovementTypeEnum } from '@/integrations/supabase/services-asset';
 
 // RMA Status
 type RMAStatus = 'Pending' | 'Shipped' | 'Received by Supplier' | 'Replaced' | 'Refunded' | 'Rejected';
@@ -62,6 +62,7 @@ export function DOAReturnsTab() {
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [serialNumber, setSerialNumber] = useState('');
   const [businessLine, setBusinessLine] = useState('');
+  const [itemNature, setItemNature] = useState<string>('');
   const [deviceType, setDeviceType] = useState('');
   const [supplier, setSupplier] = useState('');
   const [purchaseOrder, setPurchaseOrder] = useState('');
@@ -77,6 +78,16 @@ export function DOAReturnsTab() {
   const [cradleSerial, setCradleSerial] = useState('');
   const [chargerSerial, setChargerSerial] = useState('');
   const [activeSerialField, setActiveSerialField] = useState<'serial' | 'qr' | 'manufacture' | 'xlink' | 'cradle' | 'charger' | null>(null);
+
+  // Data
+  const { data: availableDeviceTypes } = useDeviceTypes();
+
+  // Filtered device types based on selection
+  const filteredDeviceTypes = availableDeviceTypes?.filter(type => {
+      // In a real app, we would filter by category/nature if that metadata exists in the types list
+      // For now, we'll just show all or implement basic filtering if we had the mapping
+      return true; 
+  }) || [];
 
   // RMA state
   const [showRMADialog, setShowRMADialog] = useState(false);
@@ -135,34 +146,36 @@ export function DOAReturnsTab() {
   const createDeviceMovement = useCreateDeviceMovement();
 
   // Parse Cash Connect QR code - EXACT logic from Stock Counts
-  const parseCashConnectSerial = (qrCode: string): { itemCode: string; serialNumber: string } => {
-    const commaCount = (qrCode.match(/,/g) || []).length;
+  const parseQrCodeInput = (input: string) => {
+    const commaCount = (input.match(/,/g) || []).length;
 
     if (commaCount >= 1) {
-      const firstCommaIndex = qrCode.indexOf(',');
-      const itemCode = qrCode.substring(0, firstCommaIndex).trim();
+      const firstCommaIndex = input.indexOf(',');
+      const itemCode = input.substring(0, firstCommaIndex).trim();
 
-      let serialNumber = '';
+      let cashConnectSerial = '';
       if (commaCount > 1) {
-        serialNumber = qrCode.substring(13, 18);
+        // More than 1 comma: extract characters 14-18 (positions 13-17 in 0-based index)
+        cashConnectSerial = input.substring(13, 18);
       } else if (commaCount === 1) {
-        serialNumber = qrCode.substring(firstCommaIndex + 1).trim();
+        // Exactly 1 comma: extract everything after the first comma
+        cashConnectSerial = input.substring(firstCommaIndex + 1).trim();
       }
 
-      return { itemCode, serialNumber };
+      return { itemCode, cashConnectSerial };
     }
 
-    return { itemCode: '', serialNumber: qrCode.trim() };
+    // No comma: use entire input as item code
+    return { itemCode: input.trim(), cashConnectSerial: '' };
   };
 
   // Handle QR scan for Cash Connect
-  const handleQrScanChange = (input: string) => {
-    setQrScanInput(input);
-    if (businessLine === 'Cash Connect' && input.includes(',')) {
-      const parsed = parseCashConnectSerial(input);
-      setSerialNumber(parsed.serialNumber);
-    } else {
-      setSerialNumber(input);
+  const handleQrScanChange = (value: string) => {
+    setQrScanInput(value);
+
+    if (value && isCashConnect) {
+      const { cashConnectSerial } = parseQrCodeInput(value);
+      setSerialNumber(cashConnectSerial);
     }
   };
 
@@ -200,6 +213,7 @@ export function DOAReturnsTab() {
   const clearForm = () => {
     setSerialNumber('');
     setBusinessLine('');
+    setItemNature('');
     setDeviceType('');
     setSupplier('');
     setPurchaseOrder('');
@@ -247,10 +261,10 @@ export function DOAReturnsTab() {
       });
 
       // Update device status to Faulty
-      await supabase
-        .from('device_registry')
-        .update({ status: 'Faulty' })
-        .eq('id', device.id);
+      await deviceRegistryService.updateStatus(
+        device.id,
+        'Faulty'
+      );
 
       // Log device movement
       await createDeviceMovement.mutateAsync({
@@ -533,6 +547,7 @@ export function DOAReturnsTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* 1. Business Line */}
             <div className="space-y-2">
               <Label htmlFor="business-line">Business Line *</Label>
               <Select value={businessLine} onValueChange={setBusinessLine}>
@@ -549,178 +564,214 @@ export function DOAReturnsTab() {
               </Select>
             </div>
 
-            {/* Cash Connect: QR Code scanning */}
-            {isCashConnect ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="qr-scan">QR Code Scan (Comma-separated) *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="qr-scan"
-                      value={qrScanInput}
-                      onChange={(e) => handleQrScanChange(e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      placeholder="Scan Cash Connect QR code"
-                      className="font-mono flex-1"
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck="false"
-                      inputMode="text"
-                      data-1p-ignore
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => openBarcodeScanner('qr')}
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="serial-extracted">Extracted Serial Number</Label>
-                  <Input
-                    id="serial-extracted"
-                    value={serialNumber}
-                    onChange={(e) => setSerialNumber(e.target.value)}
-                    placeholder="Auto-populated from QR"
-                    className="font-mono"
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                {/* All other business lines: Individual serial fields */}
-                <div className="space-y-2">
-                  <Label htmlFor="manufacture-serial">Manufacture Serial Number *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="manufacture-serial"
-                      value={manufactureSerial}
-                      onChange={(e) => {
-                        setManufactureSerial(e.target.value);
-                        setSerialNumber(e.target.value); // Use as primary serial
-                      }}
-                      onFocus={(e) => e.target.select()}
-                      placeholder="Scan or enter manufacture serial"
-                      className="font-mono flex-1"
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck="false"
-                      inputMode="text"
-                      data-1p-ignore
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => openBarcodeScanner('manufacture')}
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+            {/* 2. Item Nature */}
+            <div className="space-y-2">
+              <Label htmlFor="item-nature">Item Nature *</Label>
+              <Select value={itemNature} onValueChange={setItemNature}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select item nature" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Serialised">Serialised</SelectItem>
+                  <SelectItem value="Non-serialised">Non-serialised</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="xlink-serial">Xlink Serial</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="xlink-serial"
-                        value={xlinkSerial}
-                        onChange={(e) => setXlinkSerial(e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                        placeholder="Scan or enter"
-                        className="font-mono flex-1"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                        spellCheck="false"
-                        inputMode="text"
-                        data-1p-ignore
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => openBarcodeScanner('xlink')}
-                      >
-                        <Camera className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cradle-serial">Cradle Serial</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="cradle-serial"
-                        value={cradleSerial}
-                        onChange={(e) => setCradleSerial(e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                        placeholder="Scan or enter"
-                        className="font-mono flex-1"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                        spellCheck="false"
-                        inputMode="text"
-                        data-1p-ignore
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => openBarcodeScanner('cradle')}
-                      >
-                        <Camera className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="charger-serial">Charger Serial</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="charger-serial"
-                      value={chargerSerial}
-                      onChange={(e) => setChargerSerial(e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      placeholder="Scan or enter"
-                      className="font-mono flex-1"
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck="false"
-                      inputMode="text"
-                      data-1p-ignore
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => openBarcodeScanner('charger')}
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-
+            {/* 3. Device Type */}
             <div className="space-y-2">
               <Label htmlFor="device-type">Device Type *</Label>
-              <Input
-                id="device-type"
-                value={deviceType}
-                onChange={(e) => setDeviceType(e.target.value)}
-                placeholder="e.g., Verifone VX520"
-              />
+              <Select value={deviceType} onValueChange={setDeviceType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select device type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredDeviceTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Other">Other / Not Listed</SelectItem>
+                </SelectContent>
+              </Select>
+              {deviceType === 'Other' && (
+                  <Input 
+                    placeholder="Enter custom device type" 
+                    className="mt-2"
+                    onChange={(e) => setDeviceType(e.target.value)}
+                  />
+              )}
             </div>
+
+            {/* 4. Serial Capturing (Only if Serialised) */}
+            {itemNature === 'Serialised' && (
+              <div className="p-4 border rounded-md bg-muted/20 space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground mb-2">Serial Number Capture</h4>
+                
+                {/* Cash Connect: QR Code scanning */}
+                {isCashConnect ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="qr-scan">QR Code Scan (Comma-separated) *</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="qr-scan"
+                          value={qrScanInput}
+                          onChange={(e) => handleQrScanChange(e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="Scan Cash Connect QR code"
+                          className="font-mono flex-1"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                          inputMode="text"
+                          data-1p-ignore
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openBarcodeScanner('qr')}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="serial-extracted">Extracted Serial Number</Label>
+                      <Input
+                        id="serial-extracted"
+                        value={serialNumber}
+                        onChange={(e) => setSerialNumber(e.target.value)}
+                        placeholder="Auto-populated from QR"
+                        className="font-mono"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* All other business lines: Individual serial fields */}
+                    <div className="space-y-2">
+                      <Label htmlFor="manufacture-serial">Manufacture Serial Number *</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="manufacture-serial"
+                          value={manufactureSerial}
+                          onChange={(e) => {
+                            setManufactureSerial(e.target.value);
+                            setSerialNumber(e.target.value); // Use as primary serial
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="Scan or enter manufacture serial"
+                          className="font-mono flex-1"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                          inputMode="text"
+                          data-1p-ignore
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openBarcodeScanner('manufacture')}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="xlink-serial">Xlink Serial</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="xlink-serial"
+                            value={xlinkSerial}
+                            onChange={(e) => setXlinkSerial(e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            placeholder="Scan or enter"
+                            className="font-mono flex-1"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                            inputMode="text"
+                            data-1p-ignore
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => openBarcodeScanner('xlink')}
+                          >
+                            <Camera className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="cradle-serial">Cradle Serial</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="cradle-serial"
+                            value={cradleSerial}
+                            onChange={(e) => setCradleSerial(e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            placeholder="Scan or enter"
+                            className="font-mono flex-1"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                            inputMode="text"
+                            data-1p-ignore
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => openBarcodeScanner('cradle')}
+                          >
+                            <Camera className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="charger-serial">Charger Serial</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="charger-serial"
+                          value={chargerSerial}
+                          onChange={(e) => setChargerSerial(e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="Scan or enter"
+                          className="font-mono flex-1"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                          inputMode="text"
+                          data-1p-ignore
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openBarcodeScanner('charger')}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

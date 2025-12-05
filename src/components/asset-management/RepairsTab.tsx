@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Search, Filter, MoreHorizontal, Eye, Wrench, Edit, Plus, Camera } from 'lucide-react';
+import { Search, Filter, MoreHorizontal, Eye, Wrench, Edit, Plus, Camera, Package, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-import { useRepairTickets, useRepairMetrics, useUpdateRepairTicket, useCreateRepairTicket, useDeviceBySerial, useCreateDeviceMovement } from '@/hooks/useAssetManagement';
+import { useRepairTickets, useRepairMetrics, useUpdateRepairTicket, useCreateRepairTicket, useDeviceBySerial, useCreateDeviceMovement, useUpdateRepairTicketStatus } from '@/hooks/useAssetManagement';
 import { useAuth } from '@/hooks/useAuth';
 import { deviceRegistryService, type RepairStatusEnum, type FaultCategoryEnum } from '@/integrations/supabase/services-asset';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
@@ -39,8 +39,19 @@ const statusColors: Record<RepairStatusEnum, string> = {
   'In-Repair': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100',
   'Repaired': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
   'Quality-Check': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
-  'Returned': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100',
-  'Decommissioned': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
+  'Returned': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100',
+  'Decommissioned': 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100',
+};
+
+// Status display labels
+const statusLabels: Record<RepairStatusEnum, string> = {
+  'Reported': 'Reported',
+  'Assessing': 'Assessing',
+  'In-Repair': 'In Repair',
+  'Repaired': 'Fixed',
+  'Quality-Check': 'Quality Check',
+  'Returned': 'Restored to Stock',
+  'Decommissioned': 'Decommissioned',
 };
 
 // Fault categories for filter
@@ -121,6 +132,7 @@ export function RepairsTab() {
 
   // Mutations
   const updateTicket = useUpdateRepairTicket();
+  const updateTicketStatus = useUpdateRepairTicketStatus();
   const createTicket = useCreateRepairTicket();
   const createDeviceMovement = useCreateDeviceMovement();
 
@@ -328,6 +340,52 @@ export function RepairsTab() {
     );
   }
 
+  const [showPartsRequest, setShowPartsRequest] = useState(false);
+  const [partsRequest, setPartsRequest] = useState('');
+
+  // Handle status update
+  const handleStatusUpdate = async (newStatus: RepairStatusEnum, customData?: any) => {
+    if (!selectedTicket) return;
+
+    try {
+      await updateTicketStatus.mutateAsync({
+        id: selectedTicket.id,
+        status: newStatus,
+        additionalData: {
+          // Add specific fields based on status transitions
+          ...(newStatus === 'Assessing' && { assessed_by: profile?.email }),
+          ...(newStatus === 'In-Repair' && { repaired_by: profile?.email, repair_start_date: new Date().toISOString() }),
+          ...(newStatus === 'Quality-Check' && { repair_end_date: new Date().toISOString() }),
+          ...(newStatus === 'Repaired' && { quality_checked_by: profile?.email, quality_check_date: new Date().toISOString(), quality_check_passed: true }),
+          ...(newStatus === 'Returned' && { returned_to_stock_date: new Date().toISOString(), returned_to_warehouse: 'Main Warehouse' }),
+          ...customData
+        }
+      });
+      
+      toast.success(`Ticket status updated to ${newStatus}`);
+      // Close dialog if it was a simple status update, or keep open for more details
+      if (['Returned', 'Decommissioned'].includes(newStatus)) {
+        setSelectedTicket(null);
+      }
+    } catch (error) {
+      console.error('Failed to update ticket status:', error);
+      toast.error('Failed to update ticket status');
+    }
+  };
+
+  const handlePartsSubmit = async () => {
+    if (!selectedTicket || !partsRequest) return;
+    
+    const currentActions = selectedTicket.repair_actions || '';
+    const newActions = currentActions ? `${currentActions}\nRequested Parts: ${partsRequest}` : `Requested Parts: ${partsRequest}`;
+    
+    await handleStatusUpdate('In-Repair', { 
+        repair_actions: newActions
+    });
+    setShowPartsRequest(false);
+    setPartsRequest('');
+  };
+
   return (
     <div className="space-y-4">
       {/* Metrics Cards */}
@@ -412,7 +470,9 @@ export function RepairsTab() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 {statuses.map((status) => (
-                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                  <SelectItem key={status} value={status}>
+                    {statusLabels[status] || status}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -474,7 +534,7 @@ export function RepairsTab() {
                     <TableCell>{ticket.fault_category}</TableCell>
                     <TableCell>
                       <Badge className={statusColors[ticket.status as RepairStatusEnum] || ''}>
-                        {ticket.status}
+                        {statusLabels[ticket.status as RepairStatusEnum] || ticket.status}
                       </Badge>
                     </TableCell>
                     <TableCell>{ticket.reported_by}</TableCell>
@@ -962,7 +1022,7 @@ export function RepairsTab() {
               <div>
                 <h4 className="font-medium mb-2">Status</h4>
                 <Badge className={statusColors[selectedTicket.status as RepairStatusEnum] || ''}>
-                  {selectedTicket.status}
+                  {statusLabels[selectedTicket.status as RepairStatusEnum] || selectedTicket.status}
                 </Badge>
               </div>
 
@@ -1051,6 +1111,54 @@ export function RepairsTab() {
                   </Badge>
                 </div>
               )}
+
+              {/* Technician Actions */}
+              <div className="pt-4 border-t mt-4">
+                <h4 className="font-medium mb-3">Technician Actions</h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTicket.status === 'Reported' && (
+                    <Button size="sm" onClick={() => handleStatusUpdate('Assessing')}>
+                      Start Assessment
+                    </Button>
+                  )}
+                  
+                  {(selectedTicket.status === 'Reported' || selectedTicket.status === 'Assessing') && (
+                    <Button size="sm" onClick={() => handleStatusUpdate('In-Repair')}>
+                      Start Repair
+                    </Button>
+                  )}
+
+                  {['In-Repair', 'Assessing'].includes(selectedTicket.status) && (
+                    <Button size="sm" variant="secondary" onClick={() => setShowPartsRequest(true)}>
+                      Request Parts
+                    </Button>
+                  )}
+
+                  {selectedTicket.status === 'In-Repair' && (
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleStatusUpdate('Quality-Check')}>
+                      Complete Repair
+                    </Button>
+                  )}
+
+                  {selectedTicket.status === 'Quality-Check' && (
+                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleStatusUpdate('Repaired')}>
+                      Pass Quality Check
+                    </Button>
+                  )}
+
+                  {['Repaired', 'Quality-Check'].includes(selectedTicket.status) && (
+                    <Button size="sm" variant="outline" onClick={() => handleStatusUpdate('Returned')}>
+                      Restore to Stock
+                    </Button>
+                  )}
+                  
+                  {['Assessing', 'In-Repair'].includes(selectedTicket.status) && (
+                    <Button size="sm" variant="destructive" onClick={() => handleStatusUpdate('Decommissioned')}>
+                      Decommission / EOL
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>
@@ -1066,6 +1174,33 @@ export function RepairsTab() {
           }}
         />
       )}
+
+      {/* Parts Request Dialog */}
+      <Dialog open={showPartsRequest} onOpenChange={setShowPartsRequest}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Parts</DialogTitle>
+            <DialogDescription>
+              Log parts needed for this repair.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Parts Details</Label>
+              <Textarea 
+                value={partsRequest}
+                onChange={(e) => setPartsRequest(e.target.value)}
+                placeholder="Enter part names and quantities..."
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPartsRequest(false)}>Cancel</Button>
+            <Button onClick={handlePartsSubmit}>Submit Request</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

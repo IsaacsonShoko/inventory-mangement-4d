@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import {
@@ -54,10 +54,13 @@ interface PickedItemData {
   itemDescription?: string;
 }
 
+import { useAuth } from '@/hooks/useAuth';
+
 const PickingCartNew = () => {
   const { recordId } = useParams<{ recordId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const {
     data: uniqueOrder,
@@ -84,10 +87,17 @@ const PickingCartNew = () => {
   const [formData, setFormData] = useState<Partial<PickedItemData>>({
     stockAvailability: '',
     pickStatus: '',
-    packer: '', // Will default to user email in real implementation
+    packer: user?.email || '', 
     chargerPacked: '',
     cables: '',
   });
+
+  // Update packer email when user loads
+  useEffect(() => {
+    if (user?.email) {
+      setFormData(prev => ({ ...prev, packer: user.email || '' }));
+    }
+  }, [user?.email]);
 
   // Cash Connect QR Code scanning state
   const [qrScanInput, setQrScanInput] = useState('');

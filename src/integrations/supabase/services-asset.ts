@@ -15,7 +15,7 @@ export type DeviceStatusEnum =
   | 'Missing';
 
 // Holder type enum values
-export type HolderTypeEnum = 'Warehouse' | 'Technician' | 'Vendor';
+export type HolderTypeEnum = 'Warehouse' | 'Technician' | 'Vendor' | 'Customer';
 
 // Movement type enum values
 export type MovementTypeEnum =
@@ -342,7 +342,47 @@ export const deviceRegistryService = {
     if (holderType) updates.current_holder_type = holderType;
     if (holderId) updates.current_holder_id = holderId;
 
-    return this.update(id, updates);
+    const { data: result, error } = await supabase
+      .from('device_registry')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Sync stock levels if status changed
+    if (result && result.device_type) {
+        // Recalculate stock for this device type
+        const { count } = await supabase
+            .from('device_registry')
+            .select('id', { count: 'exact', head: true })
+            .eq('device_type', result.device_type)
+            .eq('status', 'Available')
+            .eq('current_holder_type', 'Warehouse')
+            .eq('current_holder_id', 'Main'); // Assuming Main Warehouse for now
+
+        if (count !== null) {
+            const { data: stockLevel } = await supabase
+                .from('stock_levels')
+                .select('id')
+                .eq('device_type', result.device_type)
+                .eq('stock_holder', 'Warehouse')
+                .maybeSingle();
+
+            if (stockLevel) {
+                await supabase
+                    .from('stock_levels')
+                    .update({ 
+                        quantity_available: count,
+                        quantity_on_hand: count // Simplified sync
+                    })
+                    .eq('id', stockLevel.id);
+            }
+        }
+    }
+
+    return result as DeviceRegistry;
   },
 
   // Get device counts by status
@@ -471,6 +511,15 @@ export const repairTicketService = {
       .single();
 
     if (error) throw error;
+
+    // Update device registry status to 'In-Repair'
+    await deviceRegistryService.updateStatus(
+      ticket.device_id,
+      'In-Repair',
+      'Warehouse', // When repair starts, it's usually held by warehouse/repair center
+      'Repair Center'
+    );
+
     return data as RepairTicket;
   },
 
@@ -500,6 +549,23 @@ export const repairTicketService = {
       .single();
 
     if (error) throw error;
+
+    // Update device registry status based on repair status
+    if (status === 'Decommissioned') {
+      await deviceRegistryService.updateStatus(data.device_id, 'Decommissioned');
+    } else if (status === 'Returned') {
+      // When returned to stock, status becomes 'Available'
+      await deviceRegistryService.updateStatus(
+        data.device_id,
+        'Available',
+        'Warehouse',
+        additionalData?.returned_to_warehouse || 'Main Warehouse'
+      );
+    } else if (status === 'In-Repair' || status === 'Assessing' || status === 'Quality-Check' || status === 'Repaired') {
+      // Ensure device is marked as In-Repair during the process
+      await deviceRegistryService.updateStatus(data.device_id, 'In-Repair');
+    }
+
     return data as RepairTicket;
   },
 

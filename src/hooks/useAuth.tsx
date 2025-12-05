@@ -45,14 +45,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper to get profile from local storage
+  const getStoredProfile = (userId: string): UserProfile | null => {
+    try {
+      const stored = localStorage.getItem(`user_profile_${userId}`);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error('Error reading profile from local storage', e);
+    }
+    return null;
+  };
+
+  // Helper to save profile to local storage
+  const saveProfileToStorage = (userId: string, profile: UserProfile) => {
+    try {
+      localStorage.setItem(`user_profile_${userId}`, JSON.stringify(profile));
+    } catch (e) {
+      console.error('Error saving profile to local storage', e);
+    }
+  };
+
   // Fetch user profile with aggressive timeout to prevent hanging
   const fetchProfile = async (userId: string, retryCount = 0): Promise<UserProfile | null> => {
     try {
-      console.log(`[Auth] fetchProfile called for ${userId}`);
+      console.log(`[Auth] fetchProfile called for ${userId} (attempt ${retryCount + 1})`);
 
-      // Create timeout promise (15 seconds max)
+      // Try to get from cache first if this is the first attempt
+      if (retryCount === 0) {
+        const cachedProfile = getStoredProfile(userId);
+        if (cachedProfile) {
+          console.log('[Auth] Found cached profile, using it temporarily');
+          // Don't return immediately, let the network request proceed in background if needed
+          // But for now, we return it to unblock UI, and we can update it later
+        }
+      }
+
+      // Create timeout promise (30 seconds max) - increased from 15s
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 15000);
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 30000);
       });
 
       // Race between fetch and timeout
@@ -64,10 +96,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('[Auth] Profile fetch error:', error);
 
-        // If profile not found and this is a new signup, retry twice
-        if (error.code === 'PGRST116' && retryCount < 2) {
-          console.log(`[Auth] Profile not found, retrying in 1s...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+        // If we have a cached profile and network fails, use cached
+        const cachedProfile = getStoredProfile(userId);
+        if (cachedProfile) {
+            console.log('[Auth] Network fetch failed, falling back to cached profile');
+            return cachedProfile;
+        }
+
+        // Retry on timeout or network error, or if profile not found (up to 3 times)
+        if (retryCount < 3) {
+          console.log(`[Auth] Retrying profile fetch in 2s...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
           return fetchProfile(userId, retryCount + 1);
         }
 
@@ -75,9 +114,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('[Auth] Profile fetched successfully');
-      return data as UserProfile;
+      const fetchedProfile = data as UserProfile;
+      saveProfileToStorage(userId, fetchedProfile);
+      return fetchedProfile;
     } catch (error) {
       console.error('[Auth] Profile fetch failed:', error);
+      
+      // If we have a cached profile and network fails, use cached
+      const cachedProfile = getStoredProfile(userId);
+      if (cachedProfile) {
+          console.log('[Auth] Network fetch failed (exception), falling back to cached profile');
+          return cachedProfile;
+      }
+
+      // Also retry on caught errors (like timeout)
+      if (retryCount < 3) {
+        console.log(`[Auth] Caught error, retrying profile fetch in 2s...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return fetchProfile(userId, retryCount + 1);
+      }
+      
       return null;
     }
   };
@@ -92,13 +148,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         console.log('[Auth] Fetching profile for user:', session.user.id);
-        const profile = await fetchProfile(session.user.id);
-        console.log('[Auth] Profile fetched:', profile ? 'Success' : 'Failed/Null');
-        setProfile(profile);
-      }
+        
+        // OPTIMISTIC UPDATE: Check cache immediately
+        const cachedProfile = getStoredProfile(session.user.id);
+        if (cachedProfile) {
+            console.log('[Auth] Loaded profile from cache immediately');
+            setProfile(cachedProfile);
+            setLoading(false); // Unblock UI immediately
+        }
 
-      console.log('[Auth] Setting loading to false');
-      setLoading(false);
+        // Fetch fresh data in background
+        fetchProfile(session.user.id).then(freshProfile => {
+            if (freshProfile) {
+                console.log('[Auth] Background profile refresh success');
+                setProfile(freshProfile);
+            } else {
+                 console.log('[Auth] Background profile refresh failed, keeping cached if available');
+            }
+            // If we didn't have cache, we need to set loading false here
+            if (!cachedProfile) setLoading(false);
+        });
+      } else {
+          console.log('[Auth] Setting loading to false (no user)');
+          setLoading(false);
+      }
     });
 
     // Listen for auth changes
@@ -110,6 +183,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (session?.user) {
           console.log('[Auth] Fetching profile after state change');
+          
+           // OPTIMISTIC UPDATE: Check cache immediately
+           const cachedProfile = getStoredProfile(session.user.id);
+           if (cachedProfile) {
+               console.log('[Auth] Loaded profile from cache (state change)');
+               setProfile(cachedProfile);
+               setLoading(false);
+           }
+
           const profile = await fetchProfile(session.user.id);
           console.log('[Auth] Profile after state change:', profile ? 'Success' : 'Failed/Null');
           setProfile(profile);

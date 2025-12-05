@@ -9,6 +9,7 @@ import { DeviceRegistryTab } from '@/components/asset-management/DeviceRegistryT
 import { RepairsTab } from '@/components/asset-management/RepairsTab';
 import { MovementsTab } from '@/components/asset-management/MovementsTab';
 import { DOAReturnsTab } from '@/components/asset-management/DOAReturnsTab';
+import { InstallationsTab } from '@/components/asset-management/InstallationsTab';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useDeviceStatusCounts } from '@/hooks/useAssetManagement';
@@ -66,10 +67,11 @@ function AssetManagementContent() {
 
       {/* Tabs */}
       <Tabs value={currentTab} onValueChange={handleTabChange}>
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-5 w-full max-w-3xl">
           <TabsTrigger value="registry">Registry</TabsTrigger>
           <TabsTrigger value="repairs">Repairs</TabsTrigger>
           <TabsTrigger value="doa">DOA/Returns</TabsTrigger>
+          <TabsTrigger value="installations">Installations</TabsTrigger>
           <TabsTrigger value="movements">Movements</TabsTrigger>
         </TabsList>
 
@@ -83,6 +85,10 @@ function AssetManagementContent() {
 
         <TabsContent value="doa" className="mt-4">
           <DOAReturnsTab />
+        </TabsContent>
+
+        <TabsContent value="installations" className="mt-4">
+          <InstallationsTab />
         </TabsContent>
 
         <TabsContent value="movements" className="mt-4">

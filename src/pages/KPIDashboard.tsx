@@ -1113,7 +1113,7 @@ const KPIDashboard = () => {
         </Card>
 
         <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 md:grid-cols-9 lg:w-auto lg:inline-flex">
+            <TabsList className="grid w-full grid-cols-4 md:grid-cols-10 lg:w-auto lg:inline-flex">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
               <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -1143,6 +1143,7 @@ const KPIDashboard = () => {
                 )}
               </TabsTrigger>
               <TabsTrigger value="distribution">Distribution</TabsTrigger>
+              <TabsTrigger value="installations">Installations</TabsTrigger>
               <TabsTrigger value="bot-analytics">Bot Analytics</TabsTrigger>
             </TabsList>
 
@@ -1509,6 +1510,21 @@ const KPIDashboard = () => {
                   </CardContent>
                 </Card>
               )}
+            </TabsContent>
+
+            {/* Installations Tab */}
+            <TabsContent value="installations" className="space-y-6">
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+                  <div className="rounded-full bg-muted p-4">
+                    <Wrench className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Awaiting Vendor Information</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Installation analytics will be implemented once vendor data requirements are finalized.
+                  </p>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Performance Tab */}
@@ -2437,6 +2453,21 @@ const KPIDashboard = () => {
                         </div>
                       ))}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Installations Tab */}
+            <TabsContent value="installations" className="space-y-6">
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+                  <div className="rounded-full bg-muted p-4">
+                    <Wrench className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Awaiting Vendor Information</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Installation analytics will be implemented once vendor data requirements are finalized.
+                  </p>
                 </CardContent>
               </Card>
             </TabsContent>
