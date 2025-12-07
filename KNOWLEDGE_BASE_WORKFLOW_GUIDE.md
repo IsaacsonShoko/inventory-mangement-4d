@@ -957,6 +957,44 @@ Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
 - Chain of custody tracking
 - Location history reports
 
+### Repair Management
+**Purpose**: Manage device repairs, fault tracking, and status updates
+
+**Required Role**: Technician, Back Office, Admin
+
+**Steps**:
+1. Navigate to **Asset Management** → **Repairs** tab
+2. **Log New Ticket**:
+   - Click **"Log Repair Ticket"**
+   - Scan/enter serial number
+   - Select **Fault Category**
+   - Enter fault description
+   - Submit ticket
+3. **Update Ticket Status**:
+   - Locate ticket in list
+   - Use **Status Dropdown** in table row to change status (e.g., "Reported" → "In-Repair")
+   - Status updates save automatically
+4. **Edit Fault Assessment**:
+   - Click **Edit (Pencil)** icon
+   - Update fault category or notes
+   - Save changes
+5. **View Details**:
+   - Click **View (Eye)** icon for full history
+
+**Status Workflow**:
+- **Reported**: Initial state
+- **Assessing**: Technician reviewing
+- **In-Repair**: Repair in progress
+- **Quality-Check**: Testing after repair
+- **Repaired**: Successfully fixed
+- **Returned**: Returned to stock
+- **Decommissioned**: Cannot be repaired
+
+**Notes**:
+- Automatic status tracking
+- Integrated with device history
+- Fault category analytics
+
 ### Device Installation
 **Purpose**: Record the installation of devices at customer locations, marking the end of the device's inventory lifecycle.
 
@@ -1049,6 +1087,16 @@ Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
    - Review all counted items
    - Click "Submit Stock Count"
    - Receive confirmation
+   - **Automatic System Updates**:
+     - **Device Registry**: Updates device status (e.g., to "Faulty" or "Available"), condition, and enriches missing metadata.
+     - **Inventory Levels**: Automatically adjusts stock levels based on the new device status (e.g., "Faulty" devices are removed from "Available" stock).
+     - **Serial Lookup Priority**: Identifies devices using Manufacture S/N (Primary) > QR Code S/N > Xlink S/N.
+
+9. **Data Synchronization Note**:
+   - Submitting a stock count acts as a "source of truth" update.
+   - If a device is marked "Faulty" in the count, it is instantly updated to "Faulty" in the Device Registry.
+   - If a device was "Faulty" but is counted as "Functional", it reverts to "Available".
+   - Missing details (like Business Line) in the registry are auto-filled from the count data.
 
 **Notes**:
 - Monthly counts required for all locations
@@ -1178,25 +1226,23 @@ Reported → Assessing → In-Repair → Quality-Check → Repaired → Returned
    - **Supplier**: Choose from list
    - **Purchase Order**: Enter PO number
    - **Date Received**: Current date
-   - **Batch Notes**: Additional information
 3. **Device Entry**:
-   - Add devices individually or in bulk
-   - Capture serial numbers
-   - Validate device information
-4. **Batch Processing**:
-   - Review all devices in batch
+   - **Business Line**: Select category
+   - **Device Type**: Select from **cascading dropdown** (filtered by Business Line & Nature)
+     - *Note: Manual entry is disabled to ensure data integrity*
+   - **Item Nature**: Serialised/Non-serialised
+4. **Serial Number Capture**:
+   - **Cash Connect**: Scan QR code (auto-parses multiple serials)
+   - **Standard**: Scan/enter single serials or bulk paste
+5. **Batch Processing**:
    - Click "Process Batch"
-   - Monitor progress
-   - Review results
-5. **Completion**:
-   - Batch summary created
-   - Device registry updated
-   - Movement records generated
+   - Monitor progress bar
+   - Review success/failure report
 
 **Notes**:
-- Large batch processing capability
-- Error handling and recovery
-- Audit trail maintenance
+- Strict cascading dropdowns enforce valid data
+- Large batch processing capability (4000+ items)
+- Automatic movement record generation
 
 ### Batch Processing
 **Purpose**: Process large volumes of devices efficiently

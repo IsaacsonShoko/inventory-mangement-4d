@@ -452,11 +452,18 @@ The **4D Analytics Inventory Management System** is a comprehensive web-based pl
   - Auto-population of item codes
 
 - **Serial Number Capture** (for Serialised items):
-  - Manufacture Serial Number
-  - QR Code Serial Number
-  - Xlink Serial Number
+  - **Prioritized Lookup Logic**:
+    1. **Manufacture Serial Number** (Primary)
+    2. **QR Code Serial Number**
+    3. **Xlink Serial Number**
   - Cradle Serial Number
   - Charger Serial Number
+
+- **Automatic Write-Back Logic (NEW)**:
+  - **Single Source of Truth**: Submitting a count automatically updates the **Device Registry** and **Stock Levels**.
+  - **Status Updates**: Marking a device as "Faulty" in a count instantly updates its status in the registry.
+  - **Stock Level Sync**: "Available" stock counts are automatically adjusted based on device status changes.
+  - **Metadata Enrichment**: Missing device details (e.g., Business Line) are auto-filled from count data.
 
 - **Item Condition Tracking**:
   - Item status (Functional, Faulty)

@@ -93,9 +93,15 @@ def ingest_file(file_path, source_name):
 
 if __name__ == "__main__":
     # Ingest Product Documentation
-    ingest_file("PRODUCT_DOCUMENTATION.md", "Product Documentation")
+    ingest_file("docs/PRODUCT_DOCUMENTATION.md", "Product Documentation")
     
-    # Ingest Knowledge Base Guide
+    # Ingest Knowledge Base
     ingest_file("KNOWLEDGE_BASE_WORKFLOW_GUIDE.md", "Knowledge Base Guide")
+
+    # Ingest Implementation Guide
+    ingest_file("docs/IMPLEMENTATION_GUIDE.md", "Implementation Guide")
+
+    # Ingest System Overview
+    ingest_file("docs/SYSTEM_OVERVIEW.md", "System Overview")
     
     print("Ingestion complete!")

@@ -483,47 +483,47 @@ const StockCountsCart = () => {
     setIsSubmitting(true);
 
     try {
-      // Insert each scanned item as individual stock_counts record
-      const stockCountsRecords = scannedItems.map((item) => ({
-        count_type: formData.countType,
-        stock_holder: formData.stockHolder,
-        region: formData.region,
-        count_date: formData.countDate,
-        device_type: item.deviceType,
-        quantity: 1, // Each scan is 1 item
-        manufacture_serial_number: item.manufactureSerialNumber || null,
-        qr_code_serial_number: item.qrCodeSerialNumber || null,
-        xlink_serial_number: item.xlinkSerialNumber || null,
-        cradle_serial_number: item.cradleSerialNumber || null,
-        charger_serial_number: item.chargerSerialNumber || null,
-        item_status: item.itemStatus,
-        fault_reason: item.faultReason || null,
-        overall_condition: item.overallCondition,
-        counted_by: userEmail || 'Unknown',
-        business_line: item.itemCategory,
-      }));
+      // Use the process_stock_count_submission RPC function to handle write-back logic
+      // This ensures that stock levels and device registry are updated accordingly
+      const promises = scannedItems.map(async (item) => {
+        const cartItem = cart.find(c => c.id === item.cartItemId);
+        
+        // Prepare parameters for the RPC call
+        const params = {
+          p_count_type: formData.countType,
+          p_stock_holder: formData.stockHolder,
+          p_region: formData.region,
+          p_count_date: formData.countDate,
+          p_device_type: item.deviceType,
+          p_quantity: 1, // Each scan is 1 item
+          p_manufacture_serial_number: item.manufactureSerialNumber || null,
+          p_qr_code_serial_number: item.qrCodeSerialNumber || null,
+          p_xlink_serial_number: item.xlinkSerialNumber || null,
+          p_cradle_serial_number: item.cradleSerialNumber || null,
+          p_charger_serial_number: item.chargerSerialNumber || null,
+          p_item_status: item.itemStatus,
+          p_fault_reason: item.faultReason || null,
+          p_overall_condition: item.overallCondition,
+          p_counted_by: userEmail || 'Unknown',
+          p_business_line: item.itemCategory,
+          p_item_nature: item.itemNature,
+          p_item_code: cartItem?.itemCode || null,
+          p_item_description: cartItem?.itemDescription || null
+        };
 
-      const { error } = await supabase
-        .from('stock_counts')
-        .insert(stockCountsRecords);
+        const { error } = await supabase.rpc('process_stock_count_submission', params);
 
-      if (error) {
-        console.error('Error inserting stock counts:', error);
-        toast({
-          title: 'Submission failed',
-          description: error.message,
-          variant: 'destructive',
-        });
-        setIsSubmitting(false);
-        return;
-      }
+        if (error) throw error;
+      });
+
+      await Promise.all(promises);
 
       setShowSuccessModal(true);
       setIsSubmitting(false);
 
       toast({
         title: 'Stock count submitted successfully',
-        description: `${scannedItems.length} items have been recorded`,
+        description: `${scannedItems.length} items have been recorded and synced`,
       });
     } catch (error: any) {
       console.error('Error submitting stock count:', error);

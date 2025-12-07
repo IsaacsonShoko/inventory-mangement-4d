@@ -40,6 +40,23 @@ psql "postgresql://postgres:[YOUR-PASSWORD]@[YOUR-PROJECT-REF].supabase.co:5432/
 
 ## Available Migrations
 
+### `migration_process_stock_count_submission.sql`
+**Purpose**: Implements the `process_stock_count_submission` RPC function for Stock Counts write-back logic.
+**What it creates**:
+- Function `process_stock_count_submission`
+- Logic to:
+  - Insert into `stock_counts`
+  - Lookup device by Manufacture/QR/Xlink serial (Priority: Manufacture > QR > Xlink)
+  - Update `device_registry` status and condition
+  - Enrich missing metadata in `device_registry`
+
+### `migration_sync_stock_levels_trigger.sql`
+**Purpose**: Automates synchronization between `device_registry` and `stock_levels`.
+**What it creates**:
+- Trigger `trigger_sync_stock_levels` on `device_registry`
+- Function `sync_stock_levels_from_registry`
+- Ensures `stock_levels` (Available count) always matches `device_registry` counts.
+
 ### `create_bot_usage_logs.sql`
 
 **Purpose**: Creates the `bot_usage_logs` table for tracking Xlink-Sage bot analytics
