@@ -1,0 +1,36 @@
+@startuml "4D Analytics - System Context"
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+' Layout
+LAYOUT_WITH_LEGEND()
+
+' Actors
+Person(User, "User / Technician", "Uses the system for orders and stock counts")
+Person(BackOffice, "Back Office", "Uses the system for reports and KPI analysis")
+Person(Admin, "Admin", "Manages users and system configuration")
+
+' Main System
+System_Boundary(c1, "Inventory Management System (4D Analytics)") {
+    System(Client, "React Client (SPA)", "Frontend Interface")
+    System(SageBot, "Sage Bot Engine", "AI Assistant")
+    SystemDb(Supabase, "Supabase Backend", "Database & Logic")
+}
+
+' External Systems
+System_Ext(OpenAI, "OpenAI API", "LLM & Embeddings")
+System_Ext(Logistics, "Logistics Partners", "Tracking APIs")
+
+' Relationships
+Rel(User, Client, "Uses", "HTTPS")
+Rel(BackOffice, Client, "Uses", "HTTPS")
+Rel(Admin, Client, "Uses", "HTTPS")
+
+Rel(Client, Supabase, "Reads/Writes", "HTTPS/WSS")
+Rel(Client, SageBot, "Queries", "HTTPS")
+
+Rel(SageBot, OpenAI, "Embeddings/Completion", "HTTPS")
+Rel(SageBot, Supabase, "Vector Search", "Postgres RPC")
+
+Rel(Client, Logistics, "Links to Tracking", "HTTPS")
+
+@enduml

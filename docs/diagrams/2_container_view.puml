@@ -1,0 +1,40 @@
+@startuml "4D Analytics - Container View"
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+' Layout
+LAYOUT_WITH_LEGEND()
+
+System_Boundary(c1, "Inventory Management System") {
+    
+    Container(Client, "React SPA", "Vite, React, Shadcn UI", "The main user interface")
+    
+    Container_Boundary(Modules, "Functional Modules") {
+        Component(Logistics, "Logistics Cluster", "Orders, Picking, Dispatch")
+        Component(Asset, "Asset Lifecycle", "Registry, Ingestion, Repairs")
+        Component(Audit, "Audit Cluster", "Stock Counts, Reports")
+        Component(Admin, "Admin Cluster", "KPI, Users, Config")
+    }
+
+    Container(SageBot, "Sage Bot Interface", "React Component", "Floating AI Assistant")
+    
+    ContainerDb(Supabase, "Supabase Backend", "PostgreSQL", "Stores all data, vectors, and logic")
+    
+    Container(EdgeFunctions, "Edge Functions", "TypeScript", "Serverless Logic")
+}
+
+System_Ext(OpenAI, "OpenAI API", "Embeddings & LLM")
+
+' Internal Relationships
+Rel(Client, Modules, "Renders")
+Rel(Client, SageBot, "Embeds")
+
+Rel(Logistics, Supabase, "Reads/Writes Orders")
+Rel(Asset, Supabase, "Syncs Registry")
+Rel(Audit, Supabase, "Submits Counts")
+Rel(Admin, Supabase, "Fetches Analytics")
+
+Rel(SageBot, EdgeFunctions, "Sends Query")
+Rel(EdgeFunctions, OpenAI, "Get Embeddings")
+Rel(EdgeFunctions, Supabase, "Vector Search")
+
+@enduml

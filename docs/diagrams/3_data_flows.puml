@@ -1,0 +1,51 @@
+@startuml "4D Analytics - Data Flows"
+!theme plain
+autonumber
+
+title Flow A: Stock Order Fulfillment
+actor Technician
+participant "Stock Order UI" as OrderUI
+database "Orders Table" as OrdersDB
+participant "Picking Queue" as PickUI
+database "Device Registry" as RegistryDB
+
+Technician -> OrderUI : Submit Order
+OrderUI -> OrdersDB : Insert (Status: Pending)
+OrdersDB -> PickUI : Realtime Update
+PickUI -> RegistryDB : Validate Stock
+PickUI -> OrdersDB : Update (Status: Picked)
+OrdersDB -> RegistryDB : Update Holder (Dispatch)
+
+newpage
+
+title Flow B: Real-Time Stock Sync
+participant "Device Registry" as RegistryDB
+participant "Trigger" as DBTrigger
+database "Stock Levels" as StockDB
+
+RegistryDB -> DBTrigger : On Update/Insert
+activate DBTrigger
+DBTrigger -> RegistryDB : Count(Available, Warehouse)
+DBTrigger -> StockDB : Upsert Quantity
+deactivate DBTrigger
+
+newpage
+
+title Flow C: RAG Pipeline (Sage Bot)
+actor User
+participant "Sage Bot UI" as BotUI
+participant "n8n / Backend" as Backend
+participant "OpenAI" as AI
+database "Vector Store" as VectorDB
+
+User -> BotUI : "How do I return stock?"
+BotUI -> Backend : Send Query
+Backend -> AI : Generate Embedding
+AI -> Backend : Return Vector
+Backend -> VectorDB : RPC match_documents(vector)
+VectorDB -> Backend : Return Context Chunks
+Backend -> AI : LLM Completion(Query + Context)
+AI -> Backend : Answer
+Backend -> BotUI : Display Answer
+
+@enduml
