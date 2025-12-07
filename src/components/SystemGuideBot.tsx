@@ -242,12 +242,18 @@ export const SystemGuideBot = () => {
       // Log usage to database
       let logId: string | undefined;
       try {
+        // Fallback to user object if profile is not fully loaded
+        const userId = profile?.id || user?.id || null;
+        const userEmail = profile?.email || user?.email || null;
+        // Default to 'user' role if authenticated but profile missing, otherwise use profile role
+        const userRole = profile?.role || (user ? 'user' : null);
+
         const { data: logData, error: logError } = await supabase
           .from('bot_usage_logs')
           .insert({
-            user_id: profile?.id || null,
-            user_email: profile?.email || null,
-            user_role: profile?.role || null,
+            user_id: userId,
+            user_email: userEmail,
+            user_role: userRole,
             user_company: profile?.company || null,
             user_warehouse: profile?.warehouse || null,
             session_id: sessionId,

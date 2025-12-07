@@ -527,25 +527,27 @@ const KPIDashboard = () => {
     }, {} as Record<string, number>);
 
     // Device Condition Analysis (from stock_levels)
-    const totalDevices = stockLevels.length;
-    const functionalDevices = stockLevels.filter(s =>
-      s.item_status !== 'Faulty' && s.overall_condition !== 'Faulty' && s.overall_condition !== 'Damaged'
-    ).length;
-    const faultyDevices = stockLevels.filter(s =>
-      s.item_status === 'Faulty' || s.overall_condition === 'Faulty' || s.overall_condition === 'Damaged'
-    ).length;
+    const totalDevices = stockLevels.reduce((sum, s) => sum + (s.quantity || 0), 0);
+    
+    const functionalDevices = stockLevels
+      .filter(s => s.item_status !== 'Faulty' && s.overall_condition !== 'Faulty' && s.overall_condition !== 'Damaged')
+      .reduce((sum, s) => sum + (s.quantity || 0), 0);
+      
+    const faultyDevices = stockLevels
+      .filter(s => s.item_status === 'Faulty' || s.overall_condition === 'Faulty' || s.overall_condition === 'Damaged')
+      .reduce((sum, s) => sum + (s.quantity || 0), 0);
 
     // Device status breakdown
     const devicesByStatus = stockLevels.reduce((acc, item) => {
       const status = item.item_status || 'Unknown';
-      acc[status] = (acc[status] || 0) + 1;
+      acc[status] = (acc[status] || 0) + (item.quantity || 0);
       return acc;
     }, {} as Record<string, number>);
 
     // Device condition breakdown
     const devicesByCondition = stockLevels.reduce((acc, item) => {
       const condition = item.overall_condition || 'Unknown';
-      acc[condition] = (acc[condition] || 0) + 1;
+      acc[condition] = (acc[condition] || 0) + (item.quantity || 0);
       return acc;
     }, {} as Record<string, number>);
 
@@ -554,7 +556,7 @@ const KPIDashboard = () => {
       .filter(s => s.fault_reason)
       .reduce((acc, item) => {
         const reason = item.fault_reason || 'Unspecified';
-        acc[reason] = (acc[reason] || 0) + 1;
+        acc[reason] = (acc[reason] || 0) + (item.quantity || 0);
         return acc;
       }, {} as Record<string, number>);
 
@@ -732,11 +734,11 @@ const KPIDashboard = () => {
       if (!acc[line]) {
         acc[line] = { total: 0, functional: 0, faulty: 0 };
       }
-      acc[line].total += 1;
+      acc[line].total += (item.quantity || 0);
       if (item.item_status !== 'Faulty' && item.overall_condition !== 'Faulty' && item.overall_condition !== 'Damaged') {
-        acc[line].functional += 1;
+        acc[line].functional += (item.quantity || 0);
       } else {
-        acc[line].faulty += 1;
+        acc[line].faulty += (item.quantity || 0);
       }
       return acc;
     }, {} as Record<string, { total: number; functional: number; faulty: number }>);

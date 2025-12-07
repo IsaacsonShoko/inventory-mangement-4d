@@ -237,21 +237,39 @@ const StockAdmin = () => {
 
         console.log('Uploading image to Inventory Gallery:', filePath);
 
+        // Upload to 'inventory-gallery' bucket (standard convention)
+        // If the bucket was named 'Inventory Gallery' (with spaces), it should still work via ID, 
+        // but 'inventory-gallery' is safer for URL generation.
         const { error: uploadError } = await supabase.storage
-          .from('Inventory Gallery')
+          .from('inventory-gallery')
           .upload(filePath, imageFile);
 
         if (uploadError) {
-          console.error('Upload error:', uploadError);
-          toast({
-            title: 'Image upload failed',
-            description: uploadError.message,
-            variant: 'destructive',
-          });
-          // Continue without image if upload fails
-        } else {
-          const { data: urlData } = supabase.storage
+          // Retry with "Inventory Gallery" if the first one failed (fallback for legacy bucket name)
+           console.log('Retrying upload with "Inventory Gallery"...');
+           const { error: retryError } = await supabase.storage
             .from('Inventory Gallery')
+            .upload(filePath, imageFile);
+            
+           if (retryError) {
+             console.error('Upload error:', uploadError, retryError);
+             toast({
+               title: 'Image upload failed',
+               description: retryError.message,
+               variant: 'destructive',
+             });
+           } else {
+             // Success with fallback
+             const { data: urlData } = supabase.storage
+               .from('Inventory Gallery')
+               .getPublicUrl(filePath);
+             imageUrl = urlData.publicUrl;
+             console.log('Image uploaded successfully (fallback):', imageUrl);
+           }
+        } else {
+          // Success with standard name
+          const { data: urlData } = supabase.storage
+            .from('inventory-gallery')
             .getPublicUrl(filePath);
           imageUrl = urlData.publicUrl;
           console.log('Image uploaded successfully:', imageUrl);
