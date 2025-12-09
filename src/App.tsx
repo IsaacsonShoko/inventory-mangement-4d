@@ -10,6 +10,7 @@ import { ProtectedRoute, AdminRoute, BackOfficeRoute } from "@/components/Protec
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { SessionTimeoutDialog } from "@/components/SessionTimeoutDialog";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 // Import the bot component
 import { SystemGuideBot } from "@/components/SystemGuideBot";
 
@@ -61,6 +62,9 @@ function AppContent() {
     warningTime: 2 * 60 * 1000, // 2 minutes warning
     enabled: true,
   });
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts({ enabled: true });
 
   return (
     <>

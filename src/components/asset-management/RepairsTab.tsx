@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Search, Filter, MoreHorizontal, Eye, Wrench, Edit, Plus, Camera, Package, CheckCircle } from 'lucide-react';
+import { Search, Filter, MoreHorizontal, Eye, Wrench, Edit, Plus, Camera, Package, CheckCircle, LayoutGrid, Table as TableIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { CheckCircle2, XCircle, AlertCircle, Info } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { RepairsKanban } from './RepairsKanban';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,6 +82,9 @@ const faultCategories: FaultCategoryEnum[] = [
 ];
 
 export function RepairsTab() {
+  // View mode state
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+
   // Filters state
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
@@ -334,8 +341,57 @@ export function RepairsTab() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      <div className="space-y-4 animate-fade-in">
+        {/* Metrics Cards Skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Filters Skeleton */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="h-9 w-36" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Table Skeleton */}
+        <Card>
+          <CardHeader className="pb-3">
+            <Skeleton className="h-5 w-48" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center space-x-4" style={{ animationDelay: `${i * 100}ms` }}>
+                  <Skeleton className="h-12 w-12 rounded" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-4/5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -391,20 +447,20 @@ export function RepairsTab() {
       {/* Metrics Cards */}
       {metrics && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
+          <Card className="card-hover">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Tickets</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics.total ?? 0}</div>
+              <div className="text-2xl font-bold animate-count-up">{metrics.total ?? 0}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="card-hover">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">In Progress</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
+              <div className="text-2xl font-bold text-orange-600 animate-count-up">
                 {(metrics.byStatus?.['Reported'] ?? 0) +
                   (metrics.byStatus?.['Assessing'] ?? 0) +
                   (metrics.byStatus?.['In-Repair'] ?? 0) +
@@ -412,22 +468,22 @@ export function RepairsTab() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="card-hover">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-bold text-green-600 animate-count-up">
                 {metrics.byStatus?.['Returned'] ?? 0}
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="card-hover">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Avg Repair Time</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold animate-count-up">
                 {(metrics.avgRepairTimeHours ?? 0) > 0
                   ? `${Math.round(metrics.avgRepairTimeHours)}h`
                   : 'N/A'}
@@ -440,15 +496,38 @@ export function RepairsTab() {
       {/* Filters */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Filter className="h-4 w-4" />
               Filters
             </CardTitle>
-            <Button onClick={() => setShowCreateDialog(true)} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Log Repair Ticket
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* View Mode Toggle */}
+              <div className="flex items-center border rounded-md">
+                <Button
+                  variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className="rounded-r-none h-8 button-press"
+                >
+                  <TableIcon className="h-4 w-4 mr-1.5" />
+                  Table
+                </Button>
+                <Button
+                  variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('kanban')}
+                  className="rounded-l-none h-8 button-press"
+                >
+                  <LayoutGrid className="h-4 w-4 mr-1.5" />
+                  Kanban
+                </Button>
+              </div>
+              <Button onClick={() => setShowCreateDialog(true)} size="sm" className="button-press">
+                <Plus className="h-4 w-4 mr-2" />
+                Log Repair Ticket
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -496,100 +575,134 @@ export function RepairsTab() {
         </CardContent>
       </Card>
 
-      {/* Results */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Wrench className="h-4 w-4" />
-            Repair Tickets ({filteredTickets?.length || 0})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[400px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ticket #</TableHead>
-                  <TableHead>Serial Number</TableHead>
-                  <TableHead>Device Type</TableHead>
-                  <TableHead>Business Line</TableHead>
-                  <TableHead>Fault Category</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Reported By</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTickets?.map((ticket: any) => (
-                  <TableRow key={ticket.id}>
-                    <TableCell className="font-medium">
-                      #{ticket.ticket_number}
-                    </TableCell>
-                    <TableCell className="font-mono">
-                      {ticket.device?.serial_number || 'N/A'}
-                    </TableCell>
-                    <TableCell>{ticket.device?.device_type || 'N/A'}</TableCell>
-                    <TableCell>{ticket.device?.item_category || 'N/A'}</TableCell>
-                    <TableCell>{ticket.fault_category}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={ticket.status}
-                        onValueChange={(newStatus) => {
-                          updateTicketStatus.mutate({ id: ticket.id, status: newStatus as RepairStatusEnum });
-                          toast.success(`Status updated to ${newStatus}`);
-                        }}
-                      >
-                        <SelectTrigger className={`w-[140px] h-8 ${statusColors[ticket.status as RepairStatusEnum]}`}>
-                          <SelectValue>{statusLabels[ticket.status as RepairStatusEnum] || ticket.status}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {statuses.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {statusLabels[status]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>{ticket.reported_by}</TableCell>
-                    <TableCell>
-                      {format(new Date(ticket.reported_date), 'PP')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => setSelectedTicket(ticket)}
-                          title="View Details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => handleEditClick(ticket)}
-                          title="Edit Fault Assessment"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredTickets?.length === 0 && (
+      {/* Results - Conditional Table or Kanban View */}
+      {viewMode === 'table' ? (
+        <Card className="animate-fade-in">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              Repair Tickets ({filteredTickets?.length || 0})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[400px]">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No repair tickets found
-                    </TableCell>
+                    <TableHead>Ticket #</TableHead>
+                    <TableHead>Serial Number</TableHead>
+                    <TableHead>Device Type</TableHead>
+                    <TableHead>Business Line</TableHead>
+                    <TableHead>Fault Category</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Reported By</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredTickets?.map((ticket: any, index: number) => (
+                    <TableRow
+                      key={ticket.id}
+                      className="animate-slide-in"
+                      style={{ animationDelay: `${index * 30}ms` }}
+                    >
+                      <TableCell className="font-medium">
+                        #{ticket.ticket_number}
+                      </TableCell>
+                      <TableCell className="font-mono">
+                        {ticket.device?.serial_number || 'N/A'}
+                      </TableCell>
+                      <TableCell>{ticket.device?.device_type || 'N/A'}</TableCell>
+                      <TableCell>{ticket.device?.item_category || 'N/A'}</TableCell>
+                      <TableCell>{ticket.fault_category}</TableCell>
+                      <TableCell>
+                        <Select
+                          value={ticket.status}
+                          onValueChange={(newStatus) => {
+                            updateTicketStatus.mutate({ id: ticket.id, status: newStatus as RepairStatusEnum });
+                            toast.success(`Status updated to ${newStatus}`, {
+                              icon: <CheckCircle2 className="h-4 w-4" />,
+                            });
+                          }}
+                        >
+                          <SelectTrigger className={`w-[140px] h-8 ${statusColors[ticket.status as RepairStatusEnum]}`}>
+                            <SelectValue>{statusLabels[ticket.status as RepairStatusEnum] || ticket.status}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statuses.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {statusLabels[status]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>{ticket.reported_by}</TableCell>
+                      <TableCell>
+                        {format(new Date(ticket.reported_date), 'PP')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedTicket(ticket)}
+                            title="View Details"
+                            className="button-press"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditClick(ticket)}
+                            title="Edit Fault Assessment"
+                            className="button-press"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredTickets?.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={9}>
+                        <EmptyState
+                          icon={Wrench}
+                          title="No repair tickets found"
+                          description="There are no repair tickets matching your current filters. Try adjusting your search or create a new repair ticket."
+                          action={{
+                            label: "Log New Repair Ticket",
+                            onClick: () => setShowCreateDialog(true)
+                          }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="animate-fade-in">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              Repair Workflow ({filteredTickets?.length || 0})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-2">
+            <RepairsKanban
+              tickets={filteredTickets || []}
+              onViewDetails={(ticket) => setSelectedTicket(ticket)}
+              onEdit={(ticket) => handleEditClick(ticket)}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Create Ticket Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={() => {
