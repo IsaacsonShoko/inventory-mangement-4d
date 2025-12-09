@@ -526,36 +526,38 @@ const PointOfPresence = () => {
           </div>
 
           {/* Charts Row */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <HorizontalBarChart
-              title="Technicians by Contractor"
-              description="Distribution across partner companies"
-              data={Object.entries(stats.byContractor)
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, 10)
-                .map(([contractor, count]) => ({
-                  name: contractor.length > 25 ? contractor.slice(0, 25) + '...' : contractor,
-                  value: count,
-                }))}
-              color={CHART_PALETTE[0]}
-              height={350}
-            />
+          {stats.total > 0 && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <HorizontalBarChart
+                title="Technicians by Contractor"
+                description="Distribution across partner companies"
+                data={Object.entries(stats.byContractor)
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 10)
+                  .map(([contractor, count]) => ({
+                    name: contractor.length > 25 ? contractor.slice(0, 25) + '...' : contractor,
+                    value: count,
+                  }))}
+                color={CHART_PALETTE[0]}
+                height={350}
+              />
 
-            <DonutChart
-              title="Technicians by Region"
-              description="Geographic distribution"
-              data={Object.entries(stats.byRegion)
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, 8)
-                .map(([region, count]) => ({
-                  name: region.length > 20 ? region.slice(0, 20) + '...' : region,
-                  value: count,
-                }))}
-              height={350}
-              innerRadius={60}
-              outerRadius={110}
-            />
-          </div>
+              <DonutChart
+                title="Technicians by Region"
+                description="Geographic distribution"
+                data={Object.entries(stats.byRegion)
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 8)
+                  .map(([region, count]) => ({
+                    name: region.length > 20 ? region.slice(0, 20) + '...' : region,
+                    value: count,
+                  }))}
+                height={350}
+                innerRadius={60}
+                outerRadius={110}
+              />
+            </div>
+          )}
 
           {/* Regional Heat Map */}
           <Card>
@@ -706,77 +708,73 @@ const PointOfPresence = () => {
                 <CardTitle className="text-lg">Technician Directory</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="border rounded-md overflow-hidden">
+                <ScrollArea className="h-[500px]">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-muted/50">
+                      <TableRow className="bg-muted/50 sticky top-0 z-10">
                         <TableHead
-                          className="cursor-pointer hover:bg-muted/80"
+                          className="cursor-pointer hover:bg-muted/80 bg-muted/50"
                           onClick={() => handleSort('name_surname')}
                         >
                           Name <SortIcon field="name_surname" />
                         </TableHead>
                         <TableHead
-                          className="cursor-pointer hover:bg-muted/80"
+                          className="cursor-pointer hover:bg-muted/80 bg-muted/50"
                           onClick={() => handleSort('contractor')}
                         >
                           Contractor <SortIcon field="contractor" />
                         </TableHead>
                         <TableHead
-                          className="cursor-pointer hover:bg-muted/80"
+                          className="cursor-pointer hover:bg-muted/80 bg-muted/50"
                           onClick={() => handleSort('region')}
                         >
                           Region <SortIcon field="region" />
                         </TableHead>
                         <TableHead
-                          className="cursor-pointer hover:bg-muted/80"
+                          className="cursor-pointer hover:bg-muted/80 bg-muted/50"
                           onClick={() => handleSort('area_based')}
                         >
                           Area <SortIcon field="area_based" />
                         </TableHead>
                       </TableRow>
                     </TableHeader>
-                  </Table>
-                  <ScrollArea className="h-[450px]">
-                    <Table>
-                      <TableBody>
-                        {filteredTechnicians.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                              No technicians found
+                    <TableBody>
+                      {filteredTechnicians.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                            No technicians found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredTechnicians.map((tech) => (
+                          <TableRow
+                            key={tech.id}
+                            className={`cursor-pointer hover:bg-muted/50 ${selectedTechnician?.id === tech.id ? 'bg-primary/10' : ''}`}
+                            onClick={() => {
+                              setSelectedTechnician(tech);
+                              setIsEditing(false);
+                            }}
+                          >
+                            <TableCell className="font-medium text-sm py-2">
+                              {tech.name_surname}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground py-2">
+                              <span className="truncate block max-w-[120px]">{tech.contractor || '-'}</span>
+                            </TableCell>
+                            <TableCell className="text-sm py-2">
+                              {tech.region ? (
+                                <Badge variant="outline" className="text-xs">{tech.region}</Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground py-2">
+                              {tech.area_based || '-'}
                             </TableCell>
                           </TableRow>
-                        ) : (
-                          filteredTechnicians.map((tech) => (
-                            <TableRow
-                              key={tech.id}
-                              className={`cursor-pointer hover:bg-muted/50 ${selectedTechnician?.id === tech.id ? 'bg-primary/10' : ''}`}
-                              onClick={() => {
-                                setSelectedTechnician(tech);
-                                setIsEditing(false);
-                              }}
-                            >
-                              <TableCell className="font-medium text-sm py-2">
-                                {tech.name_surname}
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground py-2">
-                                <span className="truncate block max-w-[120px]">{tech.contractor || '-'}</span>
-                              </TableCell>
-                              <TableCell className="text-sm py-2">
-                                {tech.region ? (
-                                  <Badge variant="outline" className="text-xs">{tech.region}</Badge>
-                                ) : '-'}
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground py-2">
-                                {tech.area_based || '-'}
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </div>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
               </CardContent>
             </Card>
 
