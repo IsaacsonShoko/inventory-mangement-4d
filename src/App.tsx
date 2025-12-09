@@ -77,10 +77,9 @@ function AppContent() {
         onExtend={extendSession}
         onLogout={logout}
       />
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes - No authentication required */}
-          <Route path="/login" element={<Login />} />
+      <Routes>
+        {/* Public routes - No authentication required */}
+        <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Landing page - Protected (requires authentication) */}
@@ -116,8 +115,6 @@ function AppContent() {
         
         {/* Chatbot added here - safe inside BrowserRouter */}
         <SystemGuideBot />
-        
-      </BrowserRouter>
     </>
   );
 }
@@ -127,11 +124,13 @@ const App = () => (
     client={queryClient}
     persistOptions={{ persister }}
   >
-    <AuthProvider>
-      <TooltipProvider>
-        <AppContent />
-      </TooltipProvider>
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <TooltipProvider>
+          <AppContent />
+        </TooltipProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </PersistQueryClientProvider>
 );
 
