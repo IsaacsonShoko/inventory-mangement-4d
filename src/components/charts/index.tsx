@@ -171,11 +171,24 @@ export function SimpleBarChart({
   height?: number;
   showExport?: boolean;
 }) {
+  // Ensure data is always an array
+  const safeData = Array.isArray(data) ? data : [];
+
+  if (safeData.length === 0) {
+    return (
+      <ChartWrapper title={title} description={description} showExport={false}>
+        <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+          No data available
+        </div>
+      </ChartWrapper>
+    );
+  }
+
   return (
-    <ChartWrapper title={title} description={description} data={data} showExport={showExport}>
+    <ChartWrapper title={title} description={description} data={safeData} showExport={showExport}>
       <div className="animate-chart-grow">
         <ResponsiveContainer width="100%" height={height}>
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 40 }}>
+          <BarChart data={safeData} margin={{ top: 10, right: 10, left: -10, bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis
               dataKey={nameKey}
@@ -216,11 +229,24 @@ export function MultiBarChart({
   height?: number;
   showExport?: boolean;
 }) {
+  // Ensure data is always an array
+  const safeData = Array.isArray(data) ? data : [];
+
+  if (safeData.length === 0) {
+    return (
+      <ChartWrapper title={title} description={description} showExport={false}>
+        <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+          No data available
+        </div>
+      </ChartWrapper>
+    );
+  }
+
   return (
-    <ChartWrapper title={title} description={description} data={data} showExport={showExport}>
+    <ChartWrapper title={title} description={description} data={safeData} showExport={showExport}>
       <div className="animate-chart-grow">
         <ResponsiveContainer width="100%" height={height}>
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 40 }}>
+          <BarChart data={safeData} margin={{ top: 10, right: 10, left: -10, bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis
               dataKey="name"
@@ -266,11 +292,24 @@ export function TrendLineChart({
   height?: number;
   showExport?: boolean;
 }) {
+  // Ensure data is always an array
+  const safeData = Array.isArray(data) ? data : [];
+
+  if (safeData.length === 0) {
+    return (
+      <ChartWrapper title={title} description={description} showExport={false}>
+        <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+          No data available
+        </div>
+      </ChartWrapper>
+    );
+  }
+
   return (
-    <ChartWrapper title={title} description={description} data={data} showExport={showExport}>
+    <ChartWrapper title={title} description={description} data={safeData} showExport={showExport}>
       <div className="animate-chart-grow">
         <ResponsiveContainer width="100%" height={height}>
-          <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
+          <LineChart data={safeData} margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis
               dataKey="name"
@@ -356,7 +395,7 @@ export function DonutChart({
   innerRadius = 60,
   outerRadius = 100,
 }: {
-  data: Array<{ name: string; value: number }>;
+  data: Array<{ name: string; value: number; fill?: string }>;
   title: string;
   description?: string;
   height?: number;
@@ -364,15 +403,26 @@ export function DonutChart({
   innerRadius?: number;
   outerRadius?: number;
 }) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
+  // Ensure data is always an array
+  const safeData = Array.isArray(data) ? data : [];
+
+  if (safeData.length === 0) {
+    return (
+      <ChartWrapper title={title} description={description} showExport={false}>
+        <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+          No data available
+        </div>
+      </ChartWrapper>
+    );
+  }
 
   return (
-    <ChartWrapper title={title} description={description} data={data} showExport={showExport}>
+    <ChartWrapper title={title} description={description} data={safeData} showExport={showExport}>
       <div className="animate-chart-grow">
         <ResponsiveContainer width="100%" height={height}>
           <PieChart>
             <Pie
-              data={data}
+              data={safeData}
               cx="50%"
               cy="50%"
               innerRadius={innerRadius}
@@ -384,10 +434,10 @@ export function DonutChart({
               }
               labelLine={false}
             >
-              {data.map((entry, index) => (
+              {safeData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
-                  fill={CHART_PALETTE[index % CHART_PALETTE.length]}
+                  fill={entry.fill || CHART_PALETTE[index % CHART_PALETTE.length]}
                   className="stroke-background"
                   strokeWidth={2}
                 />
@@ -502,12 +552,25 @@ export function HorizontalBarChart({
   height?: number;
   showExport?: boolean;
 }) {
+  // Ensure data is always an array
+  const safeData = Array.isArray(data) ? data : [];
+
+  if (safeData.length === 0) {
+    return (
+      <ChartWrapper title={title} description={description} showExport={false}>
+        <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+          No data available
+        </div>
+      </ChartWrapper>
+    );
+  }
+
   return (
-    <ChartWrapper title={title} description={description} data={data} showExport={showExport}>
+    <ChartWrapper title={title} description={description} data={safeData} showExport={showExport}>
       <div className="animate-chart-grow">
         <ResponsiveContainer width="100%" height={height}>
           <BarChart
-            data={data}
+            data={safeData}
             layout="vertical"
             margin={{ top: 10, right: 10, left: 80, bottom: 10 }}
           >
