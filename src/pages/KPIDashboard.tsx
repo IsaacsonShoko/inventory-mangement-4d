@@ -32,6 +32,16 @@ import {
   Star,
   ThumbsDown,
 } from 'lucide-react';
+import {
+  SimpleBarChart,
+  MultiBarChart,
+  TrendLineChart,
+  DonutChart,
+  HorizontalBarChart,
+  MetricCard,
+  CHART_PALETTE,
+} from '@/components/charts';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -929,11 +939,64 @@ const KPIDashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading KPI Dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-background">
+        {/* Header Skeleton */}
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
+          <div className="container flex h-14 items-center px-4">
+            <Skeleton className="h-5 w-5 mr-2" />
+            <Skeleton className="h-6 w-32" />
+            <div className="ml-auto flex items-center gap-2">
+              <Skeleton className="h-9 w-9 rounded-md" />
+              <Skeleton className="h-9 w-9 rounded-md" />
+            </div>
+          </div>
+        </header>
+
+        <main className="container px-4 py-6 space-y-6 animate-fade-in">
+          {/* Filters Skeleton */}
+          <Card>
+            <CardHeader className="pb-3">
+              <Skeleton className="h-6 w-24" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Metrics Skeleton */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-20 mb-2" />
+                  <Skeleton className="h-2 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Charts Skeleton */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {[...Array(2)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-48 mt-1" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-[250px] w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
@@ -1158,37 +1221,43 @@ const KPIDashboard = () => {
             <TabsContent value="overview" className="space-y-6">
               {/* Key Metrics Row */}
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Package className="h-4 w-4 text-primary" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{kpis.totalOrders}</div>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.totalOrders}</div>
                     <p className="text-xs text-muted-foreground">
-                      {kpis.totalUnitsOrdered} units ordered
+                      {kpis.totalUnitsOrdered.toLocaleString()} units ordered
                     </p>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Fulfillment Rate</CardTitle>
-                    <Target className="h-4 w-4 text-muted-foreground" />
+                    <div className="p-2 bg-green-500/10 rounded-lg">
+                      <Target className="h-4 w-4 text-green-500" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{kpis.fulfillmentRate.toFixed(1)}%</div>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.fulfillmentRate.toFixed(1)}%</div>
                     <Progress value={kpis.fulfillmentRate} className="mt-2" />
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Avg Cycle Time</CardTitle>
-                    <Timer className="h-4 w-4 text-muted-foreground" />
+                    <div className="p-2 bg-blue-500/10 rounded-lg">
+                      <Timer className="h-4 w-4 text-blue-500" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
+                    <div className="text-2xl font-bold animate-count-up">
                       {kpis.avgCycleTime > 24
                         ? `${(kpis.avgCycleTime / 24).toFixed(1)}d`
                         : `${kpis.avgCycleTime.toFixed(0)}h`}
@@ -1199,13 +1268,15 @@ const KPIDashboard = () => {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">SLA Compliance</CardTitle>
-                    <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                    <div className={`p-2 rounded-lg ${kpis.slaComplianceRate < 80 ? 'bg-red-500/10' : kpis.slaComplianceRate < 95 ? 'bg-amber-500/10' : 'bg-green-500/10'}`}>
+                      <CheckCircle2 className={`h-4 w-4 ${kpis.slaComplianceRate < 80 ? 'text-red-500' : kpis.slaComplianceRate < 95 ? 'text-amber-500' : 'text-green-500'}`} />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className={`text-2xl font-bold ${kpis.slaComplianceRate < 80 ? 'text-red-500' : kpis.slaComplianceRate < 95 ? 'text-amber-500' : 'text-green-500'}`}>
+                    <div className={`text-2xl font-bold animate-count-up ${kpis.slaComplianceRate < 80 ? 'text-red-500' : kpis.slaComplianceRate < 95 ? 'text-amber-500' : 'text-green-500'}`}>
                       {kpis.slaComplianceRate.toFixed(1)}%
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -1215,113 +1286,67 @@ const KPIDashboard = () => {
                 </Card>
               </div>
 
-              {/* Status Breakdown */}
+              {/* Status Breakdown with Charts */}
               <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Order Status</CardTitle>
-                    <CardDescription>Current status breakdown</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        <span className="text-sm">Dispatched</span>
-                      </div>
-                      <span className="font-medium">{kpis.dispatchedOrders}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-amber-500" />
-                        <span className="text-sm">Pending</span>
-                      </div>
-                      <span className="font-medium">{kpis.pendingOrders}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-orange-500" />
-                        <span className="text-sm">Partial</span>
-                      </div>
-                      <span className="font-medium">{kpis.partialOrders}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <XCircle className="h-4 w-4 text-red-500" />
-                        <span className="text-sm">Cancelled</span>
-                      </div>
-                      <span className="font-medium">{kpis.cancelledOrders}</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                <DonutChart
+                  title="Order Status"
+                  description="Current status breakdown"
+                  data={[
+                    { name: 'Dispatched', value: kpis.dispatchedOrders },
+                    { name: 'Pending', value: kpis.pendingOrders },
+                    { name: 'Partial', value: kpis.partialOrders },
+                    { name: 'Cancelled', value: kpis.cancelledOrders },
+                  ].filter(d => d.value > 0)}
+                  height={280}
+                  innerRadius={50}
+                  outerRadius={90}
+                />
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Stock Availability</CardTitle>
-                    <CardDescription>Current stock status</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        <span className="text-sm">Available</span>
-                      </div>
-                      <span className="font-medium">{kpis.stockAvailable}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <XCircle className="h-4 w-4 text-red-500" />
-                        <span className="text-sm">Not Available</span>
-                      </div>
-                      <span className="font-medium">{kpis.stockNotAvailable}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-amber-500" />
-                        <span className="text-sm">Backordered</span>
-                      </div>
-                      <span className="font-medium">{kpis.stockBackordered}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-orange-500" />
-                        <span className="text-sm">Partial</span>
-                      </div>
-                      <span className="font-medium">{kpis.stockPartial}</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                <DonutChart
+                  title="Stock Availability"
+                  description="Current stock status"
+                  data={[
+                    { name: 'Available', value: kpis.stockAvailable },
+                    { name: 'Not Available', value: kpis.stockNotAvailable },
+                    { name: 'Backordered', value: kpis.stockBackordered },
+                    { name: 'Partial', value: kpis.stockPartial },
+                  ].filter(d => d.value > 0)}
+                  height={280}
+                  innerRadius={50}
+                  outerRadius={90}
+                />
               </div>
 
               {/* Rates */}
               <div className="grid gap-4 md:grid-cols-3">
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium">Fill Rate</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-xl font-bold text-green-600">{kpis.fillRate.toFixed(1)}%</div>
+                    <div className="text-xl font-bold text-green-600 animate-count-up">{kpis.fillRate.toFixed(1)}%</div>
                     <Progress value={kpis.fillRate} className="mt-2" />
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium">Stock Out Rate</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className={`text-xl font-bold ${kpis.stockOutRate > 10 ? 'text-red-600' : 'text-green-600'}`}>
+                    <div className={`text-xl font-bold animate-count-up ${kpis.stockOutRate > 10 ? 'text-red-600' : 'text-green-600'}`}>
                       {kpis.stockOutRate.toFixed(1)}%
                     </div>
                     <Progress value={kpis.stockOutRate} className="mt-2" />
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium">Backorder Rate</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className={`text-xl font-bold ${kpis.backorderRate > 5 ? 'text-amber-600' : 'text-green-600'}`}>
+                    <div className={`text-xl font-bold animate-count-up ${kpis.backorderRate > 5 ? 'text-amber-600' : 'text-green-600'}`}>
                       {kpis.backorderRate.toFixed(1)}%
                     </div>
                     <Progress value={kpis.backorderRate} className="mt-2" />
@@ -1331,55 +1356,23 @@ const KPIDashboard = () => {
 
               {/* Business Line Comparison - Always visible when viewing all business lines */}
               {selectedBusinessLine === 'all' && Object.keys(kpis.ordersByBusinessLine).length > 1 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5" />
-                      Business Line Performance
-                    </CardTitle>
-                    <CardDescription>Order fulfillment metrics by business line</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {Object.entries(kpis.ordersByBusinessLine)
-                        .sort(([,a], [,b]) => b.total - a.total)
-                        .map(([line, metrics]) => {
-                          const fulfillmentRate = metrics.total > 0 ? (metrics.fulfilled / metrics.total) * 100 : 0;
-                          return (
-                            <div key={line} className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{line}</span>
-                                  <Badge variant="outline">{metrics.total} orders</Badge>
-                                </div>
-                                <div className="flex items-center gap-4 text-sm">
-                                  <div className="flex items-center gap-1">
-                                    <CheckCircle2 className="h-3 w-3 text-green-500" />
-                                    <span>{metrics.dispatched}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3 text-amber-500" />
-                                    <span>{metrics.pending}</span>
-                                  </div>
-                                  <span className={`font-medium ${fulfillmentRate < 70 ? 'text-red-600' : fulfillmentRate < 85 ? 'text-amber-600' : 'text-green-600'}`}>
-                                    {fulfillmentRate.toFixed(1)}%
-                                  </span>
-                                </div>
-                              </div>
-                              <Progress
-                                value={fulfillmentRate}
-                                className={`h-2 ${
-                                  fulfillmentRate < 70 ? '[&>div]:bg-red-500' :
-                                  fulfillmentRate < 85 ? '[&>div]:bg-amber-500' :
-                                  '[&>div]:bg-green-500'
-                                }`}
-                              />
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </CardContent>
-                </Card>
+                <MultiBarChart
+                  title="Business Line Performance"
+                  description="Order fulfillment metrics by business line"
+                  data={Object.entries(kpis.ordersByBusinessLine)
+                    .sort(([,a], [,b]) => b.total - a.total)
+                    .map(([line, metrics]) => ({
+                      name: line,
+                      Dispatched: metrics.dispatched,
+                      Pending: metrics.pending,
+                      Total: metrics.total,
+                    }))}
+                  bars={[
+                    { dataKey: 'Dispatched', name: 'Dispatched', color: '#10b981' },
+                    { dataKey: 'Pending', name: 'Pending', color: '#f59e0b' },
+                  ]}
+                  height={300}
+                />
               )}
             </TabsContent>
 
