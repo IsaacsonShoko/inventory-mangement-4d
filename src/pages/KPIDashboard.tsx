@@ -1378,143 +1378,114 @@ const KPIDashboard = () => {
 
             {/* Pipeline Tab */}
             <TabsContent value="pipeline" className="space-y-6">
-              {/* Queue Depths */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5" />
-                      Picking Queue
-                    </CardTitle>
-                    <CardDescription>Orders waiting to be picked</CardDescription>
+              {/* Queue Metrics */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card className="card-hover">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Picking Queue</CardTitle>
+                    <div className="p-2 bg-blue-500/10 rounded-lg">
+                      <Package className="h-4 w-4 text-blue-500" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold">{kpis.pickingQueueDepth}</div>
-                    <div className="mt-4 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Pending Pick</span>
-                        <span className="font-medium">{kpis.pendingPick}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Partially Picked</span>
-                        <span className="font-medium">{kpis.partiallyPicked}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Not Picked</span>
-                        <span className="font-medium">{kpis.notPicked}</span>
-                      </div>
-                    </div>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.pickingQueueDepth}</div>
+                    <p className="text-xs text-muted-foreground">Awaiting pick</p>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Truck className="h-5 w-5" />
-                      Dispatch Queue
-                    </CardTitle>
-                    <CardDescription>Orders ready for dispatch</CardDescription>
+                <Card className="card-hover">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Dispatch Queue</CardTitle>
+                    <div className="p-2 bg-purple-500/10 rounded-lg">
+                      <Truck className="h-4 w-4 text-purple-500" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold">{kpis.dispatchQueueDepth}</div>
-                    <div className="mt-4">
-                      <Link to="/dispatch">
-                        <Button variant="outline" size="sm" className="w-full">
-                          View Dispatch Queue
-                        </Button>
-                      </Link>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.dispatchQueueDepth}</div>
+                    <p className="text-xs text-muted-foreground">Ready to ship</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="card-hover">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">SLA Breaches</CardTitle>
+                    <div className={`p-2 rounded-lg ${kpis.slaBreaches > 0 ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
+                      <AlertTriangle className={`h-4 w-4 ${kpis.slaBreaches > 0 ? 'text-red-500' : 'text-green-500'}`} />
                     </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold animate-count-up ${kpis.slaBreaches > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {kpis.slaBreaches}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Past deadline</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="card-hover">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">SLA Rate</CardTitle>
+                    <div className="p-2 bg-green-500/10 rounded-lg">
+                      <Target className="h-4 w-4 text-green-500" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.slaComplianceRate.toFixed(1)}%</div>
+                    <Progress value={kpis.slaComplianceRate} className="mt-2" />
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Aging Analysis */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-amber-500" />
-                    Order Aging (Pending Orders)
-                  </CardTitle>
-                  <CardDescription>
-                    Orders not yet dispatched, grouped by age
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-4">
-                    {['< 24h', '24-48h', '48-72h', '> 72h'].map((bucket) => (
-                      <div key={bucket} className="text-center p-4 rounded-lg bg-muted">
-                        <div className={`text-2xl font-bold ${
-                          bucket === '> 72h' ? 'text-red-500' :
-                          bucket === '48-72h' ? 'text-orange-500' :
-                          bucket === '24-48h' ? 'text-amber-500' :
-                          'text-green-500'
-                        }`}>
-                          {kpis.agingBuckets[bucket] || 0}
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">{bucket}</div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Aging Analysis Chart */}
+              <SimpleBarChart
+                title="Order Aging Analysis"
+                description="Pending orders grouped by time since ordered"
+                data={['< 24h', '24-48h', '48-72h', '> 72h'].map((bucket, index) => ({
+                  name: bucket,
+                  value: kpis.agingBuckets[bucket] || 0,
+                }))}
+                color={CHART_PALETTE[0]}
+                height={280}
+              />
 
-              {/* SLA Alerts */}
-              {kpis.slaBreaches > 0 && (
-                <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-red-600">
-                      <AlertTriangle className="h-5 w-5" />
-                      SLA Breaches
-                    </CardTitle>
-                    <CardDescription>
-                      Orders past their SLA deadline
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{kpis.slaBreaches} orders</div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      SLA: Orders before 12 PM same day, after 12 PM by 3 PM next day
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Pick Status Breakdown */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <DonutChart
+                  title="Pick Status Breakdown"
+                  description="Current picking queue composition"
+                  data={[
+                    { name: 'Picked', value: kpis.pickedOrders },
+                    { name: 'Pending', value: kpis.pendingPick },
+                    { name: 'Partial', value: kpis.partiallyPicked },
+                    { name: 'Not Picked', value: kpis.notPicked },
+                  ].filter(d => d.value > 0)}
+                  height={280}
+                  innerRadius={50}
+                  outerRadius={90}
+                />
 
-              {/* Business Line Pipeline Analysis */}
-              {selectedBusinessLine === 'all' && Object.keys(kpis.ordersByBusinessLine).length > 1 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Activity className="h-5 w-5" />
-                      Business Line Pipeline Status
-                    </CardTitle>
-                    <CardDescription>Pending orders by business line</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {Object.entries(kpis.ordersByBusinessLine)
-                        .filter(([, metrics]) => metrics.pending > 0)
-                        .sort(([,a], [,b]) => b.pending - a.pending)
-                        .map(([line, metrics]) => (
-                          <div key={line} className="p-3 rounded-lg border bg-muted/50">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium text-sm">{line}</span>
-                              <Badge variant="outline">{metrics.pending} pending</Badge>
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span>Total: {metrics.total}</span>
-                              <span>Dispatched: {metrics.dispatched}</span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                {/* Business Line Pipeline */}
+                {selectedBusinessLine === 'all' && Object.keys(kpis.ordersByBusinessLine).length > 1 && (
+                  <HorizontalBarChart
+                    title="Pipeline by Business Line"
+                    description="Pending orders by business line"
+                    data={Object.entries(kpis.ordersByBusinessLine)
+                      .filter(([, metrics]) => metrics.pending > 0)
+                      .sort(([,a], [,b]) => b.pending - a.pending)
+                      .slice(0, 8)
+                      .map(([line, metrics]) => ({
+                        name: line,
+                        value: metrics.pending,
+                      }))}
+                    color={CHART_PALETTE[1]}
+                    height={280}
+                  />
+                )}
+              </div>
             </TabsContent>
 
             {/* Installations Tab */}
             <TabsContent value="installations" className="space-y-6">
-              <Card>
+              <Card className="card-hover">
                 <CardContent className="flex flex-col items-center justify-center py-16 text-center space-y-4">
                   <div className="rounded-full bg-muted p-4">
                     <Wrench className="h-8 w-8 text-muted-foreground" />
@@ -1529,112 +1500,167 @@ const KPIDashboard = () => {
 
             {/* Performance Tab */}
             <TabsContent value="performance" className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Pick Status</CardTitle>
-                    <CardDescription>Order picking performance</CardDescription>
+              {/* Performance Metrics */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card className="card-hover">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Dispatched</CardTitle>
+                    <div className="p-2 bg-green-500/10 rounded-lg">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Picked</span>
-                      <div className="flex items-center gap-2">
-                        <Progress value={(kpis.pickedOrders / kpis.totalOrders) * 100} className="w-24" />
-                        <span className="font-medium w-12 text-right">{kpis.pickedOrders}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Pending</span>
-                      <div className="flex items-center gap-2">
-                        <Progress value={(kpis.pendingPick / kpis.totalOrders) * 100} className="w-24" />
-                        <span className="font-medium w-12 text-right">{kpis.pendingPick}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">Partially Picked</span>
-                      <div className="flex items-center gap-2">
-                        <Progress value={(kpis.partiallyPicked / kpis.totalOrders) * 100} className="w-24" />
-                        <span className="font-medium w-12 text-right">{kpis.partiallyPicked}</span>
-                      </div>
-                    </div>
+                  <CardContent>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.dispatchedOrders}</div>
+                    <p className="text-xs text-muted-foreground">{kpis.totalUnitsDispatched.toLocaleString()} units</p>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Dispatch Performance</CardTitle>
-                    <CardDescription>Dispatch completion metrics</CardDescription>
+                <Card className="card-hover">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pick Completion</CardTitle>
+                    <div className="p-2 bg-blue-500/10 rounded-lg">
+                      <Package className="h-4 w-4 text-blue-500" />
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-sm">Total Dispatched</span>
-                      <span className="font-medium">{kpis.dispatchedOrders}</span>
+                  <CardContent>
+                    <div className="text-2xl font-bold animate-count-up">
+                      {kpis.totalOrders > 0 ? ((kpis.pickedOrders / kpis.totalOrders) * 100).toFixed(1) : 0}%
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Units Dispatched</span>
-                      <span className="font-medium">{kpis.totalUnitsDispatched}</span>
+                    <Progress value={kpis.totalOrders > 0 ? (kpis.pickedOrders / kpis.totalOrders) * 100 : 0} className="mt-2" />
+                  </CardContent>
+                </Card>
+
+                <Card className="card-hover">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Partial Rate</CardTitle>
+                    <div className={`p-2 rounded-lg ${kpis.partialFulfillmentRate > 10 ? 'bg-amber-500/10' : 'bg-green-500/10'}`}>
+                      <AlertCircle className={`h-4 w-4 ${kpis.partialFulfillmentRate > 10 ? 'text-amber-500' : 'text-green-500'}`} />
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Partial Fulfillment Rate</span>
-                      <span className={`font-medium ${kpis.partialFulfillmentRate > 10 ? 'text-amber-600' : ''}`}>
-                        {kpis.partialFulfillmentRate.toFixed(1)}%
-                      </span>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold animate-count-up ${kpis.partialFulfillmentRate > 10 ? 'text-amber-600' : ''}`}>
+                      {kpis.partialFulfillmentRate.toFixed(1)}%
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Cancellation Rate</span>
-                      <span className={`font-medium ${kpis.cancellationRate > 5 ? 'text-red-600' : ''}`}>
-                        {kpis.cancellationRate.toFixed(1)}%
-                      </span>
+                    <p className="text-xs text-muted-foreground">{kpis.partialOrders} orders</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="card-hover">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Cancellation Rate</CardTitle>
+                    <div className={`p-2 rounded-lg ${kpis.cancellationRate > 5 ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
+                      <XCircle className={`h-4 w-4 ${kpis.cancellationRate > 5 ? 'text-red-500' : 'text-green-500'}`} />
                     </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold animate-count-up ${kpis.cancellationRate > 5 ? 'text-red-600' : ''}`}>
+                      {kpis.cancellationRate.toFixed(1)}%
+                    </div>
+                    <p className="text-xs text-muted-foreground">{kpis.cancelledOrders} cancelled</p>
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Performance Charts */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <DonutChart
+                  title="Pick Status Distribution"
+                  description="Order picking performance breakdown"
+                  data={[
+                    { name: 'Picked', value: kpis.pickedOrders },
+                    { name: 'Pending', value: kpis.pendingPick },
+                    { name: 'Partial', value: kpis.partiallyPicked },
+                    { name: 'Not Picked', value: kpis.notPicked },
+                  ].filter(d => d.value > 0)}
+                  height={300}
+                  innerRadius={55}
+                  outerRadius={95}
+                />
+
+                <DonutChart
+                  title="Dispatch Status Distribution"
+                  description="Order dispatch completion metrics"
+                  data={[
+                    { name: 'Dispatched', value: kpis.dispatchedOrders },
+                    { name: 'Pending', value: kpis.pendingOrders },
+                    { name: 'Partial', value: kpis.partialOrders },
+                    { name: 'Cancelled', value: kpis.cancelledOrders },
+                  ].filter(d => d.value > 0)}
+                  height={300}
+                  innerRadius={55}
+                  outerRadius={95}
+                />
+              </div>
+
+              {/* Warehouse Performance */}
+              {Object.keys(kpis.ordersByWarehouse).length > 0 && (
+                <SimpleBarChart
+                  title="Warehouse Performance"
+                  description="Orders fulfilled by warehouse"
+                  data={Object.entries(kpis.ordersByWarehouse)
+                    .sort(([,a], [,b]) => b - a)
+                    .map(([warehouse, count]) => ({
+                      name: warehouse,
+                      value: count,
+                    }))}
+                  color={CHART_PALETTE[2]}
+                  height={280}
+                />
+              )}
             </TabsContent>
 
             {/* Repairs Tab */}
             <TabsContent value="repairs" className="space-y-6">
               {/* Repair Summary */}
               <div className="grid gap-4 md:grid-cols-4">
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Faults</CardTitle>
-                    <Wrench className="h-4 w-4 text-muted-foreground" />
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Wrench className="h-4 w-4 text-primary" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{kpis.totalFaults}</div>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.totalFaults}</div>
                     <p className="text-xs text-muted-foreground">All repair tickets</p>
                   </CardContent>
                 </Card>
 
-                <Card className={kpis.activeFaults > 0 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : ''}>
+                <Card className={`card-hover ${kpis.activeFaults > 0 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : ''}`}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Active Faults</CardTitle>
-                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                    <div className="p-2 bg-orange-500/10 rounded-lg">
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-orange-600">{kpis.activeFaults}</div>
+                    <div className="text-2xl font-bold text-orange-600 animate-count-up">{kpis.activeFaults}</div>
                     <p className="text-xs text-muted-foreground">Needs attention</p>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <div className="p-2 bg-green-500/10 rounded-lg">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{kpis.resolvedFaults}</div>
+                    <div className="text-2xl font-bold text-green-600 animate-count-up">{kpis.resolvedFaults}</div>
                     <p className="text-xs text-muted-foreground">Completed repairs</p>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Resolution Rate</CardTitle>
-                    <Target className="h-4 w-4 text-muted-foreground" />
+                    <div className={`p-2 rounded-lg ${kpis.totalFaults > 0 && (kpis.resolvedFaults / kpis.totalFaults * 100) < 70 ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
+                      <Target className={`h-4 w-4 ${kpis.totalFaults > 0 && (kpis.resolvedFaults / kpis.totalFaults * 100) < 70 ? 'text-red-500' : 'text-green-500'}`} />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className={`text-2xl font-bold ${kpis.totalFaults > 0 && (kpis.resolvedFaults / kpis.totalFaults * 100) < 70 ? 'text-red-600' : 'text-green-600'}`}>
+                    <div className={`text-2xl font-bold animate-count-up ${kpis.totalFaults > 0 && (kpis.resolvedFaults / kpis.totalFaults * 100) < 70 ? 'text-red-600' : 'text-green-600'}`}>
                       {kpis.totalFaults > 0 ? ((kpis.resolvedFaults / kpis.totalFaults) * 100).toFixed(1) : 0}%
                     </div>
                     <Progress value={kpis.totalFaults > 0 ? (kpis.resolvedFaults / kpis.totalFaults) * 100 : 0} className="mt-2" />
@@ -1642,58 +1668,39 @@ const KPIDashboard = () => {
                 </Card>
               </div>
 
-              {/* Fault Categories Visualization */}
+              {/* Fault Categories Charts */}
               {Object.keys(kpis.faultsByCategory).length > 0 ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-orange-600">
-                      <Wrench className="h-5 w-5" />
-                      Fault Categories - Resource Planning
-                    </CardTitle>
-                    <CardDescription>
-                      Distribution of device faults by category. Use this to allocate repair resources and identify training needs for support technicians.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.entries(kpis.faultsByCategory)
-                        .sort(([,a], [,b]) => b - a)
-                        .map(([category, count]) => {
-                          const percentage = kpis.totalFaults > 0 ? (count / kpis.totalFaults) * 100 : 0;
-                          return (
-                            <div key={category} className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Wrench className={`h-4 w-4 ${
-                                    percentage > 20 ? 'text-red-500' :
-                                    percentage > 10 ? 'text-orange-500' :
-                                    'text-yellow-500'
-                                  }`} />
-                                  <span className="text-sm font-medium">{category}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</span>
-                                  <Badge variant={percentage > 20 ? 'destructive' : percentage > 10 ? 'default' : 'secondary'}>
-                                    {count}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <Progress
-                                value={percentage}
-                                className={`h-2 ${
-                                  percentage > 20 ? '[&>div]:bg-red-500' :
-                                  percentage > 10 ? '[&>div]:bg-orange-500' :
-                                  '[&>div]:bg-yellow-500'
-                                }`}
-                              />
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <DonutChart
+                    title="Fault Categories Distribution"
+                    description="Breakdown of device faults by category"
+                    data={Object.entries(kpis.faultsByCategory)
+                      .sort(([,a], [,b]) => b - a)
+                      .map(([category, count]) => ({
+                        name: category,
+                        value: count,
+                      }))}
+                    height={320}
+                    innerRadius={55}
+                    outerRadius={100}
+                  />
+
+                  <HorizontalBarChart
+                    title="Fault Categories - Resource Planning"
+                    description="Allocate repair resources based on fault frequency"
+                    data={Object.entries(kpis.faultsByCategory)
+                      .sort(([,a], [,b]) => b - a)
+                      .slice(0, 8)
+                      .map(([category, count]) => ({
+                        name: category,
+                        value: count,
+                      }))}
+                    color={CHART_PALETTE[5]}
+                    height={320}
+                  />
+                </div>
               ) : (
-                <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+                <Card className="border-green-200 bg-green-50 dark:bg-green-950/20 card-hover">
                   <CardContent className="pt-6 text-center">
                     <ThumbsUp className="h-12 w-12 mx-auto text-green-500 mb-4" />
                     <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">No Repair Tickets</h3>
@@ -1714,7 +1721,7 @@ const KPIDashboard = () => {
                       const percentage = kpis.totalFaults > 0 ? (count / kpis.totalFaults) * 100 : 0;
                       const priority = index === 0 ? 'High' : index === 1 ? 'Medium' : 'Standard';
                       return (
-                        <Card key={category} className={`${
+                        <Card key={category} className={`card-hover ${
                           index === 0 ? 'border-red-200 bg-red-50 dark:bg-red-950/20' :
                           index === 1 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' :
                           'border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20'
@@ -1728,14 +1735,9 @@ const KPIDashboard = () => {
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <div className="text-3xl font-bold mb-2">{count}</div>
+                            <div className="text-3xl font-bold mb-2 animate-count-up">{count}</div>
                             <p className="text-xs text-muted-foreground mb-2">
                               {percentage.toFixed(1)}% of all faults
-                            </p>
-                            <p className="text-xs font-medium">
-                              {index === 0 && '⚠️ Allocate specialized repair resources'}
-                              {index === 1 && '📊 Monitor and provide training'}
-                              {index === 2 && '✓ Standard repair procedures'}
                             </p>
                           </CardContent>
                         </Card>
@@ -1743,70 +1745,60 @@ const KPIDashboard = () => {
                     })}
                 </div>
               )}
-
-              {/* Note: Business line breakdown for repairs requires device_registry join */}
-              {selectedBusinessLine === 'all' && Object.keys(kpis.faultsByBusinessLine).length > 0 && (
-                <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-sm">
-                      <Activity className="h-4 w-4" />
-                      Business Line Fault Analysis
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-xs text-muted-foreground">
-                      Note: Repair tickets are currently tracked system-wide. To enable business line-specific fault analysis,
-                      device_registry.item_category must be joined via device_id. This enhancement is pending database query optimization.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
             </TabsContent>
 
             {/* Devices Tab */}
             <TabsContent value="devices" className="space-y-6">
               {/* Device Health Summary */}
               <div className="grid gap-4 md:grid-cols-4">
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Devices</CardTitle>
-                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Package className="h-4 w-4 text-primary" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{kpis.totalDevices}</div>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.totalDevices}</div>
                     <p className="text-xs text-muted-foreground">In inventory</p>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Functional</CardTitle>
-                    <ThumbsUp className="h-4 w-4 text-green-500" />
+                    <div className="p-2 bg-green-500/10 rounded-lg">
+                      <ThumbsUp className="h-4 w-4 text-green-500" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{kpis.functionalDevices}</div>
+                    <div className="text-2xl font-bold text-green-600 animate-count-up">{kpis.functionalDevices}</div>
                     <p className="text-xs text-muted-foreground">Ready for use</p>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Faulty</CardTitle>
-                    <Wrench className="h-4 w-4 text-red-500" />
+                    <div className="p-2 bg-red-500/10 rounded-lg">
+                      <Wrench className="h-4 w-4 text-red-500" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{kpis.faultyDevices}</div>
+                    <div className="text-2xl font-bold text-red-600 animate-count-up">{kpis.faultyDevices}</div>
                     <p className="text-xs text-muted-foreground">Need attention</p>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Health Rate</CardTitle>
-                    <Target className="h-4 w-4 text-muted-foreground" />
+                    <div className={`p-2 rounded-lg ${kpis.deviceHealthRate < 80 ? 'bg-red-500/10' : kpis.deviceHealthRate < 95 ? 'bg-amber-500/10' : 'bg-green-500/10'}`}>
+                      <Target className={`h-4 w-4 ${kpis.deviceHealthRate < 80 ? 'text-red-500' : kpis.deviceHealthRate < 95 ? 'text-amber-500' : 'text-green-500'}`} />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className={`text-2xl font-bold ${kpis.deviceHealthRate < 80 ? 'text-red-600' : kpis.deviceHealthRate < 95 ? 'text-amber-600' : 'text-green-600'}`}>
+                    <div className={`text-2xl font-bold animate-count-up ${kpis.deviceHealthRate < 80 ? 'text-red-600' : kpis.deviceHealthRate < 95 ? 'text-amber-600' : 'text-green-600'}`}>
                       {kpis.deviceHealthRate.toFixed(1)}%
                     </div>
                     <Progress value={kpis.deviceHealthRate} className="mt-2" />
@@ -1814,105 +1806,56 @@ const KPIDashboard = () => {
                 </Card>
               </div>
 
-              {/* Device Status & Condition Breakdown */}
+              {/* Device Status & Condition Charts */}
               <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5" />
-                      Device Status
-                    </CardTitle>
-                    <CardDescription>Breakdown by inventory status</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.entries(kpis.devicesByStatus)
-                        .sort(([,a], [,b]) => b - a)
-                        .map(([status, count]) => (
-                          <div key={status} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {status === 'In Stock' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-                              {status === 'Faulty' && <XCircle className="h-4 w-4 text-red-500" />}
-                              {status === 'Allocated' && <Clock className="h-4 w-4 text-blue-500" />}
-                              {status === 'Dispatched' && <Truck className="h-4 w-4 text-purple-500" />}
-                              {status === 'Missing' && <AlertTriangle className="h-4 w-4 text-orange-500" />}
-                              {status === 'Returned' && <RefreshCcw className="h-4 w-4 text-gray-500" />}
-                              {!['In Stock', 'Faulty', 'Allocated', 'Dispatched', 'Missing', 'Returned'].includes(status) &&
-                                <Package className="h-4 w-4 text-muted-foreground" />}
-                              <span className="text-sm">{status}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Progress value={(count / kpis.totalDevices) * 100} className="w-20" />
-                              <span className="font-medium w-8 text-right">{count}</span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                <DonutChart
+                  title="Device Status Distribution"
+                  description="Breakdown by inventory status"
+                  data={Object.entries(kpis.devicesByStatus)
+                    .sort(([,a], [,b]) => b - a)
+                    .map(([status, count]) => ({
+                      name: status,
+                      value: count,
+                    }))}
+                  height={320}
+                  innerRadius={55}
+                  outerRadius={100}
+                />
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5" />
-                      Overall Condition
-                    </CardTitle>
-                    <CardDescription>Breakdown by physical condition</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.entries(kpis.devicesByCondition)
-                        .sort(([,a], [,b]) => b - a)
-                        .map(([condition, count]) => (
-                          <div key={condition} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {condition === 'Good' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-                              {condition === 'Fair' && <AlertCircle className="h-4 w-4 text-yellow-500" />}
-                              {condition === 'Poor' && <AlertTriangle className="h-4 w-4 text-orange-500" />}
-                              {condition === 'Damaged' && <XCircle className="h-4 w-4 text-red-500" />}
-                              {condition === 'Faulty' && <Wrench className="h-4 w-4 text-red-500" />}
-                              {!['Good', 'Fair', 'Poor', 'Damaged', 'Faulty'].includes(condition) &&
-                                <Package className="h-4 w-4 text-muted-foreground" />}
-                              <span className="text-sm">{condition}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Progress value={(count / kpis.totalDevices) * 100} className="w-20" />
-                              <span className="font-medium w-8 text-right">{count}</span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                <DonutChart
+                  title="Device Condition Distribution"
+                  description="Breakdown by physical condition"
+                  data={Object.entries(kpis.devicesByCondition)
+                    .sort(([,a], [,b]) => b - a)
+                    .map(([condition, count]) => ({
+                      name: condition,
+                      value: count,
+                    }))}
+                  height={320}
+                  innerRadius={55}
+                  outerRadius={100}
+                />
               </div>
 
-              {/* Fault Reasons Breakdown */}
+              {/* Fault Reasons Chart */}
               {Object.keys(kpis.faultReasons).length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-red-600">
-                      <Wrench className="h-5 w-5" />
-                      Fault Reasons
-                    </CardTitle>
-                    <CardDescription>Breakdown of issues affecting devices</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {Object.entries(kpis.faultReasons)
-                        .sort(([,a], [,b]) => b - a)
-                        .map(([reason, count]) => (
-                          <div key={reason} className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
-                            <span className="text-sm font-medium truncate mr-2">{reason}</span>
-                            <Badge variant="destructive">{count}</Badge>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                <HorizontalBarChart
+                  title="Fault Reasons Analysis"
+                  description="Breakdown of issues affecting devices"
+                  data={Object.entries(kpis.faultReasons)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 10)
+                    .map(([reason, count]) => ({
+                      name: reason,
+                      value: count,
+                    }))}
+                  color={CHART_PALETTE[3]}
+                  height={320}
+                />
               )}
 
               {Object.keys(kpis.faultReasons).length === 0 && kpis.faultyDevices === 0 && (
-                <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+                <Card className="border-green-200 bg-green-50 dark:bg-green-950/20 card-hover">
                   <CardContent className="pt-6 text-center">
                     <ThumbsUp className="h-12 w-12 mx-auto text-green-500 mb-4" />
                     <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">All Devices Functional</h3>
@@ -1921,57 +1864,24 @@ const KPIDashboard = () => {
                 </Card>
               )}
 
-              {/* Business Line Stock Distribution */}
+              {/* Business Line Stock Distribution Chart */}
               {selectedBusinessLine === 'all' && Object.keys(kpis.stockByBusinessLine).length > 1 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5" />
-                      Stock by Business Line
-                    </CardTitle>
-                    <CardDescription>Device inventory distribution and health by business line</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {Object.entries(kpis.stockByBusinessLine)
-                        .sort(([,a], [,b]) => b.total - a.total)
-                        .map(([line, metrics]) => {
-                          const healthRate = metrics.total > 0 ? (metrics.functional / metrics.total) * 100 : 100;
-                          return (
-                            <div key={line} className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{line}</span>
-                                  <Badge variant="outline">{metrics.total} devices</Badge>
-                                </div>
-                                <div className="flex items-center gap-4 text-sm">
-                                  <div className="flex items-center gap-1">
-                                    <ThumbsUp className="h-3 w-3 text-green-500" />
-                                    <span>{metrics.functional}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Wrench className="h-3 w-3 text-red-500" />
-                                    <span>{metrics.faulty}</span>
-                                  </div>
-                                  <span className={`font-medium ${healthRate < 80 ? 'text-red-600' : healthRate < 95 ? 'text-amber-600' : 'text-green-600'}`}>
-                                    {healthRate.toFixed(1)}%
-                                  </span>
-                                </div>
-                              </div>
-                              <Progress
-                                value={healthRate}
-                                className={`h-2 ${
-                                  healthRate < 80 ? '[&>div]:bg-red-500' :
-                                  healthRate < 95 ? '[&>div]:bg-amber-500' :
-                                  '[&>div]:bg-green-500'
-                                }`}
-                              />
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </CardContent>
-                </Card>
+                <MultiBarChart
+                  title="Stock by Business Line"
+                  description="Device inventory distribution and health by business line"
+                  data={Object.entries(kpis.stockByBusinessLine)
+                    .sort(([,a], [,b]) => b.total - a.total)
+                    .map(([line, metrics]) => ({
+                      name: line,
+                      Functional: metrics.functional,
+                      Faulty: metrics.faulty,
+                    }))}
+                  bars={[
+                    { dataKey: 'Functional', name: 'Functional', color: '#10b981' },
+                    { dataKey: 'Faulty', name: 'Faulty', color: '#ef4444' },
+                  ]}
+                  height={320}
+                />
               )}
             </TabsContent>
 
@@ -1979,35 +1889,35 @@ const KPIDashboard = () => {
             <TabsContent value="alerts" className="space-y-6">
               {/* Alert Summary Cards */}
               <div className="grid gap-4 md:grid-cols-4">
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Alerts</CardTitle>
                     <Bell className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{kpis.alertCounts.total}</div>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.alertCounts.total}</div>
                     <p className="text-xs text-muted-foreground">Items need attention</p>
                   </CardContent>
                 </Card>
 
-                <Card className={kpis.alertCounts.outOfStock > 0 ? 'border-red-200 bg-red-50 dark:bg-red-950/20' : ''}>
+                <Card className={`card-hover ${kpis.alertCounts.outOfStock > 0 ? 'border-red-200 bg-red-50 dark:bg-red-950/20' : ''}`}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
                     <PackageX className="h-4 w-4 text-red-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{kpis.alertCounts.outOfStock}</div>
+                    <div className="text-2xl font-bold text-red-600 animate-count-up">{kpis.alertCounts.outOfStock}</div>
                     <p className="text-xs text-muted-foreground">Quantity = 0</p>
                   </CardContent>
                 </Card>
 
-                <Card className={kpis.alertCounts.critical > 0 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : ''}>
+                <Card className={`card-hover ${kpis.alertCounts.critical > 0 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : ''}`}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Critical</CardTitle>
                     <AlertTriangle className="h-4 w-4 text-orange-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-orange-600">{kpis.alertCounts.critical}</div>
+                    <div className="text-2xl font-bold text-orange-600 animate-count-up">{kpis.alertCounts.critical}</div>
                     <p className="text-xs text-muted-foreground">
                       {kpis.stockAlerts.some(a => a.alertMethod === 'velocity' && a.severity === 'critical')
                         ? '≤3 days stock'
@@ -2016,13 +1926,13 @@ const KPIDashboard = () => {
                   </CardContent>
                 </Card>
 
-                <Card className={kpis.alertCounts.warning > 0 ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20' : ''}>
+                <Card className={`card-hover ${kpis.alertCounts.warning > 0 ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20' : ''}`}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Warning</CardTitle>
                     <AlertCircle className="h-4 w-4 text-yellow-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-yellow-600">{kpis.alertCounts.warning}</div>
+                    <div className="text-2xl font-bold text-yellow-600 animate-count-up">{kpis.alertCounts.warning}</div>
                     <p className="text-xs text-muted-foreground">
                       {kpis.stockAlerts.some(a => a.alertMethod === 'velocity' && a.severity === 'warning')
                         ? '≤7 days stock'
@@ -2031,6 +1941,22 @@ const KPIDashboard = () => {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Alert Severity Distribution Chart */}
+              {kpis.alertCounts.total > 0 && (
+                <DonutChart
+                  title="Alert Severity Distribution"
+                  description="Breakdown of alerts by severity level"
+                  data={[
+                    { name: 'Out of Stock', value: kpis.alertCounts.outOfStock, fill: '#ef4444' },
+                    { name: 'Critical', value: kpis.alertCounts.critical, fill: '#f97316' },
+                    { name: 'Warning', value: kpis.alertCounts.warning, fill: '#eab308' },
+                  ].filter(d => d.value > 0)}
+                  height={280}
+                  innerRadius={50}
+                  outerRadius={90}
+                />
+              )}
 
               {/* Alert List */}
               {kpis.stockAlerts.length > 0 ? (
@@ -2150,60 +2076,46 @@ const KPIDashboard = () => {
                 </Card>
               )}
 
-              {/* Alerts by Category */}
+              {/* Alerts by Category & Warehouse Charts */}
               {kpis.stockAlerts.length > 0 && (
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Package className="h-5 w-5" />
-                        Alerts by Category
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {Object.entries(
-                          kpis.stockAlerts.reduce((acc, alert) => {
-                            acc[alert.item_category] = (acc[alert.item_category] || 0) + 1;
-                            return acc;
-                          }, {} as Record<string, number>)
-                        )
-                          .sort(([, a], [, b]) => b - a)
-                          .map(([category, count]) => (
-                            <div key={category} className="flex items-center justify-between">
-                              <span className="text-sm truncate">{category}</span>
-                              <Badge variant="secondary">{count}</Badge>
-                            </div>
-                          ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <HorizontalBarChart
+                    title="Alerts by Category"
+                    description="Item categories with stock alerts"
+                    data={Object.entries(
+                      kpis.stockAlerts.reduce((acc, alert) => {
+                        acc[alert.item_category] = (acc[alert.item_category] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)
+                    )
+                      .sort(([, a], [, b]) => b - a)
+                      .slice(0, 8)
+                      .map(([category, count]) => ({
+                        name: category,
+                        value: count,
+                      }))}
+                    color={CHART_PALETTE[0]}
+                    height={280}
+                  />
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        Alerts by Warehouse
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {Object.entries(
-                          kpis.stockAlerts.reduce((acc, alert) => {
-                            acc[alert.warehouse] = (acc[alert.warehouse] || 0) + 1;
-                            return acc;
-                          }, {} as Record<string, number>)
-                        )
-                          .sort(([, a], [, b]) => b - a)
-                          .map(([warehouse, count]) => (
-                            <div key={warehouse} className="flex items-center justify-between">
-                              <span className="text-sm truncate">{warehouse}</span>
-                              <Badge variant="secondary">{count}</Badge>
-                            </div>
-                          ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <HorizontalBarChart
+                    title="Alerts by Warehouse"
+                    description="Warehouses with stock alerts"
+                    data={Object.entries(
+                      kpis.stockAlerts.reduce((acc, alert) => {
+                        acc[alert.warehouse] = (acc[alert.warehouse] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)
+                    )
+                      .sort(([, a], [, b]) => b - a)
+                      .slice(0, 8)
+                      .map(([warehouse, count]) => ({
+                        name: warehouse,
+                        value: count,
+                      }))}
+                    color={CHART_PALETTE[1]}
+                    height={280}
+                  />
                 </div>
               )}
             </TabsContent>
@@ -2212,39 +2124,54 @@ const KPIDashboard = () => {
             <TabsContent value="exceptions" className="space-y-6">
               {/* Exception Summary Cards */}
               <div className="grid gap-4 md:grid-cols-3">
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Exceptions</CardTitle>
                     <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{kpis.exceptionCounts.total}</div>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.exceptionCounts.total}</div>
                     <p className="text-xs text-muted-foreground">Data discrepancies</p>
                   </CardContent>
                 </Card>
 
-                <Card className={kpis.exceptionCounts.orphanedStockCounts > 0 ? 'border-purple-200 bg-purple-50 dark:bg-purple-950/20' : ''}>
+                <Card className={`card-hover ${kpis.exceptionCounts.orphanedStockCounts > 0 ? 'border-purple-200 bg-purple-50 dark:bg-purple-950/20' : ''}`}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Orphaned Scans</CardTitle>
                     <PackageX className="h-4 w-4 text-purple-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-purple-600">{kpis.exceptionCounts.orphanedStockCounts}</div>
+                    <div className="text-2xl font-bold text-purple-600 animate-count-up">{kpis.exceptionCounts.orphanedStockCounts}</div>
                     <p className="text-xs text-muted-foreground">Not in device registry</p>
                   </CardContent>
                 </Card>
 
-                <Card className={kpis.exceptionCounts.duplicateSerials > 0 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : ''}>
+                <Card className={`card-hover ${kpis.exceptionCounts.duplicateSerials > 0 ? 'border-orange-200 bg-orange-50 dark:bg-orange-950/20' : ''}`}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Duplicate Serials</CardTitle>
                     <AlertCircle className="h-4 w-4 text-orange-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-orange-600">{kpis.exceptionCounts.duplicateSerials}</div>
+                    <div className="text-2xl font-bold text-orange-600 animate-count-up">{kpis.exceptionCounts.duplicateSerials}</div>
                     <p className="text-xs text-muted-foreground">Multiple registry entries</p>
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Exception Type Distribution Chart */}
+              {kpis.exceptionCounts.total > 0 && (
+                <DonutChart
+                  title="Exception Type Distribution"
+                  description="Breakdown of data exceptions by type"
+                  data={[
+                    { name: 'Orphaned Scans', value: kpis.exceptionCounts.orphanedStockCounts, fill: '#a855f7' },
+                    { name: 'Duplicate Serials', value: kpis.exceptionCounts.duplicateSerials, fill: '#f97316' },
+                  ].filter(d => d.value > 0)}
+                  height={280}
+                  innerRadius={50}
+                  outerRadius={90}
+                />
+              )}
 
               {/* Orphaned Stock Counts */}
               {kpis.orphanedStockCountSerials.length > 0 ? (
@@ -2339,122 +2266,80 @@ const KPIDashboard = () => {
 
             {/* Distribution Tab */}
             <TabsContent value="distribution" className="space-y-6">
+              {/* Region & Category Charts */}
               <div className="grid gap-4 md:grid-cols-2">
-                {/* By Region */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5" />
-                      Orders by Region
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.entries(kpis.ordersByRegion)
-                        .sort(([,a], [,b]) => b - a)
-                        .map(([region, count]) => (
-                          <div key={region} className="flex items-center justify-between">
-                            <span className="text-sm truncate">{region}</span>
-                            <div className="flex items-center gap-2">
-                              <Progress value={(count / kpis.totalOrders) * 100} className="w-20" />
-                              <span className="font-medium w-8 text-right">{count}</span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                <DonutChart
+                  title="Orders by Region"
+                  description="Geographic distribution of orders"
+                  data={Object.entries(kpis.ordersByRegion)
+                    .sort(([,a], [,b]) => b - a)
+                    .map(([region, count]) => ({
+                      name: region,
+                      value: count,
+                    }))}
+                  height={320}
+                  innerRadius={55}
+                  outerRadius={100}
+                />
 
-                {/* By Category */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5" />
-                      Orders by Category
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.entries(kpis.ordersByCategory)
-                        .sort(([,a], [,b]) => b - a)
-                        .map(([category, count]) => (
-                          <div key={category} className="flex items-center justify-between">
-                            <span className="text-sm truncate">{category}</span>
-                            <div className="flex items-center gap-2">
-                              <Progress value={(count / kpis.totalOrders) * 100} className="w-20" />
-                              <span className="font-medium w-8 text-right">{count}</span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* By Dispatch Method */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Truck className="h-5 w-5" />
-                      Dispatch Method
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.entries(kpis.ordersByDispatchMethod)
-                        .sort(([,a], [,b]) => b - a)
-                        .map(([method, count]) => (
-                          <div key={method} className="flex items-center justify-between">
-                            <span className="text-sm">{method}</span>
-                            <Badge variant="secondary">{count}</Badge>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* By Contractor */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Orders by Contractor
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.entries(kpis.ordersByContractor)
-                        .sort(([,a], [,b]) => b - a)
-                        .slice(0, 5)
-                        .map(([contractor, count]) => (
-                          <div key={contractor} className="flex items-center justify-between">
-                            <span className="text-sm truncate">{contractor}</span>
-                            <Badge variant="secondary">{count}</Badge>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                <DonutChart
+                  title="Orders by Category"
+                  description="Product category breakdown"
+                  data={Object.entries(kpis.ordersByCategory)
+                    .sort(([,a], [,b]) => b - a)
+                    .map(([category, count]) => ({
+                      name: category,
+                      value: count,
+                    }))}
+                  height={320}
+                  innerRadius={55}
+                  outerRadius={100}
+                />
               </div>
 
-              {/* Warehouse Performance */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Warehouse Distribution</CardTitle>
-                  <CardDescription>Orders by fulfilling warehouse</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    {Object.entries(kpis.ordersByWarehouse)
-                      .sort(([,a], [,b]) => b - a)
-                      .map(([warehouse, count]) => (
-                        <div key={warehouse} className="text-center p-4 rounded-lg bg-muted">
-                          <div className="text-xl font-bold">{count}</div>
-                          <div className="text-sm text-muted-foreground mt-1">{warehouse}</div>
-                        </div>
-                      ))}
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Dispatch Method & Contractor Charts */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <HorizontalBarChart
+                  title="Dispatch Method"
+                  description="Orders by delivery method"
+                  data={Object.entries(kpis.ordersByDispatchMethod)
+                    .sort(([,a], [,b]) => b - a)
+                    .map(([method, count]) => ({
+                      name: method,
+                      value: count,
+                    }))}
+                  color={CHART_PALETTE[2]}
+                  height={280}
+                />
+
+                <HorizontalBarChart
+                  title="Top Contractors"
+                  description="Orders by contractor"
+                  data={Object.entries(kpis.ordersByContractor)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 8)
+                    .map(([contractor, count]) => ({
+                      name: contractor,
+                      value: count,
+                    }))}
+                  color={CHART_PALETTE[3]}
+                  height={280}
+                />
+              </div>
+
+              {/* Warehouse Performance Chart */}
+              <SimpleBarChart
+                title="Warehouse Distribution"
+                description="Orders by fulfilling warehouse"
+                data={Object.entries(kpis.ordersByWarehouse)
+                  .sort(([,a], [,b]) => b - a)
+                  .map(([warehouse, count]) => ({
+                    name: warehouse,
+                    value: count,
+                  }))}
+                color={CHART_PALETTE[4]}
+                height={300}
+              />
             </TabsContent>
 
             {/* Installations Tab */}
@@ -2476,13 +2361,13 @@ const KPIDashboard = () => {
             <TabsContent value="bot-analytics" className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {/* Total Queries */}
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Queries</CardTitle>
                     <MessageCircle className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{kpis.totalBotQueries}</div>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.totalBotQueries}</div>
                     <p className="text-xs text-muted-foreground">
                       Across {kpis.sessionCount} sessions
                     </p>
@@ -2490,13 +2375,13 @@ const KPIDashboard = () => {
                 </Card>
 
                 {/* Average Satisfaction */}
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Avg Satisfaction</CardTitle>
                     <Star className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{kpis.averageSatisfaction.toFixed(2)} ⭐</div>
+                    <div className="text-2xl font-bold animate-count-up">{kpis.averageSatisfaction.toFixed(2)} ⭐</div>
                     <p className="text-xs text-muted-foreground">
                       From {botUsageLogs.filter(log => log.satisfaction_rating !== null).length} ratings
                     </p>
@@ -2504,13 +2389,13 @@ const KPIDashboard = () => {
                 </Card>
 
                 {/* Most Active User */}
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Most Active User</CardTitle>
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-sm font-bold truncate">
+                    <div className="text-sm font-bold truncate animate-count-up">
                       {kpis.topUsers.length > 0 ? kpis.topUsers[0][0] : 'N/A'}
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -2520,13 +2405,13 @@ const KPIDashboard = () => {
                 </Card>
 
                 {/* Avg Response Time */}
-                <Card>
+                <Card className="card-hover">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
                     <Timer className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{(kpis.avgResponseTime / 1000).toFixed(1)}s</div>
+                    <div className="text-2xl font-bold animate-count-up">{(kpis.avgResponseTime / 1000).toFixed(1)}s</div>
                     <p className="text-xs text-muted-foreground">
                       {kpis.totalTokensUsed.toLocaleString()} tokens used
                     </p>
@@ -2534,106 +2419,66 @@ const KPIDashboard = () => {
                 </Card>
               </div>
 
-              {/* User Engagement by Role */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>User Engagement by Role</CardTitle>
-                  <CardDescription>Queries by user role</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {Object.entries(kpis.queriesByRole)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([role, count]) => (
-                        <div key={role} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium capitalize">{role}</span>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="w-32 bg-muted rounded-full h-2">
-                              <div
-                                className="bg-primary h-2 rounded-full"
-                                style={{ width: `${(count / kpis.totalBotQueries) * 100}%` }}
-                              />
-                            </div>
-                            <Badge variant="secondary">{count}</Badge>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Top 10 Users */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top 10 Users by Query Count</CardTitle>
-                  <CardDescription>Most frequent bot users</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {kpis.topUsers.map(([email, count], index) => (
-                      <div key={email} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-muted-foreground w-6">#{index + 1}</span>
-                          <span className="text-sm truncate max-w-[200px]">{email}</span>
-                        </div>
-                        <Badge variant="secondary">{count} queries</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Satisfaction Breakdown */}
+              {/* User Engagement & Satisfaction Charts */}
               <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Satisfaction Breakdown</CardTitle>
-                    <CardDescription>Distribution of ratings</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {[5, 4, 3, 2, 1].map((rating) => {
-                        const count = kpis.satisfactionBreakdown[rating as keyof typeof kpis.satisfactionBreakdown];
-                        const totalRatings = Object.values(kpis.satisfactionBreakdown).reduce((a, b) => a + b, 0);
-                        const percentage = totalRatings > 0 ? (count / totalRatings) * 100 : 0;
+                <HorizontalBarChart
+                  title="User Engagement by Role"
+                  description="Queries distributed by user role"
+                  data={Object.entries(kpis.queriesByRole)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([role, count]) => ({
+                      name: role.charAt(0).toUpperCase() + role.slice(1),
+                      value: count,
+                    }))}
+                  color={CHART_PALETTE[0]}
+                  height={280}
+                />
 
-                        return (
-                          <div key={rating} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {rating >= 4 ? (
-                                <ThumbsUp className="h-4 w-4 text-green-500" />
-                              ) : rating === 3 ? (
-                                <Star className="h-4 w-4 text-yellow-500" />
-                              ) : (
-                                <ThumbsDown className="h-4 w-4 text-red-500" />
-                              )}
-                              <span className="text-sm font-medium">{rating} {'⭐'.repeat(rating)}</span>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <div className="w-32 bg-muted rounded-full h-2">
-                                <div
-                                  className={`h-2 rounded-full ${
-                                    rating >= 4 ? 'bg-green-500' : rating === 3 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${percentage}%` }}
-                                />
-                              </div>
-                              <Badge variant="secondary">{count}</Badge>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
+                <DonutChart
+                  title="Satisfaction Distribution"
+                  description="Breakdown of user ratings"
+                  data={[
+                    { name: '5 Stars', value: kpis.satisfactionBreakdown[5], fill: '#22c55e' },
+                    { name: '4 Stars', value: kpis.satisfactionBreakdown[4], fill: '#84cc16' },
+                    { name: '3 Stars', value: kpis.satisfactionBreakdown[3], fill: '#eab308' },
+                    { name: '2 Stars', value: kpis.satisfactionBreakdown[2], fill: '#f97316' },
+                    { name: '1 Star', value: kpis.satisfactionBreakdown[1], fill: '#ef4444' },
+                  ].filter(d => d.value > 0)}
+                  height={280}
+                  innerRadius={50}
+                  outerRadius={90}
+                />
+              </div>
 
-                {/* Work Classification */}
-                <Card>
+              {/* Top Users Chart */}
+              <HorizontalBarChart
+                title="Top 10 Users by Query Count"
+                description="Most frequent bot users"
+                data={kpis.topUsers.slice(0, 10).map(([email, count]) => ({
+                  name: email.split('@')[0],
+                  value: count,
+                }))}
+                color={CHART_PALETTE[1]}
+                height={350}
+              />
+
+              {/* Work Classification Chart */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <DonutChart
+                  title="Work Classification"
+                  description="Work vs. non-work queries"
+                  data={[
+                    { name: 'Work-Related', value: kpis.workRelatedQueries, fill: '#22c55e' },
+                    { name: 'Non-Work', value: kpis.nonWorkQueries, fill: '#f97316' },
+                  ].filter(d => d.value > 0)}
+                  height={280}
+                  innerRadius={50}
+                  outerRadius={90}
+                />
+
+                <Card className="card-hover">
                   <CardHeader>
-                    <CardTitle>Work Classification</CardTitle>
+                    <CardTitle>Work Classification Summary</CardTitle>
                     <CardDescription>Work vs. non-work queries</CardDescription>
                   </CardHeader>
                   <CardContent>
