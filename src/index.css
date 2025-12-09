@@ -210,4 +210,164 @@ All colors MUST be HSL.
   .orb-delay-2s {
     animation-delay: 2s;
   }
+
+  /* Smooth transitions for all interactive elements */
+  .transition-smooth {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-200 ease-out hover:shadow-lg hover:scale-[1.02] hover:border-primary/20;
+  }
+
+  /* Button press effect */
+  .button-press {
+    @apply active:scale-95 transition-transform duration-100;
+  }
+
+  /* Staggered list animation */
+  @keyframes slideInFromLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInFromRight {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInFromBottom {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-in {
+    animation: slideInFromLeft 0.3s ease-out forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInFromRight 0.3s ease-out forwards;
+  }
+
+  .animate-slide-in-bottom {
+    animation: slideInFromBottom 0.3s ease-out forwards;
+  }
+
+  /* Badge pulse for status updates */
+  @keyframes badgePulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+      transform: scale(1.05);
+    }
+  }
+
+  .animate-badge-pulse {
+    animation: badgePulse 2s ease-in-out infinite;
+  }
+
+  /* Shimmer effect for loading */
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  /* Number counter animation */
+  @keyframes countUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-count-up {
+    animation: countUp 0.5s ease-out forwards;
+  }
+
+  /* Chart animation */
+  @keyframes chartGrow {
+    from {
+      opacity: 0;
+      transform: scaleY(0);
+      transform-origin: bottom;
+    }
+    to {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+  }
+
+  .animate-chart-grow {
+    animation: chartGrow 0.6s ease-out forwards;
+  }
+
+  /* Kanban card drag animation */
+  .dragging {
+    @apply opacity-50 scale-105 shadow-2xl z-50;
+  }
+
+  /* Kanban column highlight on drag over */
+  .drag-over {
+    @apply bg-primary/5 border-primary/30 border-dashed;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .card-hover:hover {
+    transform: none !important;
+  }
+
+  .button-press:active {
+    transform: none !important;
+  }
 }
