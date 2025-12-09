@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -13,15 +14,22 @@ import {
   Loader2,
   X,
   MapPin,
+  Building2,
+  Map,
+  Home,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import {
   Form,
   FormControl,
@@ -47,7 +55,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
+import { HorizontalBarChart, DonutChart, CHART_PALETTE } from '@/components/charts';
 
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
@@ -70,19 +87,25 @@ const technicianSchema = z.object({
 });
 
 type TechnicianFormValues = z.infer<typeof technicianSchema>;
+type SortField = 'name_surname' | 'contractor' | 'region' | 'area_based';
+type SortDirection = 'asc' | 'desc';
 
 const PointOfPresence = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // State
-  const [activeTab, setActiveTab] = useState<'technicians' | 'resources'>('technicians');
+  const [activeTab, setActiveTab] = useState<'overview' | 'technicians' | 'resources'>('overview');
   const [resourceTab, setResourceTab] = useState<'contractor' | 'technician' | 'other'>('technician');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTechnician, setSelectedTechnician] = useState<PointOfPresenceRecord | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [technicianToDelete, setTechnicianToDelete] = useState<PointOfPresenceRecord | null>(null);
+  const [sortField, setSortField] = useState<SortField>('name_surname');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [contractorFilter, setContractorFilter] = useState<string>('all');
+  const [regionFilter, setRegionFilter] = useState<string>('all');
 
   // Form
   const form = useForm<TechnicianFormValues>({
@@ -144,6 +167,39 @@ const PointOfPresence = () => {
       return unique.sort();
     },
   });
+
+  // Stats calculation
+  const stats = useMemo(() => {
+    const total = technicians.length;
+    const uniqueContractors = [...new Set(technicians.map(t => t.contractor).filter(Boolean))].length;
+    const uniqueRegions = [...new Set(technicians.map(t => t.region).filter(Boolean))].length;
+    const withLocation = technicians.filter(t => t.latitude && t.longitude).length;
+
+    // Technicians by contractor
+    const byContractor = technicians.reduce((acc, tech) => {
+      const contractor = tech.contractor || 'Unknown';
+      acc[contractor] = (acc[contractor] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Technicians by region
+    const byRegion = technicians.reduce((acc, tech) => {
+      const region = tech.region || 'Unassigned';
+      acc[region] = (acc[region] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Regional heat map data (region -> contractor breakdown)
+    const regionalMatrix = technicians.reduce((acc, tech) => {
+      const region = tech.region || 'Unassigned';
+      const contractor = tech.contractor || 'Unknown';
+      if (!acc[region]) acc[region] = {};
+      acc[region][contractor] = (acc[region][contractor] || 0) + 1;
+      return acc;
+    }, {} as Record<string, Record<string, number>>);
+
+    return { total, uniqueContractors, uniqueRegions, withLocation, byContractor, byRegion, regionalMatrix };
+  }, [technicians]);
 
   // Create mutation
   const createMutation = useMutation({
@@ -240,17 +296,41 @@ const PointOfPresence = () => {
     },
   });
 
-  // Filter technicians based on search
-  const filteredTechnicians = technicians.filter((tech) => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      tech.name_surname?.toLowerCase().includes(search) ||
-      tech.contractor?.toLowerCase().includes(search) ||
-      tech.email_address?.toLowerCase().includes(search) ||
-      tech.region?.toLowerCase().includes(search)
-    );
-  });
+  // Filter and sort technicians
+  const filteredTechnicians = useMemo(() => {
+    let result = [...technicians];
+
+    // Apply search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      result = result.filter((tech) =>
+        tech.name_surname?.toLowerCase().includes(search) ||
+        tech.contractor?.toLowerCase().includes(search) ||
+        tech.email_address?.toLowerCase().includes(search) ||
+        tech.region?.toLowerCase().includes(search) ||
+        tech.area_based?.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply contractor filter
+    if (contractorFilter !== 'all') {
+      result = result.filter(t => t.contractor === contractorFilter);
+    }
+
+    // Apply region filter
+    if (regionFilter !== 'all') {
+      result = result.filter(t => t.region === regionFilter);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      const aVal = (a[sortField] || '').toLowerCase();
+      const bVal = (b[sortField] || '').toLowerCase();
+      return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+
+    return result;
+  }, [technicians, searchTerm, contractorFilter, regionFilter, sortField, sortDirection]);
 
   // Reset form
   const resetForm = () => {
@@ -317,11 +397,46 @@ const PointOfPresence = () => {
     }
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ?
+      <ChevronUp className="h-3 w-3 inline ml-1" /> :
+      <ChevronDown className="h-3 w-3 inline ml-1" />;
+  };
+
+  // Get heat intensity color based on count
+  const getHeatColor = (count: number, max: number) => {
+    if (count === 0) return 'bg-gray-100 dark:bg-gray-800';
+    const intensity = count / max;
+    if (intensity > 0.7) return 'bg-red-500 text-white';
+    if (intensity > 0.5) return 'bg-orange-400 text-white';
+    if (intensity > 0.3) return 'bg-yellow-400 text-black';
+    if (intensity > 0.1) return 'bg-green-300 text-black';
+    return 'bg-green-100 text-black dark:bg-green-900 dark:text-white';
+  };
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading technicians...</span>
+      <div className="container mx-auto p-4 space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-64" />
       </div>
     );
   }
@@ -329,14 +444,26 @@ const PointOfPresence = () => {
   return (
     <div className="container mx-auto p-4 space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-2">
-        <MapPin className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Point of Presence</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <MapPin className="h-6 w-6" />
+          <h1 className="text-2xl font-bold">Point of Presence</h1>
+        </div>
+        <Link to="/">
+          <Button variant="outline" size="sm">
+            <Home className="h-4 w-4 mr-2" />
+            Home
+          </Button>
+        </Link>
       </div>
 
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'technicians' | 'resources')}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
         <TabsList>
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <Map className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
           <TabsTrigger value="technicians" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Technicians
@@ -347,77 +474,321 @@ const PointOfPresence = () => {
           </TabsTrigger>
         </TabsList>
 
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card className="card-hover">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Technicians</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold animate-count-up">{stats.total}</div>
+                <p className="text-xs text-muted-foreground">Field resources</p>
+              </CardContent>
+            </Card>
+
+            <Card className="card-hover">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Contractors</CardTitle>
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold animate-count-up">{stats.uniqueContractors}</div>
+                <p className="text-xs text-muted-foreground">Partner companies</p>
+              </CardContent>
+            </Card>
+
+            <Card className="card-hover">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Regions Covered</CardTitle>
+                <Map className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold animate-count-up">{stats.uniqueRegions}</div>
+                <p className="text-xs text-muted-foreground">Geographic areas</p>
+              </CardContent>
+            </Card>
+
+            <Card className="card-hover">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">GPS Mapped</CardTitle>
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold animate-count-up">{stats.withLocation}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.total > 0 ? `${((stats.withLocation / stats.total) * 100).toFixed(0)}% coverage` : 'No data'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <HorizontalBarChart
+              title="Technicians by Contractor"
+              description="Distribution across partner companies"
+              data={Object.entries(stats.byContractor)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 10)
+                .map(([contractor, count]) => ({
+                  name: contractor.length > 25 ? contractor.slice(0, 25) + '...' : contractor,
+                  value: count,
+                }))}
+              color={CHART_PALETTE[0]}
+              height={350}
+            />
+
+            <DonutChart
+              title="Technicians by Region"
+              description="Geographic distribution"
+              data={Object.entries(stats.byRegion)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 8)
+                .map(([region, count]) => ({
+                  name: region.length > 20 ? region.slice(0, 20) + '...' : region,
+                  value: count,
+                }))}
+              height={350}
+              innerRadius={60}
+              outerRadius={110}
+            />
+          </div>
+
+          {/* Regional Heat Map */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Map className="h-5 w-5" />
+                Regional Coverage Heat Map
+              </CardTitle>
+              <CardDescription>
+                Technician distribution by region and contractor (darker = higher concentration)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {Object.keys(stats.regionalMatrix).length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="font-semibold min-w-[150px]">Region</TableHead>
+                        {contractors.slice(0, 8).map((contractor) => (
+                          <TableHead key={contractor} className="text-center text-xs min-w-[80px]">
+                            {contractor.length > 12 ? contractor.slice(0, 12) + '...' : contractor}
+                          </TableHead>
+                        ))}
+                        <TableHead className="text-center font-semibold">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.entries(stats.byRegion)
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([region, total]) => {
+                          const maxInRegion = Math.max(...Object.values(stats.regionalMatrix[region] || {}), 1);
+                          return (
+                            <TableRow key={region}>
+                              <TableCell className="font-medium text-sm">
+                                {region}
+                              </TableCell>
+                              {contractors.slice(0, 8).map((contractor) => {
+                                const count = stats.regionalMatrix[region]?.[contractor] || 0;
+                                return (
+                                  <TableCell key={contractor} className="text-center p-1">
+                                    <div
+                                      className={`rounded px-2 py-1 text-xs font-medium ${getHeatColor(count, maxInRegion)}`}
+                                    >
+                                      {count || '-'}
+                                    </div>
+                                  </TableCell>
+                                );
+                              })}
+                              <TableCell className="text-center font-bold">
+                                {total}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      {/* Totals row */}
+                      <TableRow className="bg-muted/50 font-semibold">
+                        <TableCell>Total</TableCell>
+                        {contractors.slice(0, 8).map((contractor) => (
+                          <TableCell key={contractor} className="text-center">
+                            {stats.byContractor[contractor] || 0}
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-center font-bold text-primary">
+                          {stats.total}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No regional data available
+                </div>
+              )}
+              {/* Legend */}
+              <div className="flex items-center gap-4 mt-4 text-xs">
+                <span className="font-medium">Intensity:</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 rounded bg-green-100 dark:bg-green-900"></div>
+                  <span>Low</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 rounded bg-yellow-400"></div>
+                  <span>Medium</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 rounded bg-orange-400"></div>
+                  <span>High</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 rounded bg-red-500"></div>
+                  <span>Very High</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Technicians Tab */}
         <TabsContent value="technicians" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Panel - Search & List */}
-            <div className="space-y-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, company, email, or region..."
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex items-center gap-2 flex-1 min-w-[250px]">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, company, email, region..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+                <Select value={contractorFilter} onValueChange={setContractorFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by contractor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Contractors</SelectItem>
+                    {contractors.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={regionFilter} onValueChange={setRegionFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Filter by region" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Regions</SelectItem>
+                    {regions.map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="text-sm text-muted-foreground">
+                  {filteredTechnicians.length} of {technicians.length}
+                </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Technicians List */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Technicians ({filteredTechnicians.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ScrollArea className="h-[500px]">
-                    {filteredTechnicians.length === 0 ? (
-                      <div className="p-4 text-center text-muted-foreground">
-                        No technicians found
-                      </div>
-                    ) : (
-                      <div className="divide-y">
-                        {filteredTechnicians.map((tech) => (
-                          <div
-                            key={tech.id}
-                            className={`p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
-                              selectedTechnician?.id === tech.id ? 'bg-muted' : ''
-                            }`}
-                            onClick={() => {
-                              setSelectedTechnician(tech);
-                              setIsEditing(false);
-                            }}
-                          >
-                            <div className="font-medium text-sm">
-                              {tech.name_surname}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {tech.contractor && `Company: ${tech.contractor}`}
-                            </div>
-                            {tech.region && (
-                              <div className="text-xs text-muted-foreground">
-                                Region: {tech.region}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Panel - Table List */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Technician Directory</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead
+                          className="cursor-pointer hover:bg-muted/80"
+                          onClick={() => handleSort('name_surname')}
+                        >
+                          Name <SortIcon field="name_surname" />
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer hover:bg-muted/80"
+                          onClick={() => handleSort('contractor')}
+                        >
+                          Contractor <SortIcon field="contractor" />
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer hover:bg-muted/80"
+                          onClick={() => handleSort('region')}
+                        >
+                          Region <SortIcon field="region" />
+                        </TableHead>
+                        <TableHead
+                          className="cursor-pointer hover:bg-muted/80"
+                          onClick={() => handleSort('area_based')}
+                        >
+                          Area <SortIcon field="area_based" />
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                  </Table>
+                  <ScrollArea className="h-[450px]">
+                    <Table>
+                      <TableBody>
+                        {filteredTechnicians.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                              No technicians found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredTechnicians.map((tech) => (
+                            <TableRow
+                              key={tech.id}
+                              className={`cursor-pointer hover:bg-muted/50 ${selectedTechnician?.id === tech.id ? 'bg-primary/10' : ''}`}
+                              onClick={() => {
+                                setSelectedTechnician(tech);
+                                setIsEditing(false);
+                              }}
+                            >
+                              <TableCell className="font-medium text-sm py-2">
+                                {tech.name_surname}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground py-2">
+                                <span className="truncate block max-w-[120px]">{tech.contractor || '-'}</span>
+                              </TableCell>
+                              <TableCell className="text-sm py-2">
+                                {tech.region ? (
+                                  <Badge variant="outline" className="text-xs">{tech.region}</Badge>
+                                ) : '-'}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground py-2">
+                                {tech.area_based || '-'}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
                   </ScrollArea>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Right Panel - Details/Edit Form */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>
+                  <CardTitle className="text-lg">
                     {isEditing
                       ? 'Edit Technician'
                       : selectedTechnician
-                      ? 'Technician Details'
+                      ? 'Details'
                       : 'Select a Technician'}
                   </CardTitle>
                   {selectedTechnician && !isEditing && (
@@ -427,8 +798,7 @@ const PointOfPresence = () => {
                         size="sm"
                         onClick={() => setIsEditing(true)}
                       >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
+                        <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="destructive"
@@ -438,8 +808,7 @@ const PointOfPresence = () => {
                           setShowDeleteDialog(true);
                         }}
                       >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   )}
@@ -453,15 +822,15 @@ const PointOfPresence = () => {
                   </div>
                 ) : isEditing ? (
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                       <FormField
                         control={form.control}
                         name="name_surname"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Name *</FormLabel>
+                            <FormLabel className="text-xs">Name *</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Full name" />
+                              <Input {...field} placeholder="Full name" className="h-8" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -473,9 +842,9 @@ const PointOfPresence = () => {
                         name="contractor"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Contractor/Company *</FormLabel>
+                            <FormLabel className="text-xs">Contractor *</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Contractor company" />
+                              <Input {...field} placeholder="Company" className="h-8" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -487,21 +856,16 @@ const PointOfPresence = () => {
                         name="region"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Region</FormLabel>
-                            <Select
-                              value={field.value || ''}
-                              onValueChange={field.onChange}
-                            >
+                            <FormLabel className="text-xs">Region</FormLabel>
+                            <Select value={field.value || ''} onValueChange={field.onChange}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-8">
                                   <SelectValue placeholder="Select region" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
                                 {regions.map((region) => (
-                                  <SelectItem key={region} value={region}>
-                                    {region}
-                                  </SelectItem>
+                                  <SelectItem key={region} value={region}>{region}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -515,9 +879,9 @@ const PointOfPresence = () => {
                         name="email_address"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel className="text-xs">Email</FormLabel>
                             <FormControl>
-                              <Input {...field} type="email" placeholder="email@example.com" />
+                              <Input {...field} type="email" className="h-8" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -529,23 +893,9 @@ const PointOfPresence = () => {
                         name="contact_number"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Contact Number</FormLabel>
+                            <FormLabel className="text-xs">Contact</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Contact number" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="mobile"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Mobile</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Mobile number" />
+                              <Input {...field} className="h-8" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -557,47 +907,20 @@ const PointOfPresence = () => {
                         name="area_based"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Area Based</FormLabel>
+                            <FormLabel className="text-xs">Area</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Area" />
+                              <Input {...field} className="h-8" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name="physical_address"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Physical Address</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Address" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="tech_id"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Tech ID</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Tech ID" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="flex justify-end gap-2 pt-4">
+                      <div className="flex justify-end gap-2 pt-2">
                         <Button
                           type="button"
                           variant="outline"
+                          size="sm"
                           onClick={() => {
                             setIsEditing(false);
                             if (!selectedTechnician) resetForm();
@@ -607,6 +930,7 @@ const PointOfPresence = () => {
                         </Button>
                         <Button
                           type="submit"
+                          size="sm"
                           disabled={updateMutation.isPending || createMutation.isPending}
                         >
                           {(updateMutation.isPending || createMutation.isPending) && (
@@ -618,51 +942,52 @@ const PointOfPresence = () => {
                     </form>
                   </Form>
                 ) : (
-                  // View mode
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Name</label>
-                      <p className="text-sm">{selectedTechnician.name_surname}</p>
+                  // View mode - compact
+                  <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Name</label>
+                        <p>{selectedTechnician.name_surname}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Tech ID</label>
+                        <p>{selectedTechnician.tech_id || '-'}</p>
+                      </div>
                     </div>
                     <Separator />
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Contractor</label>
-                      <p className="text-sm">{selectedTechnician.contractor || '-'}</p>
+                      <label className="text-xs font-medium text-muted-foreground">Contractor</label>
+                      <p>{selectedTechnician.contractor || '-'}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Region</label>
+                        <p>{selectedTechnician.region || '-'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Area</label>
+                        <p>{selectedTechnician.area_based || '-'}</p>
+                      </div>
                     </div>
                     <Separator />
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Region</label>
-                      <p className="text-sm">{selectedTechnician.region || '-'}</p>
+                      <label className="text-xs font-medium text-muted-foreground">Email</label>
+                      <p className="truncate">{selectedTechnician.email_address || '-'}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Contact</label>
+                        <p>{selectedTechnician.contact_number || '-'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Mobile</label>
+                        <p>{selectedTechnician.mobile || '-'}</p>
+                      </div>
                     </div>
                     <Separator />
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Email</label>
-                      <p className="text-sm">{selectedTechnician.email_address || '-'}</p>
-                    </div>
-                    <Separator />
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Contact Number</label>
-                      <p className="text-sm">{selectedTechnician.contact_number || '-'}</p>
-                    </div>
-                    <Separator />
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Mobile</label>
-                      <p className="text-sm">{selectedTechnician.mobile || '-'}</p>
-                    </div>
-                    <Separator />
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Area Based</label>
-                      <p className="text-sm">{selectedTechnician.area_based || '-'}</p>
-                    </div>
-                    <Separator />
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Physical Address</label>
-                      <p className="text-sm">{selectedTechnician.physical_address || '-'}</p>
-                    </div>
-                    <Separator />
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Tech ID</label>
-                      <p className="text-sm">{selectedTechnician.tech_id || '-'}</p>
+                      <label className="text-xs font-medium text-muted-foreground">Address</label>
+                      <p className="text-xs">{selectedTechnician.physical_address || '-'}</p>
                     </div>
                   </div>
                 )}
