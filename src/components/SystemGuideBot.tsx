@@ -33,7 +33,7 @@ interface ParsedMessage {
 }
 
 // Conversation memory constants
-const STORAGE_KEY_PREFIX = "4d-analytics-chat-";
+const STORAGE_KEY_PREFIX = "4d-sage-chat-";
 const MAX_HISTORY_MESSAGES = 5; // Store last 5 exchanges (10 messages total)
 
 // Old Sage loading messages - mystical and wise
@@ -414,10 +414,10 @@ export const SystemGuideBot = () => {
         <Card className="w-[380px] max-h-[85vh] h-[500px] shadow-2xl flex flex-col border-primary/20 animate-in slide-in-from-bottom-5 fade-in duration-300 bg-background/95 backdrop-blur-sm">
           <CardHeader className="bg-primary text-primary-foreground p-3 rounded-t-lg flex flex-row items-center justify-between space-y-0 shrink-0">
             <div className="flex items-center gap-2">
-              <div className="text-xl">🤖</div>
+              <div className="text-xl">🧙‍♂️</div>
               <div>
-                <CardTitle className="text-base">4D Analytics Assistant</CardTitle>
-                <p className="text-xs text-primary-foreground/80 font-normal">AI-Powered Inventory Guide</p>
+                <CardTitle className="text-base">4D-Sage</CardTitle>
+                <p className="text-xs text-primary-foreground/80 font-normal">AI-Powered Inventory Wisdom</p>
               </div>
             </div>
             <Button
@@ -570,7 +570,7 @@ export const SystemGuideBot = () => {
       {!isOpen && (
         <Button onClick={() => setIsOpen(true)} size="icon" className="h-14 w-14 rounded-full shadow-lg hover:scale-110 transition-all duration-300 bg-primary hover:bg-primary/90">
           <MessageCircle className="h-7 w-7" />
-          <span className="sr-only">Open 4D Analytics Assistant - AI Inventory Guide</span>
+          <span className="sr-only">Open 4D-Sage - AI Inventory Wisdom</span>
         </Button>
       )}
     </div>
