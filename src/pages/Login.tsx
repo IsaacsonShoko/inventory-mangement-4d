@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, UserCircle } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -23,7 +23,7 @@ const Login = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [isResetting, setIsResetting] = useState(false);
-  const { signIn, signUp, resetPassword, user, loading } = useAuth();
+  const { signIn, signUp, signInAsGuest, resetPassword, user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -99,6 +99,18 @@ const Login = () => {
       title: 'Account created!',
       description: 'Your account is pending approval from an administrator.',
     });
+
+    setIsLoading(false);
+  };
+
+  const handleGuestLogin = async () => {
+    setIsLoading(true);
+
+    const { error } = await signInAsGuest();
+
+    if (!error) {
+      navigate(from, { replace: true });
+    }
 
     setIsLoading(false);
   };
@@ -304,6 +316,30 @@ const Login = () => {
               </form>
             </TabsContent>
           </Tabs>
+
+          {/* Guest Login Section */}
+          <div className="mt-6 pt-6 border-t">
+            <div className="text-center mb-4">
+              <p className="text-sm text-muted-foreground">
+                Recruiter or visitor? Explore without signup
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGuestLogin}
+              disabled={isLoading}
+            >
+              <UserCircle className="mr-2 h-4 w-4" />
+              Continue as Guest
+            </Button>
+
+            <p className="mt-3 text-xs text-center text-muted-foreground">
+              Guest access is read-only. Full RAG chatbot (4D-Sage) available for demonstration.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

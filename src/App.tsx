@@ -82,17 +82,17 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* Landing page - Protected (requires authentication) */}
-          <Route path="/" element={<ProtectedRoute><Landing /></ProtectedRoute>} />
+          {/* Landing page - Protected (requires authentication) - Guest accessible */}
+          <Route path="/" element={<ProtectedRoute allowGuest={true}><Landing /></ProtectedRoute>} />
 
-          {/* General authenticated routes - All approved users */}
-          <Route path="/stock-order" element={<ProtectedRoute><StockOrder /></ProtectedRoute>} />
-          <Route path="/asset-management" element={<ProtectedRoute><AssetManagement /></ProtectedRoute>} />
-          <Route path="/stock-counts" element={<ProtectedRoute><StockCounts /></ProtectedRoute>} />
-          <Route path="/stock-counts-cart" element={<ProtectedRoute><StockCountsCart /></ProtectedRoute>} />
-          <Route path="/stock-counts-report" element={<ProtectedRoute><StockCountsReport /></ProtectedRoute>} />
-          <Route path="/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
-          <Route path="/point-of-presence" element={<ProtectedRoute><PointOfPresence /></ProtectedRoute>} />
+          {/* General authenticated routes - All approved users - Some guest accessible for demo */}
+          <Route path="/stock-order" element={<ProtectedRoute allowGuest={true}><StockOrder /></ProtectedRoute>} />
+          <Route path="/asset-management" element={<ProtectedRoute allowGuest={true}><AssetManagement /></ProtectedRoute>} />
+          <Route path="/stock-counts" element={<ProtectedRoute allowGuest={true}><StockCounts /></ProtectedRoute>} />
+          <Route path="/stock-counts-cart" element={<ProtectedRoute allowGuest={true}><StockCountsCart /></ProtectedRoute>} />
+          <Route path="/stock-counts-report" element={<ProtectedRoute allowGuest={true}><StockCountsReport /></ProtectedRoute>} />
+          <Route path="/tracking" element={<ProtectedRoute allowGuest={true}><Tracking /></ProtectedRoute>} />
+          <Route path="/point-of-presence" element={<ProtectedRoute allowGuest={true}><PointOfPresence /></ProtectedRoute>} />
 
           {/* Back Office routes - Back office users and admins only */}
           <Route path="/stock-ingestion" element={<BackOfficeRoute><StockIngestion /></BackOfficeRoute>} />

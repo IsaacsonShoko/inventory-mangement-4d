@@ -5,15 +5,17 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRoles?: UserRole[];
   redirectTo?: string;
+  allowGuest?: boolean;
 }
 
 export function ProtectedRoute({
   children,
   requiredRoles,
   redirectTo = '/login',
+  allowGuest = false,
 }: ProtectedRouteProps) {
   const { isLoading, isAuthenticated, isAuthorized } = useRequireAuth(requiredRoles);
-  const { isApproved, isPending, profile, signOut } = useAuth();
+  const { isApproved, isPending, profile, signOut, isGuest } = useAuth();
   const location = useLocation();
 
   console.log('[ProtectedRoute]', {
@@ -42,6 +44,40 @@ export function ProtectedRoute({
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
+  }
+
+  // Handle guest users
+  if (isGuest) {
+    if (allowGuest) {
+      // Guest is allowed on this route - render the content
+      return <>{children}</>;
+    } else {
+      // Guest trying to access restricted area
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+          <div className="max-w-md p-8 bg-card rounded-lg shadow-lg text-center">
+            <div className="mb-4 text-4xl">🔒</div>
+            <h2 className="text-2xl font-bold mb-2">Guest Access Restricted</h2>
+            <p className="text-muted-foreground mb-4">
+              This feature is not available in guest mode. Guest access is read-only for demonstration purposes.
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              To access all features, please sign up for a full account.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                signOut();
+                window.location.href = '/login';
+              }}
+              className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            >
+              Sign Up / Login
+            </button>
+          </div>
+        </div>
+      );
+    }
   }
 
   // Check if user account is approved

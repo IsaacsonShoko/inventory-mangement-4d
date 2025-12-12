@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
 // User role types
 export type UserRole = 'admin' | 'back_office' | 'user';
@@ -18,6 +19,7 @@ export interface UserProfile {
   approved_by: string | null;
   approved_at: string | null;
   warehouse: string | null;
+  is_guest: boolean | null;
 }
 
 interface AuthContextType {
@@ -27,6 +29,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, metadata?: { first_name?: string; last_name?: string; company?: string; role?: string }) => Promise<{ error: Error | null }>;
+  signInAsGuest: () => Promise<{ data: any; error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
@@ -34,6 +37,7 @@ interface AuthContextType {
   isBackOffice: boolean;
   isApproved: boolean;
   isPending: boolean;
+  isGuest: boolean;
   hasRole: (roles: UserRole[]) => boolean;
 }
 
@@ -230,6 +234,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  const signInAsGuest = async () => {
+    try {
+      setLoading(true);
+
+      // Generate unique guest email using timestamp and random string
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 9);
+      const guestEmail = `guest_${timestamp}_${randomStr}@4d-analytics-demo.local`;
+      const guestPassword = `${Math.random().toString(36).substring(2)}${Date.now()}`;
+
+      // Create temporary guest account
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: guestEmail,
+        password: guestPassword,
+        options: {
+          data: {
+            first_name: 'Guest',
+            last_name: 'User',
+            company: 'Demo',
+            role: 'user',
+            is_guest: true,
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      // Auto-approve guest profile
+      if (signUpData.user) {
+        const { error: updateError } = await supabase
+          .from('user_profiles')
+          .update({
+            approval_status: 'approved',
+            is_guest: true,
+          })
+          .eq('id', signUpData.user.id);
+
+        if (updateError) {
+          console.error('Failed to approve guest profile:', updateError);
+        }
+      }
+
+      // Auto sign-in
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: guestEmail,
+        password: guestPassword,
+      });
+
+      if (signInError) throw signInError;
+
+      toast.success('Welcome! Exploring as guest user - Try the AI Assistant to see RAG capabilities');
+      return { data: signInData, error: null };
+    } catch (error: any) {
+      console.error('Guest login error:', error);
+      toast.error('Failed to create guest session');
+      return { data: null, error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -256,6 +321,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isBackOffice = profile?.role === 'back_office' || profile?.role === 'admin';
   const isApproved = profile?.approval_status === 'approved';
   const isPending = profile?.approval_status === 'pending';
+  const isGuest = profile?.is_guest === true;
 
   const hasRole = (roles: UserRole[]) => {
     if (!profile) return false;
@@ -269,6 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signIn,
     signUp,
+    signInAsGuest,
     signOut,
     resetPassword,
     updatePassword,
@@ -276,6 +343,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isBackOffice,
     isApproved,
     isPending,
+    isGuest,
     hasRole,
   };
 

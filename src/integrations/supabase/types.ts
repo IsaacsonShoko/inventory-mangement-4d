@@ -789,6 +789,7 @@ export type Database = {
           approved_by: string | null
           approved_at: string | null
           warehouse: string | null
+          is_guest: boolean | null
           created_at: string | null
           updated_at: string | null
         }
@@ -804,6 +805,7 @@ export type Database = {
           approved_by?: string | null
           approved_at?: string | null
           warehouse?: string | null
+          is_guest?: boolean | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -819,6 +821,7 @@ export type Database = {
           approved_by?: string | null
           approved_at?: string | null
           warehouse?: string | null
+          is_guest?: boolean | null
           created_at?: string | null
           updated_at?: string | null
         }
