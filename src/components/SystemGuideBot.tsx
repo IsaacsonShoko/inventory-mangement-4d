@@ -130,10 +130,29 @@ const parseMessageWithLinks = (text: string): ParsedMessage => {
   return { parts };
 };
 
-export const SystemGuideBot = () => {
+interface SystemGuideBotProps {
+  triggerOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export const SystemGuideBot = ({ triggerOpen = false, onOpenChange }: SystemGuideBotProps = {}) => {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpenState] = useState(false);
+
+  // Wrapper to notify parent of state changes
+  const setIsOpen = (open: boolean) => {
+    setIsOpenState(open);
+    onOpenChange?.(open);
+  };
+
+  // Handle external trigger to open
+  useEffect(() => {
+    if (triggerOpen && !isOpen) {
+      setIsOpen(true);
+    }
+  }, [triggerOpen, isOpen]);
+
   const [sessionId] = useState(() => generateSessionId());
   const [messages, setMessages] = useState<Message[]>(() => {
     const history = loadConversationHistory(sessionId);
@@ -141,7 +160,7 @@ export const SystemGuideBot = () => {
       {
         id: "welcome",
         role: "bot",
-        text: "Greetings. I am the Old Sage of Inventory Wisdom. The patterns of this realm reveal themselves to those who ask the right questions. What knowledge do you seek?",
+        text: "Greetings. I am 4D-Sage, your AI-powered inventory wisdom keeper. Through the patterns of vector search and the insights of machine learning, I reveal the secrets of this realm. What knowledge do you seek?",
       },
       ...history,
     ];

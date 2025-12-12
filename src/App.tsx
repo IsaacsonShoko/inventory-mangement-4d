@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +14,7 @@ import { SessionTimeoutDialog } from "@/components/SessionTimeoutDialog";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 // Import the bot component
 import { SystemGuideBot } from "@/components/SystemGuideBot";
+import { GuestWelcomeDialog } from "@/components/GuestWelcomeDialog";
 
 import Landing from "./pages/Landing";
 import StockOrder from "./pages/StockOrder";
@@ -56,6 +58,9 @@ const persister = createSyncStoragePersister({
 });
 
 function AppContent() {
+  // State for controlling chatbot from guest welcome dialog
+  const [triggerChatbotOpen, setTriggerChatbotOpen] = useState(false);
+
   // Session timeout: 30 minutes of inactivity with 2-minute warning
   const { showWarning, timeRemaining, extendSession, logout } = useSessionTimeout({
     timeout: 30 * 60 * 1000, // 30 minutes
@@ -66,11 +71,18 @@ function AppContent() {
   // Global keyboard shortcuts
   useKeyboardShortcuts({ enabled: true });
 
+  const handleOpenChatbot = () => {
+    setTriggerChatbotOpen(true);
+    // Reset trigger after a short delay
+    setTimeout(() => setTriggerChatbotOpen(false), 100);
+  };
+
   return (
     <>
       <Toaster />
       <Sonner />
       <OfflineIndicator />
+      <GuestWelcomeDialog onOpenChatbot={handleOpenChatbot} />
       <SessionTimeoutDialog
         open={showWarning}
         timeRemaining={timeRemaining}
@@ -112,9 +124,9 @@ function AppContent() {
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-        
+
         {/* Chatbot added here - safe inside BrowserRouter */}
-        <SystemGuideBot />
+        <SystemGuideBot triggerOpen={triggerChatbotOpen} onOpenChange={(open) => !open && setTriggerChatbotOpen(false)} />
     </>
   );
 }

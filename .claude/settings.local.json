@@ -13,7 +13,9 @@
       "Bash(powershell -Command \"Get-Content ''c:\\Users\\4D\\inventory-mangement-4d\\src\\integrations\\supabase\\types.ts'' | Select-Object -First 50\")",
       "Bash(powershell:*)",
       "Bash(curl -X GET \"https://rtwusqcbgpayllzgxiwh.supabase.co/rest/v1/\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0d3VzcWNiZ3BheWxsemd4aXdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1Njk0MTksImV4cCI6MjA3OTE0NTQxOX0.YS6wUrMzKK8aonJAU119LHdJZ1d_UnpvBe6etBEBghc\")",
-      "Bash(npx supabase gen types:*)"
+      "Bash(npx supabase gen types:*)",
+      "Bash(cat:*)",
+      "Bash(npx supabase db query:*)"
     ],
     "deny": [],
     "ask": []
