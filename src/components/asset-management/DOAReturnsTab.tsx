@@ -685,7 +685,7 @@ export function DOAReturnsTab() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="xlink-serial">Xlink Serial</Label>
+                        <Label htmlFor="xlink-serial">Device Serial</Label>
                         <div className="flex gap-2">
                           <Input
                             id="xlink-serial"

@@ -875,13 +875,13 @@ export function RepairsTab() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Xlink Serial Number</Label>
+                      <Label>Device Serial Number</Label>
                       <div className="flex gap-2">
                         <Input
                           value={createFormData.xlink_serial}
                           onChange={(e) => setCreateFormData(prev => ({ ...prev, xlink_serial: e.target.value }))}
                           onFocus={(e) => e.target.select()}
-                          placeholder="Scan or enter xlink serial"
+                          placeholder="Scan or enter device serial"
                           autoComplete="off"
                           autoCorrect="off"
                           autoCapitalize="off"

@@ -931,14 +931,14 @@ const StockCountsCart = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="xlinkSerial">Xlink Serial Number</Label>
+                        <Label htmlFor="xlinkSerial">Device Serial Number</Label>
                         <div className="flex gap-2">
                           <Input
                             id="xlinkSerial"
                             value={scanFormData.xlinkSerialNumber || ''}
                             onChange={(e) => setScanFormData({ ...scanFormData, xlinkSerialNumber: e.target.value })}
                             onFocus={(e) => e.target.select()}
-                            placeholder="Scan or enter xlink serial"
+                            placeholder="Scan or enter device serial"
                             autoComplete="off"
                             autoCorrect="off"
                             autoCapitalize="off"

@@ -139,9 +139,9 @@ const Login = () => {
       <Card className="w-full max-w-md relative z-10">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent">
-            Xlink Technologies Pty Ltd
+            4D Analytics
           </CardTitle>
-          <CardDescription>Inventory Management System</CardDescription>
+          <CardDescription>AI-Powered Inventory Management System</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
@@ -241,7 +241,7 @@ const Login = () => {
                       <SelectValue placeholder="Select your company" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Xlink">Xlink</SelectItem>
+                      <SelectItem value="4D Analytics">4D Analytics</SelectItem>
                       <SelectItem value="Contractor Company">Contractor Company</SelectItem>
                     </SelectContent>
                   </Select>
