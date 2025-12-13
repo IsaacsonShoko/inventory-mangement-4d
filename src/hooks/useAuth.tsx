@@ -242,7 +242,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 9);
       const guestEmail = `guest_${timestamp}_${randomStr}@4d-analytics-demo.local`;
-      const guestPassword = `${Math.random().toString(36).substring(2)}${Date.now()}`;
+
+      // Generate secure password meeting Supabase requirements (lowercase, uppercase, numbers, special chars)
+      const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+      const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const numbers = '0123456789';
+      const specials = '!@#$%^&*';
+
+      const guestPassword =
+        lowercase[Math.floor(Math.random() * lowercase.length)] +
+        uppercase[Math.floor(Math.random() * uppercase.length)] +
+        numbers[Math.floor(Math.random() * numbers.length)] +
+        specials[Math.floor(Math.random() * specials.length)] +
+        Math.random().toString(36).substring(2, 10) +
+        timestamp.toString().substring(0, 6);
 
       // Create temporary guest account
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
