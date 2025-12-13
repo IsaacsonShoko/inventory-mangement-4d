@@ -10,7 +10,9 @@ CREATE INDEX IF NOT EXISTS idx_user_profiles_is_guest
 ON user_profiles(is_guest);
 
 -- 3. Add RLS policy to allow guest read access
-CREATE POLICY IF NOT EXISTS "Guests can read public data"
+DROP POLICY IF EXISTS "Guests can read public data" ON user_profiles;
+
+CREATE POLICY "Guests can read public data"
 ON user_profiles FOR SELECT
 USING (
   is_guest = true

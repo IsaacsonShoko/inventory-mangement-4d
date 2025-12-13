@@ -247,15 +247,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const lowercase = 'abcdefghijklmnopqrstuvwxyz';
       const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
       const numbers = '0123456789';
-      const specials = '!@#$%^&*';
+      // Expanded specials to match Supabase error message requirements exactly
+      const specials = '!@#$%^&*()_+-=[]{};\':"|<>?,./`~';
 
-      const guestPassword =
-        lowercase[Math.floor(Math.random() * lowercase.length)] +
-        uppercase[Math.floor(Math.random() * uppercase.length)] +
-        numbers[Math.floor(Math.random() * numbers.length)] +
-        specials[Math.floor(Math.random() * specials.length)] +
-        Math.random().toString(36).substring(2, 10) +
-        timestamp.toString().substring(0, 6);
+      // Ensure at least one of each required character type
+      const charLower = lowercase.charAt(Math.floor(Math.random() * lowercase.length));
+      const charUpper = uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+      const charNum = numbers.charAt(Math.floor(Math.random() * numbers.length));
+      const charSpecial = specials.charAt(Math.floor(Math.random() * specials.length));
+
+      // Generate random filler
+      const allChars = lowercase + uppercase + numbers + specials;
+      let filler = '';
+      for (let i = 0; i < 12; i++) {
+        filler += allChars.charAt(Math.floor(Math.random() * allChars.length));
+      }
+
+      const guestPassword = charLower + charUpper + charNum + charSpecial + filler;
 
       // Create temporary guest account
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
