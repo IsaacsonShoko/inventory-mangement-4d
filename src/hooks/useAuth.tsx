@@ -282,18 +282,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (signUpError) throw signUpError;
 
-      // Auto-approve guest profile
+      // Wait for database trigger to create profile, then auto-approve
       if (signUpData.user) {
-        const { error: updateError } = await supabase
-          .from('user_profiles')
-          .update({
-            approval_status: 'approved',
-            is_guest: true,
-          })
-          .eq('id', signUpData.user.id);
+        // Small delay to ensure trigger completes
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        if (updateError) {
-          console.error('Failed to approve guest profile:', updateError);
+        // Retry logic to handle race conditions
+        let retries = 3;
+        let updateSuccess = false;
+
+        while (retries > 0 && !updateSuccess) {
+          const { error: updateError } = await supabase
+            .from('user_profiles')
+            .update({
+              approval_status: 'approved',
+              is_guest: true,
+            })
+            .eq('id', signUpData.user.id);
+
+          if (!updateError) {
+            updateSuccess = true;
+          } else {
+            console.error(`Failed to approve guest profile (attempt ${4 - retries}):`, updateError);
+            retries--;
+            if (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+        }
+
+        if (!updateSuccess) {
+          console.error('Failed to auto-approve guest after all retries');
         }
       }
 

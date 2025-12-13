@@ -46,7 +46,8 @@ export function ProtectedRoute({
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
 
-  // Handle guest users
+  // IMPORTANT: Check guest status BEFORE approval status
+  // Guests bypass the normal approval workflow
   if (isGuest) {
     if (allowGuest) {
       // Guest is allowed on this route - render the content
@@ -80,7 +81,7 @@ export function ProtectedRoute({
     }
   }
 
-  // Check if user account is approved
+  // Check if user account is approved (skip for guests - handled above)
   if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
