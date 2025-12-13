@@ -10,17 +10,15 @@ CREATE INDEX IF NOT EXISTS idx_user_profiles_is_guest
 ON user_profiles(is_guest);
 
 -- 3. Add RLS policy to allow guest read access
+-- Note: Avoid recursive queries to prevent infinite recursion error
 DROP POLICY IF EXISTS "Guests can read public data" ON user_profiles;
+DROP POLICY IF EXISTS "Allow profile access" ON user_profiles;
 
-CREATE POLICY "Guests can read public data"
+CREATE POLICY "Allow profile access"
 ON user_profiles FOR SELECT
 USING (
-  is_guest = true
-  OR auth.uid() = id
-  OR EXISTS (
-    SELECT 1 FROM user_profiles
-    WHERE id = auth.uid() AND role = 'admin'
-  )
+  auth.uid() = id       -- Users can read their own profile
+  OR is_guest = true    -- Anyone can see guest profiles (for demo purposes)
 );
 
 -- 4. Update types to include is_guest in UserProfile
