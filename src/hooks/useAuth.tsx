@@ -263,7 +263,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         filler += allChars.charAt(Math.floor(Math.random() * allChars.length));
       }
 
-      const guestPassword = charLower + charUpper + charNum + charSpecial + filler;
+      // Shuffle the password to avoid pattern detection
+      const passwordChars = (charLower + charUpper + charNum + charSpecial + filler).split('');
+      for (let i = passwordChars.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [passwordChars[i], passwordChars[j]] = [passwordChars[j], passwordChars[i]];
+      }
+      const guestPassword = passwordChars.join('');
+
+      console.log('[GuestLogin] Generating compliant password (length ' + guestPassword.length + ')');
 
       // Create temporary guest account
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
