@@ -243,50 +243,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const randomStr = Math.random().toString(36).substring(2, 9);
       const guestEmail = `guest_${timestamp}_${randomStr}@4d-analytics-demo.local`;
 
-      // Generate secure password meeting Supabase requirements (lowercase, uppercase, numbers, special chars)
       const lowercase = 'abcdefghijklmnopqrstuvwxyz';
       const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
       const numbers = '0123456789';
-      // Expanded specials to match Supabase error message requirements exactly
       const specials = '!@#$%^&*()_+-=[]{};\':"|<>?,./`~';
-
-      // Ensure at least one of each required character type
-      const charLower = lowercase.charAt(Math.floor(Math.random() * lowercase.length));
-      const charUpper = uppercase.charAt(Math.floor(Math.random() * uppercase.length));
-      const charNum = numbers.charAt(Math.floor(Math.random() * numbers.length));
-      const charSpecial = specials.charAt(Math.floor(Math.random() * specials.length));
-
-      // Generate random filler
       const allChars = lowercase + uppercase + numbers + specials;
-      let filler = '';
-      for (let i = 0; i < 12; i++) {
-        filler += allChars.charAt(Math.floor(Math.random() * allChars.length));
-      }
+      const pick = (chars: string) => chars.charAt(Math.floor(Math.random() * chars.length));
+      const shuffle = (s: string) => {
+        const a = s.split('');
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a.join('');
+      };
+      const makePassword = () => {
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const base = pick(lowercase) + pick(uppercase) + pick(numbers) + pick(specials);
+          let filler = '';
+          for (let i = 0; i < 12; i++) {
+            filler += allChars.charAt(Math.floor(Math.random() * allChars.length));
+          }
+          const candidate = shuffle(base + filler);
+          const hasLower = /[a-z]/.test(candidate);
+          const hasUpper = /[A-Z]/.test(candidate);
+          const hasNum = /[0-9]/.test(candidate);
+          const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,.\/`~]/.test(candidate);
+          if (hasLower && hasUpper && hasNum && hasSpecial) {
+            return candidate;
+          }
+        }
+        const fallback = pick(lowercase) + pick(uppercase) + pick(numbers) + pick(specials);
+        return shuffle(fallback + allChars.substring(0, 12));
+      };
 
-      // Shuffle the password to avoid pattern detection
-      const passwordChars = (charLower + charUpper + charNum + charSpecial + filler).split('');
-      for (let i = passwordChars.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [passwordChars[i], passwordChars[j]] = [passwordChars[j], passwordChars[i]];
-      }
-      const guestPassword = passwordChars.join('');
-
-      console.log('[GuestLogin] Generating compliant password (length ' + guestPassword.length + ')');
+      let guestPassword = makePassword();
+      console.log('[GuestLogin] Password compliance check', {
+        len: guestPassword.length,
+        l: /[a-z]/.test(guestPassword),
+        u: /[A-Z]/.test(guestPassword),
+        n: /[0-9]/.test(guestPassword),
+        s: /[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,.\/`~]/.test(guestPassword)
+      });
 
       // Create temporary guest account
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: guestEmail,
-        password: guestPassword,
-        options: {
-          data: {
-            first_name: 'Guest',
-            last_name: 'User',
-            company: 'Demo',
-            role: 'user',
-            is_guest: true,
+      let signUpData;
+      let signUpError;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const result = await supabase.auth.signUp({
+          email: guestEmail,
+          password: guestPassword,
+          options: {
+            data: {
+              first_name: 'Guest',
+              last_name: 'User',
+              company: 'Demo',
+              role: 'user',
+              is_guest: true,
+            },
           },
-        },
-      });
+        });
+        signUpData = result.data;
+        signUpError = result.error as any;
+        if (!signUpError) break;
+        const msg = String(signUpError?.message || '');
+        if (msg.includes('Password should')) {
+          guestPassword = makePassword();
+          continue;
+        }
+        break;
+      }
 
       if (signUpError) throw signUpError;
 
