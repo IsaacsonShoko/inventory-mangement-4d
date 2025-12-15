@@ -240,6 +240,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const envEmail = import.meta.env.VITE_GUEST_EMAIL;
       const envPassword = import.meta.env.VITE_GUEST_PASSWORD;
+      
+      console.log('Guest login attempt:', { 
+        emailConfigured: !!envEmail, 
+        passwordConfigured: !!envPassword 
+      });
+
       if (!envEmail || !envPassword) {
         throw new Error('Guest credentials not configured');
       }
