@@ -84,7 +84,7 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           recharts: ['recharts'],
           dndkit: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
-          radix: ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-table'],
+          radix: ['@radix-ui/react-dialog', '@radix-ui/react-select'],
         },
       },
     },
