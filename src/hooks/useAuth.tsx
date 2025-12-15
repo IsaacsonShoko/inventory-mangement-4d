@@ -250,34 +250,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (signInError) throw signInError;
 
-      if (signInData.user) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        let retries = 3;
-        let updateSuccess = false;
-
-        while (retries > 0 && !updateSuccess) {
-          const { error: updateError } = await supabase
-            .from('user_profiles')
-            .update({ approval_status: 'approved', is_guest: true })
-            .eq('id', signInData.user.id);
-
-          if (!updateError) {
-            updateSuccess = true;
-          } else {
-            console.error(`Failed to approve guest profile (attempt ${4 - retries}):`, updateError);
-            retries--;
-            if (retries > 0) {
-              await new Promise(resolve => setTimeout(resolve, 500));
-            }
-          }
-        }
-
-        if (!updateSuccess) {
-          console.error('Failed to auto-approve guest after all retries');
-        }
-      }
-
       toast.success('Welcome! Exploring as guest user - Try the AI Assistant to see RAG capabilities');
       return { data: signInData, error: null };
     } catch (error: any) {

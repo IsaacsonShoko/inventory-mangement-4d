@@ -55,7 +55,7 @@ BEGIN
     final_status := 'pending'::approval_status_enum;
   END IF;
 
-  -- Insert profile
+  -- Insert or Update profile
   INSERT INTO public.user_profiles (
     id,
     email,
@@ -76,8 +76,16 @@ BEGIN
     extracted_company,
     final_role,
     final_status,
-    is_guest_user -- Set is_guest flag
-  );
+    is_guest_user
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    role = EXCLUDED.role,
+    approval_status = EXCLUDED.approval_status,
+    is_guest = EXCLUDED.is_guest,
+    full_name = COALESCE(EXCLUDED.full_name, user_profiles.full_name),
+    first_name = COALESCE(EXCLUDED.first_name, user_profiles.first_name),
+    last_name = COALESCE(EXCLUDED.last_name, user_profiles.last_name),
+    company = COALESCE(EXCLUDED.company, user_profiles.company);
 
   RETURN NEW;
 END;
