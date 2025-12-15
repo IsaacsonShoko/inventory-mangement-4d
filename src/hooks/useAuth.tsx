@@ -257,34 +257,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return a.join('');
       };
-      const makePassword = () => {
-        for (let attempt = 0; attempt < 10; attempt++) {
-          const base = pick(lowercase) + pick(uppercase) + pick(numbers) + pick(specials);
-          let filler = '';
-          for (let i = 0; i < 12; i++) {
-            filler += allChars.charAt(Math.floor(Math.random() * allChars.length));
-          }
-          const candidate = shuffle(base + filler);
-          const hasLower = /[a-z]/.test(candidate);
-          const hasUpper = /[A-Z]/.test(candidate);
-          const hasNum = /[0-9]/.test(candidate);
-          const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,.\/`~]/.test(candidate);
-          if (hasLower && hasUpper && hasNum && hasSpecial) {
-            return candidate;
-          }
-        }
-        const fallback = pick(lowercase) + pick(uppercase) + pick(numbers) + pick(specials);
-        return shuffle(fallback + allChars.substring(0, 12));
-      };
+      const makePassword = () => import.meta.env.VITE_GUEST_PASSWORD || 'Gst@4D_Demo2025!1';
 
       let guestPassword = makePassword();
-      console.log('[GuestLogin] Password compliance check', {
-        len: guestPassword.length,
-        l: /[a-z]/.test(guestPassword),
-        u: /[A-Z]/.test(guestPassword),
-        n: /[0-9]/.test(guestPassword),
-        s: /[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,.\/`~]/.test(guestPassword)
-      });
+      
 
       // Create temporary guest account
       let signUpData;
@@ -316,23 +292,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (signUpError) throw signUpError;
 
-      // Wait for database trigger to create profile, then auto-approve
-      if (signUpData.user) {
-        // Small delay to ensure trigger completes
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: guestEmail,
+        password: guestPassword,
+      });
+
+      if (signInError) throw signInError;
+
+      if (signInData.user) {
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Retry logic to handle race conditions
         let retries = 3;
         let updateSuccess = false;
 
         while (retries > 0 && !updateSuccess) {
           const { error: updateError } = await supabase
             .from('user_profiles')
-            .update({
-              approval_status: 'approved',
-              is_guest: true,
-            })
-            .eq('id', signUpData.user.id);
+            .update({ approval_status: 'approved', is_guest: true })
+            .eq('id', signInData.user.id);
 
           if (!updateError) {
             updateSuccess = true;
@@ -349,14 +326,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Failed to auto-approve guest after all retries');
         }
       }
-
-      // Auto sign-in
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: guestEmail,
-        password: guestPassword,
-      });
-
-      if (signInError) throw signInError;
 
       toast.success('Welcome! Exploring as guest user - Try the AI Assistant to see RAG capabilities');
       return { data: signInData, error: null };
