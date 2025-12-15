@@ -58,9 +58,9 @@ BEGIN
   -- Handle Pre-existing Profile Conflict (e.g. manually created guest profile)
   -- If a profile exists with this email but a DIFFERENT ID, we must remove it 
   -- so we can attach the new correct Auth ID.
-  IF EXISTS (SELECT 1 FROM public.user_profiles WHERE email = NEW.email AND id != NEW.id) THEN
-    DELETE FROM public.user_profiles WHERE email = NEW.email AND id != NEW.id;
-  END IF;
+  DELETE FROM public.user_profiles 
+  WHERE email = NEW.email 
+  AND id != NEW.id;
 
   -- Insert or Update profile
   INSERT INTO public.user_profiles (
