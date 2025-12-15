@@ -248,7 +248,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password: envPassword,
       });
 
-      if (signInError) throw signInError;
+      if (signInError) {
+        // Auto-create guest user if they don't exist yet (Self-Seeding)
+        if (signInError.message.includes('Invalid login credentials')) {
+          console.log('Guest user not seeded yet. Creating now...');
+          
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: envEmail,
+            password: envPassword,
+            options: {
+              data: {
+                first_name: 'Recruiter',
+                last_name: 'Guest',
+                company: '4D Analytics',
+                full_name: 'Recruiter Guest'
+              }
+            }
+          });
+
+          if (signUpError) throw signUpError;
+
+          if (signUpData.session) {
+             // Login successful immediately after signup
+             toast.success('Guest access initialized. Welcome!');
+             return { data: signUpData, error: null };
+          }
+        }
+        throw signInError;
+      }
 
       toast.success('Welcome! Exploring as guest user - Try the AI Assistant to see RAG capabilities');
       return { data: signInData, error: null };
