@@ -238,63 +238,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
 
-      // Generate unique guest email using timestamp and random string
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(2, 9);
-      const guestEmail = `guest_${timestamp}_${randomStr}@4d-analytics-demo.local`;
-
-      const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-      const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      const numbers = '0123456789';
-      const specials = '!@#$%^&*()_+-=[]{};\':"|<>?,./`~';
-      const allChars = lowercase + uppercase + numbers + specials;
-      const pick = (chars: string) => chars.charAt(Math.floor(Math.random() * chars.length));
-      const shuffle = (s: string) => {
-        const a = s.split('');
-        for (let i = a.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [a[i], a[j]] = [a[j], a[i]];
-        }
-        return a.join('');
-      };
-      const makePassword = () => import.meta.env.VITE_GUEST_PASSWORD || 'Gst@4D_Demo2025!1';
-
-      let guestPassword = makePassword();
-      
-
-      // Create temporary guest account
-      let signUpData;
-      let signUpError;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const result = await supabase.auth.signUp({
-          email: guestEmail,
-          password: guestPassword,
-          options: {
-            data: {
-              first_name: 'Guest',
-              last_name: 'User',
-              company: 'Demo',
-              role: 'user',
-              is_guest: true,
-            },
-          },
-        });
-        signUpData = result.data;
-        signUpError = result.error as any;
-        if (!signUpError) break;
-        const msg = String(signUpError?.message || '');
-        if (msg.includes('Password should')) {
-          guestPassword = makePassword();
-          continue;
-        }
-        break;
+      const envEmail = import.meta.env.VITE_GUEST_EMAIL;
+      const envPassword = import.meta.env.VITE_GUEST_PASSWORD;
+      if (!envEmail || !envPassword) {
+        throw new Error('Guest credentials not configured');
       }
-
-      if (signUpError) throw signUpError;
-
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: guestEmail,
-        password: guestPassword,
+        email: envEmail,
+        password: envPassword,
       });
 
       if (signInError) throw signInError;
