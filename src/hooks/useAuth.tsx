@@ -32,6 +32,7 @@ interface AuthContextType {
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   isAdmin: boolean;
   isBackOffice: boolean;
+  isGuest: boolean;
   isApproved: boolean;
   isPending: boolean;
   hasRole: (roles: UserRole[]) => boolean;
@@ -76,15 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (retryCount === 0) {
         const cachedProfile = getStoredProfile(userId);
         if (cachedProfile) {
-          console.log('[Auth] Found cached profile, using it temporarily');
-          // Don't return immediately, let the network request proceed in background if needed
-          // But for now, we return it to unblock UI, and we can update it later
+          console.log('[Auth] Found cached profile, returning immediately');
+          return cachedProfile; // Return cached immediately to speed up loading
         }
       }
 
-      // Create timeout promise (30 seconds max) - increased from 15s
+      // Create timeout promise (5 seconds max) - reduced for faster loading
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 30000);
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000);
       });
 
       // Race between fetch and timeout
@@ -103,10 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return cachedProfile;
         }
 
-        // Retry on timeout or network error, or if profile not found (up to 3 times)
-        if (retryCount < 3) {
-          console.log(`[Auth] Retrying profile fetch in 2s...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+        // Retry once on timeout or network error
+        if (retryCount < 1) {
+          console.log(`[Auth] Retrying profile fetch in 1s...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
           return fetchProfile(userId, retryCount + 1);
         }
 
@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return fetchedProfile;
     } catch (error) {
       console.error('[Auth] Profile fetch failed:', error);
-      
+
       // If we have a cached profile and network fails, use cached
       const cachedProfile = getStoredProfile(userId);
       if (cachedProfile) {
@@ -127,13 +127,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return cachedProfile;
       }
 
-      // Also retry on caught errors (like timeout)
-      if (retryCount < 3) {
-        console.log(`[Auth] Caught error, retrying profile fetch in 2s...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      // Also retry once on caught errors (like timeout)
+      if (retryCount < 1) {
+        console.log(`[Auth] Caught error, retrying profile fetch in 1s...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
         return fetchProfile(userId, retryCount + 1);
       }
-      
+
       return null;
     }
   };
@@ -254,11 +254,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Role checking helpers
   const isAdmin = profile?.role === 'admin';
   const isBackOffice = profile?.role === 'back_office' || profile?.role === 'admin';
+  const isGuest = profile?.role === 'guest';
   const isApproved = profile?.approval_status === 'approved';
   const isPending = profile?.approval_status === 'pending';
 
   const hasRole = (roles: UserRole[]) => {
     if (!profile) return false;
+    // Guest has read access to everything, so include them when checking roles
+    if (profile.role === 'guest' && roles.length > 0) return true;
     return roles.includes(profile.role);
   };
 
@@ -274,6 +277,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updatePassword,
     isAdmin,
     isBackOffice,
+    isGuest,
     isApproved,
     isPending,
     hasRole,
