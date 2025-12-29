@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
 // User role types
-export type UserRole = 'admin' | 'back_office' | 'user';
+export type UserRole = 'admin' | 'back_office' | 'user' | 'guest';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 export interface UserProfile {
