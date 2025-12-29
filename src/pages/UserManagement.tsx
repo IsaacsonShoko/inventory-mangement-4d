@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Home, Users, UserCheck, UserX, Clock, Search, ChevronUp, ChevronDown, Building2 } from 'lucide-react';
+import { Home, Users, UserCheck, UserX, Clock, Search, ChevronUp, ChevronDown, Building2, Eye } from 'lucide-react';
 import { DonutChart, HorizontalBarChart, CHART_PALETTE } from '@/components/charts';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -278,6 +278,7 @@ export default function UserManagement() {
     switch (role) {
       case 'admin': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
       case 'back_office': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'guest': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
       default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
     }
   };
@@ -565,6 +566,12 @@ export default function UserManagement() {
                                     Admin
                                   </div>
                                 </SelectItem>
+                                <SelectItem value="guest">
+                                  <div className="flex items-center gap-2">
+                                    <Eye className="h-3 w-3" />
+                                    Guest
+                                  </div>
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
@@ -634,6 +641,15 @@ export default function UserManagement() {
                     <div>
                       <div className="font-medium">Admin</div>
                       <div className="text-xs text-muted-foreground">Full system access including user management</div>
+                    </div>
+                  </div>
+                </SelectItem>
+                <SelectItem value="guest">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    <div>
+                      <div className="font-medium">Guest</div>
+                      <div className="text-xs text-muted-foreground">Read-only access to view all data</div>
                     </div>
                   </div>
                 </SelectItem>

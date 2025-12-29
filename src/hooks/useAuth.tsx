@@ -4,7 +4,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
 // User role types
-export type UserRole = 'admin' | 'back_office' | 'user';
+export type UserRole = 'admin' | 'back_office' | 'user' | 'guest';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 export interface UserProfile {

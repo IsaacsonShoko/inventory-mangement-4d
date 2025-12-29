@@ -105,7 +105,7 @@ const StockAdmin = () => {
       try {
         const { data, error } = await supabase
           .from('inventory_items')
-          .select('id, item_name, item_category, item_description, item_nature')
+          .select('id, item_name, item_category, item_description, item_nature, item_url')
           .order('item_name', { ascending: true });
 
         if (error) throw error;

@@ -195,7 +195,7 @@ export const inventoryCatalogService = {
       // Reduced column set to avoid 500 errors from schema issues
       let query = supabase
         .from('inventory_items')
-        .select('id, item_name, item_category, item_description, item_nature')
+        .select('id, item_name, item_category, item_description, item_nature, item_url')
         .order('item_name', { ascending: true });
 
       if (filters?.category) {
@@ -310,7 +310,7 @@ export const inventoryCatalogService = {
     try {
       const { data, error } = await supabase
         .from('inventory_items')
-        .select('id, item_name, item_category, item_description, item_nature')
+        .select('id, item_name, item_category, item_description, item_nature, item_url')
         .eq('id', id)
         .single();
 
