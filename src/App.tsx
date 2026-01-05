@@ -43,9 +43,19 @@ import "./App.css";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      gcTime: 1000 * 60 * 60 * 24, // 24 hours
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 2,
+      gcTime: 1000 * 60 * 60 * 24,
+      staleTime: 1000 * 60 * 5,
+      retry: (failureCount, error) => {
+        const status = (error as any)?.status as number | undefined;
+        const message = (error as any)?.message as string | undefined;
+
+        if (status && status >= 400 && status < 500) return false;
+        if (typeof message === 'string' && message.includes('No API key found')) return false;
+        return failureCount < 1; // one retry for transient errors
+      },
+      retryDelay: (attemptIndex) => Math.min(500 * attemptIndex, 2000),
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
       networkMode: 'offlineFirst',
     },
   },
