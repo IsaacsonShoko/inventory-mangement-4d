@@ -145,12 +145,12 @@ const adminWorkspaceModules: ModuleCard[] = [
 ];
 
 const Landing = () => {
-  const { profile, hasRole } = useAuth();
+  const { profile, hasRole, isGuest } = useAuth();
   const { data: pendingCount = 0 } = usePendingApprovals();
   const userName = profile?.full_name || profile?.email || "User";
 
   // Check if user has access to any admin workspace modules
-  const hasAdminAccess = hasRole(['admin', 'back_office']);
+  const hasAdminAccess = isGuest || hasRole(['admin', 'back_office']);
 
   return (
     <div className="min-h-screen bg-background text-foreground relative overflow-hidden">

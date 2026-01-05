@@ -334,7 +334,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isBackOffice = profile?.role === 'back_office' || profile?.role === 'admin';
   const isApproved = profile?.approval_status === 'approved';
   const isPending = profile?.approval_status === 'pending';
-  const isGuest = profile?.is_guest === true;
+  const isGuest = (profile?.is_guest === true) || (profile?.email === import.meta.env.VITE_GUEST_EMAIL);
 
   const hasRole = (roles: UserRole[]) => {
     if (!profile) return false;

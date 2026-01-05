@@ -186,8 +186,9 @@ export function RoleGate({
   fallback?: React.ReactNode;
 }) {
   const { isAuthorized } = useRequireAuth(allowedRoles);
+  const { isGuest } = useAuth();
 
-  if (!isAuthorized) {
+  if (!isAuthorized && !isGuest) {
     return <>{fallback}</>;
   }
 
