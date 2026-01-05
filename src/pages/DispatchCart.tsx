@@ -61,6 +61,7 @@ import { formatOrderNumber, getLineItemImageUrl } from '@/lib/orders';
 import { downloadOrderManifestPdf, type ManifestItemRow, type ManifestPayload } from '@/lib/order-manifest';
 import { n8nService } from '@/integrations/n8n';
 import ThemeToggle from '@/components/theme-toggle';
+import { useAuth } from '@/hooks/useAuth';
 import { cn, coerceToString } from '@/lib/utils';
 import type { DispatchLogEntry, StockOrderLineItem } from '@/integrations/supabase/services';
 import type { DispatchLogUpdateInput } from '@/integrations/supabase';
@@ -93,6 +94,7 @@ const DispatchCart = () => {
   const { recordId } = useParams<{ recordId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isGuest } = useAuth();
 
   const {
     data: uniqueOrder,
@@ -1124,7 +1126,7 @@ const DispatchCart = () => {
             <Button variant="outline" onClick={closeSheet}>
               Close
             </Button>
-            <Button onClick={() => void handleSaveItem()} disabled={isSavingItem || !selectedDispatchLogId}>
+            <Button onClick={() => void handleSaveItem()} disabled={isGuest || isSavingItem || !selectedDispatchLogId}>
               {isSavingItem ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save item'}
             </Button>
           </SheetFooter>
@@ -1180,7 +1182,7 @@ const DispatchCart = () => {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCompleteDispatch} disabled={updateMutation.isPending}>
+            <Button onClick={handleCompleteDispatch} disabled={isGuest || updateMutation.isPending}>
               {updateMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (

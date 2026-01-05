@@ -41,19 +41,10 @@ export function ProtectedRoute({
     );
   }
 
-  // Redirect to login if not authenticated
-  if (!isAuthenticated) {
-    return <Navigate to={redirectTo} state={{ from: location }} replace />;
-  }
-
-  // IMPORTANT: Check guest status BEFORE approval status
-  // Guests bypass the normal approval workflow
   if (isGuest) {
     if (allowGuest) {
-      // Guest is allowed on this route - render the content
       return <>{children}</>;
     } else {
-      // Guest trying to access restricted area
       return (
         <div className="flex items-center justify-center min-h-screen bg-background">
           <div className="max-w-md p-8 bg-card rounded-lg shadow-lg text-center">
@@ -79,6 +70,10 @@ export function ProtectedRoute({
         </div>
       );
     }
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
 
   // Check if user account is approved (skip for guests - handled above)
@@ -174,7 +169,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
 
 export function BackOfficeRoute({ children }: { children: React.ReactNode }) {
   return (
-    <ProtectedRoute requiredRoles={['admin', 'back_office']}>
+    <ProtectedRoute requiredRoles={['admin', 'back_office']} allowGuest={true}>
       {children}
     </ProtectedRoute>
   );

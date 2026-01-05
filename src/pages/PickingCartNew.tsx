@@ -60,7 +60,7 @@ const PickingCartNew = () => {
   const { recordId } = useParams<{ recordId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
 
   const {
     data: uniqueOrder,
@@ -606,7 +606,7 @@ const PickingCartNew = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">Items to Pick</h2>
-                <Button onClick={handleSubmitPick} disabled={pickedItems.length === 0 || isSubmitting} size="lg">
+                <Button onClick={handleSubmitPick} disabled={isGuest || pickedItems.length === 0 || isSubmitting} size="lg">
                   {isSubmitting ? 'Submitting...' : 'Mark Order as Picked'}
                 </Button>
               </div>
@@ -666,7 +666,7 @@ const PickingCartNew = () => {
                               Complete
                             </Badge>
                           ) : (
-                            <Button size="sm" onClick={() => handleOpenPickDialog(item)}>
+                            <Button size="sm" onClick={() => handleOpenPickDialog(item)} disabled={isGuest}>
                               <Plus className="h-4 w-4 mr-1" />
                               Pick Item
                             </Button>

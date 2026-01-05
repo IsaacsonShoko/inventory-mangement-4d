@@ -62,7 +62,7 @@ interface PendingDevice {
 }
 
 function StockIngestionContent() {
-  const { profile } = useAuth();
+  const { profile, isGuest } = useAuth();
   const navigate = useNavigate();
   const serialInputRef = useRef<HTMLInputElement>(null);
 
@@ -513,7 +513,7 @@ function StockIngestionContent() {
                   setBatchSize(Math.min(100, Math.max(1, value)));
                 }}
                 placeholder="Enter batch size"
-                disabled={pendingDevices.length > 0}
+                disabled={isGuest || pendingDevices.length > 0}
               />
               <p className="text-xs text-muted-foreground">
                 Maximum devices per submission (Supabase API limit)
@@ -526,6 +526,7 @@ function StockIngestionContent() {
               <Select
                 value={batchForm.watch('receivingWarehouse')}
                 onValueChange={(value) => batchForm.setValue('receivingWarehouse', value)}
+                disabled={isGuest}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select warehouse" />
@@ -543,6 +544,7 @@ function StockIngestionContent() {
               <Input
                 {...batchForm.register('supplier')}
                 placeholder="Supplier name"
+                disabled={isGuest}
               />
             </div>
 
@@ -550,7 +552,7 @@ function StockIngestionContent() {
               <Label>Date Received *</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left">
+                  <Button variant="outline" className="w-full justify-start text-left" disabled={isGuest}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {batchForm.watch('dateReceived')
                       ? format(batchForm.watch('dateReceived'), 'PPP')
@@ -671,6 +673,7 @@ function StockIngestionContent() {
                           // Auto-focus serial input after selection
                           setTimeout(() => serialInputRef.current?.focus(), 100);
                         }}
+                        disabled={isGuest}
                       >
                         <span className="text-xs truncate w-full text-center">
                           {item.item_name}
@@ -715,7 +718,7 @@ function StockIngestionContent() {
                     spellCheck="false"
                     inputMode="text"
                     data-1p-ignore
-                    disabled={pendingDevices.length >= batchSize}
+                    disabled={isGuest || pendingDevices.length >= batchSize}
                   />
                   <p className="text-xs text-muted-foreground">
                     {pendingDevices.length >= batchSize
@@ -740,6 +743,7 @@ function StockIngestionContent() {
                         spellCheck="false"
                         inputMode="text"
                         data-1p-ignore
+                        disabled={isGuest}
                       />
                     </div>
                     <div className="space-y-2">
@@ -755,6 +759,7 @@ function StockIngestionContent() {
                         spellCheck="false"
                         inputMode="text"
                         data-1p-ignore
+                        disabled={isGuest}
                       />
                     </div>
                   </div>
@@ -891,13 +896,13 @@ function StockIngestionContent() {
                   setCradleSerial('');
                   setChargerSerial('');
                 }}
-                disabled={isSubmitting}
+                disabled={isGuest || isSubmitting}
               >
                 Clear Batch
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={validCount === 0 || checkingCount > 0 || isSubmitting}
+                disabled={isGuest || validCount === 0 || checkingCount > 0 || isSubmitting}
               >
                 {isSubmitting
                   ? `Processing... (${Math.round(submitProgress)}%)`

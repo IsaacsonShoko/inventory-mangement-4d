@@ -247,18 +247,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!envEmail || !envPassword) {
-        throw new Error('Guest credentials not configured');
+        const localGuestProfile: UserProfile = {
+          id: 'local-guest',
+          email: 'guest@local',
+          full_name: 'Guest User',
+          first_name: 'Guest',
+          last_name: 'User',
+          company: '4D Analytics',
+          role: 'guest',
+          approval_status: 'approved',
+          approved_by: null,
+          approved_at: null,
+          warehouse: null,
+          is_guest: true,
+        };
+        setProfile(localGuestProfile);
+        saveProfileToStorage(localGuestProfile.id, localGuestProfile);
+        toast.success('Guest mode enabled (local). Read-only access granted.');
+        return { data: null, error: null };
       }
+
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: envEmail,
         password: envPassword,
       });
 
       if (signInError) {
-        // Auto-create guest user if they don't exist yet (Self-Seeding)
         if (signInError.message.includes('Invalid login credentials')) {
-          console.log('Guest user not seeded yet. Creating now...');
-          
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: envEmail,
             password: envPassword,
@@ -275,7 +290,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (signUpError) throw signUpError;
 
           if (signUpData.session) {
-             // Login successful immediately after signup
              toast.success('Guest access initialized. Welcome!');
              return { data: signUpData, error: null };
           }

@@ -122,7 +122,7 @@ const createFormSchema = (deliveryParty: DeliveryParty) => {
 const StockOrder = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, isGuest } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -1212,7 +1212,7 @@ const StockOrder = () => {
             </Button>
             <Button
               onClick={submitOrder}
-              disabled={isSubmitting}
+              disabled={isGuest || isSubmitting}
               className="bg-primary"
             >
               {isSubmitting ? (
