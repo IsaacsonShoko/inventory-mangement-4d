@@ -3,6 +3,8 @@ const orderPlacedWebhookUrl = import.meta.env.VITE_N8N_ORDER_PLACED_WEBHOOK_URL;
 const orderPickedWebhookUrl = import.meta.env.VITE_N8N_ORDER_PICKED_WEBHOOK_URL ?? 'http://localhost:5678/webhook-test/a02fb1f6-4a82-45cf-95ba-c834c7f33772';
 const orderDispatchedWebhookUrl = import.meta.env.VITE_N8N_ORDER_DISPATCHED_WEBHOOK_URL ?? 'http://localhost:5678/webhook-test/2bd2d581-51d5-4f97-9a3d-cdf2c764a768';
 const orderManifestWebhookUrl = import.meta.env.VITE_N8N_ORDER_MANIFEST_WEBHOOK_URL ?? 'http://localhost:5678/webhook-test/63abdb10-c749-4046-ac8d-4686dd813b17';
+const proxyBase = import.meta.env.VITE_NETLIFY_FUNCTIONS_BASE || '/.netlify/functions/n8n-proxy';
+const shouldUseProxy = typeof window !== 'undefined' && window.location.protocol === 'https:';
 
 const assertWebhookConfigured = (url: string | undefined, name: string) => {
   if (!url || url.trim().length === 0) {
@@ -198,27 +200,27 @@ export interface OrderStageWebhookPayload {
 
 export const n8nService = {
   async submitOrderLine(payload: OrderLineWebhookPayload) {
-    const url = assertWebhookConfigured(submitOrderWebhookUrl, 'VITE_N8N_SUBMIT_ORDER_WEBHOOK_URL');
+    const url = shouldUseProxy ? `${proxyBase}?type=order-placed` : assertWebhookConfigured(submitOrderWebhookUrl, 'VITE_N8N_SUBMIT_ORDER_WEBHOOK_URL');
     await postWebhook(url, payload, 'order line submission');
   },
 
   async notifyOrderPlaced(payload: OrderPlacedWebhookPayload) {
-    const url = assertWebhookConfigured(orderPlacedWebhookUrl, 'VITE_N8N_ORDER_PLACED_WEBHOOK_URL');
+    const url = shouldUseProxy ? `${proxyBase}/order-placed` : assertWebhookConfigured(orderPlacedWebhookUrl, 'VITE_N8N_ORDER_PLACED_WEBHOOK_URL');
     await postWebhook(url, payload, 'order placed notification');
   },
 
   async notifyOrderPicked(payload: OrderStageWebhookPayload) {
-    const url = assertWebhookConfigured(orderPickedWebhookUrl, 'VITE_N8N_ORDER_PICKED_WEBHOOK_URL');
+    const url = shouldUseProxy ? `${proxyBase}/order-picked` : assertWebhookConfigured(orderPickedWebhookUrl, 'VITE_N8N_ORDER_PICKED_WEBHOOK_URL');
     await postWebhook(url, payload, 'order picked notification');
   },
 
   async notifyOrderDispatched(payload: OrderStageWebhookPayload) {
-    const url = assertWebhookConfigured(orderDispatchedWebhookUrl, 'VITE_N8N_ORDER_DISPATCHED_WEBHOOK_URL');
+    const url = shouldUseProxy ? `${proxyBase}/order-dispatched` : assertWebhookConfigured(orderDispatchedWebhookUrl, 'VITE_N8N_ORDER_DISPATCHED_WEBHOOK_URL');
     await postWebhook(url, payload, 'order dispatched notification');
   },
 
   async notifyOrderManifest(payload: OrderStageWebhookPayload) {
-    const url = assertWebhookConfigured(orderManifestWebhookUrl, 'VITE_N8N_ORDER_MANIFEST_WEBHOOK_URL');
+    const url = shouldUseProxy ? `${proxyBase}?type=order-dispatched` : assertWebhookConfigured(orderManifestWebhookUrl, 'VITE_N8N_ORDER_MANIFEST_WEBHOOK_URL');
     await postWebhook(url, payload, 'order manifest notification');
   }
 ,
