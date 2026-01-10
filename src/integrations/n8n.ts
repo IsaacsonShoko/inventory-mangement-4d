@@ -15,11 +15,23 @@ const assertWebhookConfigured = (url: string | undefined, name: string) => {
 };
 
 const postWebhook = async (url: string, payload: Record<string, unknown>, context: string) => {
-  console.log(`[n8n] Calling ${context} webhook at:`, url);
+  let effectiveUrl = url;
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && /^http:\/\//i.test(url)) {
+    const proxyBase = import.meta.env.VITE_NETLIFY_FUNCTIONS_BASE || '/.netlify/functions/n8n-proxy';
+    const ctx = context.toLowerCase();
+    const type = ctx.includes('placed') ? 'order-placed'
+      : ctx.includes('picked') ? 'order-picked'
+      : ctx.includes('dispatch') ? 'order-dispatched'
+      : '';
+    effectiveUrl = type ? `${proxyBase}/${type}` : proxyBase;
+    console.log('[n8n] Mixed content prevented. Using proxy:', effectiveUrl);
+  }
+
+  console.log(`[n8n] Calling ${context} webhook at:`, effectiveUrl);
   console.log(`[n8n] Payload:`, payload);
   
   try {
-    const response = await fetch(url, {
+    const response = await fetch(effectiveUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -47,7 +59,7 @@ const postWebhook = async (url: string, payload: Record<string, unknown>, contex
     if (error instanceof Error) {
       // Enhance error message for common issues
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        throw new Error(`Failed to connect to n8n webhook at ${url}. Please check:\n1. The webhook URL is correct\n2. n8n is running and accessible\n3. CORS is configured if needed`);
+        throw new Error(`Failed to connect to n8n webhook at ${effectiveUrl}. Please check:\n1. The webhook URL is correct\n2. n8n is running and accessible\n3. CORS is configured if needed`);
       }
       throw error;
     }
