@@ -5,7 +5,7 @@
 
 [build.environment]
   # Supabase URL + anon key are intentionally public (anon JWT is RLS-protected).
-  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_PUBLISHABLE_KEY,VITE_SUPABASE_ANON_KEY"
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_PUBLISHABLE_KEY,VITE_SUPABASE_ANON_KEY,FROM_EMAIL"
 
 # Functions are auto-detected in netlify/functions/
 
