@@ -129,6 +129,56 @@ const parseMessageWithLinks = (text: string): ParsedMessage => {
   return { parts };
 };
 
+// Render **bold** segments inline
+const renderInline = (text: string) => {
+  const segments = text.split(/(\*\*[^*]+\*\*)/g);
+  return segments.map((seg, i) =>
+    seg.startsWith('**') && seg.endsWith('**')
+      ? <strong key={i} className="font-semibold">{seg.slice(2, -2)}</strong>
+      : seg
+  );
+};
+
+// Lightweight markdown renderer for bot messages (bold, numbered/bullet lists, paragraphs)
+const MarkdownText = ({ text }: { text: string }) => {
+  const lines = text.split('\n');
+  return (
+    <div className="space-y-1.5 leading-relaxed">
+      {lines.map((line, i) => {
+        if (!line.trim()) return null;
+
+        const numbered = line.match(/^\s*(\d+)[.)]\s+(.*)/);
+        if (numbered) {
+          return (
+            <div key={i} className="flex gap-1.5">
+              <span className="font-semibold shrink-0">{numbered[1]}.</span>
+              <span>{renderInline(numbered[2])}</span>
+            </div>
+          );
+        }
+
+        const bullet = line.match(/^(\s*)[-•*]\s+(.*)/);
+        if (bullet) {
+          const nested = bullet[1].length >= 2;
+          return (
+            <div key={i} className={cn("flex gap-1.5", nested ? "pl-5" : "pl-1.5")}>
+              <span className="shrink-0 text-primary">•</span>
+              <span>{renderInline(bullet[2])}</span>
+            </div>
+          );
+        }
+
+        const heading = line.match(/^#{1,3}\s+(.*)/);
+        if (heading) {
+          return <p key={i} className="font-semibold text-sm pt-1">{renderInline(heading[1])}</p>;
+        }
+
+        return <p key={i}>{renderInline(line)}</p>;
+      })}
+    </div>
+  );
+};
+
 interface SystemGuideBotProps {
   triggerOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -456,7 +506,7 @@ export const SystemGuideBot = ({ triggerOpen = false, onOpenChange }: SystemGuid
                             <div className="flex flex-col gap-2">
                               {parsed.parts.map((part, idx) => {
                                 if (part.type === 'text') {
-                                  return <span key={idx}>{part.content}</span>;
+                                  return <MarkdownText key={idx} text={part.content} />;
                                 } else if (part.type === 'link' && part.link) {
                                   return (
                                     <Button
