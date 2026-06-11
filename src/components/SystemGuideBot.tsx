@@ -135,7 +135,7 @@ interface SystemGuideBotProps {
 }
 
 export const SystemGuideBot = ({ triggerOpen = false, onOpenChange }: SystemGuideBotProps = {}) => {
-  const { profile, user } = useAuth();
+  const { profile, user, isGuest } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpenState] = useState(false);
 
@@ -410,8 +410,8 @@ export const SystemGuideBot = ({ triggerOpen = false, onOpenChange }: SystemGuid
     setRatingFeedback("");
   };
 
-  // Only show bot to authenticated users
-  if (!user) {
+  // Show bot to authenticated users and to local-mode guests
+  if (!user && !isGuest) {
     return null;
   }
 
