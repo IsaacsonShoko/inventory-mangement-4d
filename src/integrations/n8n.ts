@@ -1,37 +1,14 @@
-const submitOrderWebhookUrl = import.meta.env.VITE_N8N_SUBMIT_ORDER_WEBHOOK_URL;
-const orderPlacedWebhookUrl = import.meta.env.VITE_N8N_ORDER_PLACED_WEBHOOK_URL;
-const orderPickedWebhookUrl = import.meta.env.VITE_N8N_ORDER_PICKED_WEBHOOK_URL ?? 'http://localhost:5678/webhook-test/a02fb1f6-4a82-45cf-95ba-c834c7f33772';
-const orderDispatchedWebhookUrl = import.meta.env.VITE_N8N_ORDER_DISPATCHED_WEBHOOK_URL ?? 'http://localhost:5678/webhook-test/2bd2d581-51d5-4f97-9a3d-cdf2c764a768';
-const orderManifestWebhookUrl = import.meta.env.VITE_N8N_ORDER_MANIFEST_WEBHOOK_URL ?? 'http://localhost:5678/webhook-test/63abdb10-c749-4046-ac8d-4686dd813b17';
-const proxyBase = import.meta.env.VITE_NETLIFY_FUNCTIONS_BASE || '/.netlify/functions/n8n-proxy';
-const shouldUseProxy = typeof window !== 'undefined' && window.location.protocol === 'https:';
-
-const assertWebhookConfigured = (url: string | undefined, name: string) => {
-  if (!url || url.trim().length === 0) {
-    throw new Error(`Missing ${name} configuration. Please set the ${name} environment variable.`);
-  }
-
-  return url;
-};
+const functionsBase = import.meta.env.VITE_NETLIFY_FUNCTIONS_BASE || '/.netlify/functions';
+const orderPlacedUrl = `${functionsBase}/order-placed`;
+const orderPickedUrl = `${functionsBase}/order-picked`;
+const orderDispatchedUrl = `${functionsBase}/order-dispatched`;
 
 const postWebhook = async (url: string, payload: Record<string, unknown>, context: string) => {
-  let effectiveUrl = url;
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && /^http:\/\//i.test(url)) {
-    const proxyBase = import.meta.env.VITE_NETLIFY_FUNCTIONS_BASE || '/.netlify/functions/n8n-proxy';
-    const ctx = context.toLowerCase();
-    const type = ctx.includes('placed') ? 'order-placed'
-      : ctx.includes('picked') ? 'order-picked'
-      : ctx.includes('dispatch') ? 'order-dispatched'
-      : '';
-    effectiveUrl = type ? `${proxyBase}/${type}` : proxyBase;
-    console.log('[n8n] Mixed content prevented. Using proxy:', effectiveUrl);
-  }
+  console.log(`[notify] Calling ${context} at:`, url);
+  console.log(`[notify] Payload:`, payload);
 
-  console.log(`[n8n] Calling ${context} webhook at:`, effectiveUrl);
-  console.log(`[n8n] Payload:`, payload);
-  
   try {
-    const response = await fetch(effectiveUrl, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,30 +18,29 @@ const postWebhook = async (url: string, payload: Record<string, unknown>, contex
       signal: AbortSignal.timeout(30000), // 30 second timeout
     });
 
-    console.log(`[n8n] Response status:`, response.status);
+    console.log(`[notify] Response status:`, response.status);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
-      console.error(`[n8n] Webhook error response:`, errorText);
-      throw new Error(`n8n ${context} webhook failed with status ${response.status} ${response.statusText}${errorText ? `: ${errorText}` : ''}`);
+      console.error(`[notify] Error response:`, errorText);
+      throw new Error(`${context} notification failed with status ${response.status} ${response.statusText}${errorText ? `: ${errorText}` : ''}`);
     }
-    
+
     const responseData = await response.json().catch(() => null);
-    console.log(`[n8n] Success response:`, responseData);
-    
+    console.log(`[notify] Success response:`, responseData);
+
     return responseData;
   } catch (error) {
-    console.error(`[n8n] Webhook call failed:`, error);
-    
+    console.error(`[notify] Call failed:`, error);
+
     if (error instanceof Error) {
-      // Enhance error message for common issues
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        throw new Error(`Failed to connect to n8n webhook at ${effectiveUrl}. Please check:\n1. The webhook URL is correct\n2. n8n is running and accessible\n3. CORS is configured if needed`);
+        throw new Error(`Failed to reach ${context} notification at ${url}.`);
       }
       throw error;
     }
 
-    throw new Error(`Unexpected error calling n8n ${context} webhook`);
+    throw new Error(`Unexpected error calling ${context} notification`);
   }
 };
 
@@ -210,36 +186,36 @@ export interface OrderStageWebhookPayload {
   [key: string]: unknown;
 }
 
+const assertConfigured = (url: string | undefined, name: string) => {
+  if (!url || url.trim().length === 0) {
+    throw new Error(`Missing ${name} configuration.`);
+  }
+  return url;
+};
+
 export const n8nService = {
   async submitOrderLine(payload: OrderLineWebhookPayload) {
-    const url = shouldUseProxy ? `${proxyBase}?type=order-placed` : assertWebhookConfigured(submitOrderWebhookUrl, 'VITE_N8N_SUBMIT_ORDER_WEBHOOK_URL');
-    await postWebhook(url, payload, 'order line submission');
+    await postWebhook(orderPlacedUrl, payload, 'order line submission');
   },
 
   async notifyOrderPlaced(payload: OrderPlacedWebhookPayload) {
-    const url = shouldUseProxy ? `${proxyBase}/order-placed` : assertWebhookConfigured(orderPlacedWebhookUrl, 'VITE_N8N_ORDER_PLACED_WEBHOOK_URL');
-    await postWebhook(url, payload, 'order placed notification');
+    await postWebhook(orderPlacedUrl, payload, 'order placed');
   },
 
   async notifyOrderPicked(payload: OrderStageWebhookPayload) {
-    const url = shouldUseProxy ? `${proxyBase}/order-picked` : assertWebhookConfigured(orderPickedWebhookUrl, 'VITE_N8N_ORDER_PICKED_WEBHOOK_URL');
-    await postWebhook(url, payload, 'order picked notification');
+    await postWebhook(orderPickedUrl, payload, 'order picked');
   },
 
   async notifyOrderDispatched(payload: OrderStageWebhookPayload) {
-    const url = shouldUseProxy ? `${proxyBase}/order-dispatched` : assertWebhookConfigured(orderDispatchedWebhookUrl, 'VITE_N8N_ORDER_DISPATCHED_WEBHOOK_URL');
-    await postWebhook(url, payload, 'order dispatched notification');
+    await postWebhook(orderDispatchedUrl, payload, 'order dispatched');
   },
 
   async notifyOrderManifest(payload: OrderStageWebhookPayload) {
-    const url = shouldUseProxy ? `${proxyBase}?type=order-dispatched` : assertWebhookConfigured(orderManifestWebhookUrl, 'VITE_N8N_ORDER_MANIFEST_WEBHOOK_URL');
-    await postWebhook(url, payload, 'order manifest notification');
-  }
-,
+    await postWebhook(orderDispatchedUrl, payload, 'order manifest');
+  },
+
   async chatWithAssistant(message: string) {
-    // You will need to add this variable to your .env file
-    // VITE_N8N_CHAT_WEBHOOK_URL=https://[your-n8n-url]/webhook/chat
-    const url = assertWebhookConfigured(import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL, 'VITE_N8N_CHAT_WEBHOOK_URL');
+    const url = assertConfigured(import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL, 'VITE_N8N_CHAT_WEBHOOK_URL');
     
     return await postWebhook(url, { message }, 'chat assistant');
   }

@@ -3,10 +3,13 @@
   command = "npm run build"
   publish = "dist"
 
-# Functions are auto-detected in netlify/functions/
-# No additional config needed for Python functions
+[build.environment]
+  # Supabase URL + anon key are intentionally public (anon JWT is RLS-protected).
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_PUBLISHABLE_KEY,VITE_SUPABASE_ANON_KEY"
 
-# Redirect rules (optional - for cleaner URLs)
+# Functions are auto-detected in netlify/functions/
+
+# Legacy n8n proxy (kept for backwards compatibility)
 [[redirects]]
   from = "/api/notify/*"
   to = "/.netlify/functions/n8n-proxy/:splat"
