@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { n8nService } from "@/integrations/n8n";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -211,10 +210,8 @@ export const SystemGuideBot = ({ triggerOpen = false, onOpenChange }: SystemGuid
     const startTime = Date.now();
 
     try {
-      // Check if we have a direct chat endpoint (preferred) or use n8n
-      const chatEndpoint = import.meta.env.VITE_CHAT_ENDPOINT;
+      const chatEndpoint = import.meta.env.VITE_CHAT_ENDPOINT || '/.netlify/functions/chat';
 
-      // Prepare conversation history (last 5 exchanges, excluding welcome message)
       const conversationHistory = messages
         .filter(m => m.id !== "welcome")
         .slice(-MAX_HISTORY_MESSAGES * 2)
@@ -223,7 +220,6 @@ export const SystemGuideBot = ({ triggerOpen = false, onOpenChange }: SystemGuid
           content: m.text
         }));
 
-      // Prepare user context for role-specific responses
       const userContext = profile ? {
         email: profile.email,
         role: profile.role,
@@ -232,28 +228,21 @@ export const SystemGuideBot = ({ triggerOpen = false, onOpenChange }: SystemGuid
         fullName: profile.full_name || undefined
       } : undefined;
 
-      let response;
-      if (chatEndpoint) {
-        // Use direct Netlify function with conversation history and user context
-        const res = await fetch(chatEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: userText,
-            conversationHistory,
-            userContext
-          }),
-        });
+      const res = await fetch(chatEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userText,
+          conversationHistory,
+          userContext
+        }),
+      });
 
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-
-        response = await res.json();
-      } else {
-        // Fallback to n8n service
-        response = await n8nService.chatWithAssistant(userText);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
+
+      const response = await res.json();
 
       const botText = response.answer || response.output || "Please check the documentation.";
       const responseTime = Date.now() - startTime;
